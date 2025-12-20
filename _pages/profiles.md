@@ -2,7 +2,7 @@
 layout: profiles
 permalink: /people/
 title: people
-description: members of the lab or group
+description: PhD candidate of Onizuka Lab, Osaka University
 nav: true
 nav_order: 7
 
@@ -14,9 +14,9 @@ profiles:
     content: about_einstein.md
     image_circular: false # crops the image to make it circular
     more_info: >
-      <p>555 your office number</p>
-      <p>123 your address street</p>
-      <p>Your City, State 12345</p>
+      <p>Graduate School of Information Science and Technology</p>
+      <p>Osaka University, Suita Campus</p>
+      <p>1-5 Yamadaoka, Suita, Osaka 565-0871, Japan</p>
   - align: left
     image: prof_pic.jpg
     content: about_einstein.md

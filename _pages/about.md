@@ -2,7 +2,7 @@
 layout: about
 title: about
 permalink: /
-subtitle: <a href='https://www-bigdata.ist.osaka-u.ac.jp/ja/'>Onizuka Lab</a>. Osaka University, Japan
+subtitle: PhD candidate from <a href='https://www-bigdata.ist.osaka-u.ac.jp/ja/'>Onizuka Lab</a>, Osaka University, Japan
 
 profile:
   align: right

@@ -3,7 +3,7 @@ layout: profiles
 permalink: /people/
 title: people
 description: PhD candidate of Onizuka Lab, Osaka University
-nav: true
+nav: false
 nav_order: 7
 
 profiles:

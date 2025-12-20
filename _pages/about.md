@@ -10,7 +10,7 @@ profile:
   image_circular: false # crops the image to make it circular
   more_info: >
     <p>Graduate School of Information Science and Technology</p>
-    <p>saka University, Suita Campus</p>
+    <p>Osaka University, Suita Campus</p>
     <p>1-5 Yamadaoka, Suita, Osaka 565-0871, Japan</p>
 
 selected_papers: true # includes a list of papers marked as "selected={true}"

@@ -53,7 +53,7 @@ ninja.data = [{
           },
         },{id: "nav-people",
           title: "people",
-          description: "members of the lab or group",
+          description: "PhD candidate of Onizuka Lab, Osaka University",
           section: "Navigation",
           handler: () => {
             window.location.href = "/people/";
@@ -450,6 +450,9 @@ ninja.data = [{
               window.location.href = "/news/announcement_2/";
             },},{id: "news-a-simple-inline-announcement-with-markdown-emoji-sparkles-smile",
           title: 'A simple inline announcement with Markdown emoji! :sparkles: :smile:',
+          description: "",
+          section: "News",},{id: "news-my-academic-homepage-was-successfully-deployed",
+          title: '🎉 My academic homepage was successfully deployed!',
           description: "",
           section: "News",},{id: "projects-project-1",
           title: 'project 1',

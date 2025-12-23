@@ -6,7 +6,7 @@ subtitle: PhD candidate from <a href='https://www-bigdata.ist.osaka-u.ac.jp/ja/'
 
 profile:
   align: right
-  image: prof_pic.jpg
+  image: zzh_gpt.png
   image_circular: false # crops the image to make it circular
   more_info: >
     <p>Graduate School of Information Science and Technology</p>

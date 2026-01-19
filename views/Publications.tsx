@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { publications } from '../data';
-import { Publication, Rank } from '../types';
+import { Rank } from '../types';
 import ListItem from '../components/ListItem';
 
 // Define Rank Priority

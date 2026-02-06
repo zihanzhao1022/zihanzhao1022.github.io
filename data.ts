@@ -9,7 +9,7 @@ export const profile: Profile = {
   title: "PhD Candidate",
   affiliation: "Onizuka Lab, The University of Osaka, Japan",
   email: "zihanzhao1022@gmail.com",
-  avatar: "/images/zzh.jpg", // Placeholder
+  avatar: "/images/zzh.png", // Placeholder
   bio: [
     "I am Zihan Zhao (子涵 赵 in Chinese), currently a Ph.D. candidate under the supervision of Professor Makoto Onizuka at the University of Osaka. My research interests focus on Self-Evolving AI Agents. Researchers and collaborators interested in Self-Evolving AI Agents are welcome to contact me via email: <a href='mailto:zihan.zhao@ieee.org' target='_blank' rel='noreferrer' class='text-purple-600 hover:underline font-medium'>zihan.zhao@ieee.org</a> or <a href='mailto:zihanzhao1022@gmail.com' target='_blank' rel='noreferrer' class='text-purple-600 hover:underline font-medium'>zihanzhao1022@gmail.com</a>.",
     "I received the Bachelor’s degree in Computer Science and Technology from Southwest University of Science and Technology in July 2023, where I was enrolled in the Outstanding Engineer Education and Training Program, and graduated as an Outstanding Graduate under the supervision of Associate Professor Jue Wu. In September 2025, I received the Master's degree in the Applied Informatics program (SGU Program) at Hosei University. My master's research concentrated on the application of Large Language Models to IoT security."

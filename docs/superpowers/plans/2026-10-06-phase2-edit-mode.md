@@ -3065,11 +3065,13 @@ export const EditModeProvider: React.FC<{ loginCallback: LoginCallback | null; c
     [login],
   );
   const page = <EditModeContext.Provider value={visitor}>{children}</EditModeContext.Provider>;
+  // While the editor loads for a signed-in owner, show the page without the login lock.
+  const loading = <EditModeContext.Provider value={{ ...visitor, loggedIn: true }}>{children}</EditModeContext.Provider>;
 
   return (
     <>
       {session ? (
-        <Suspense fallback={page}>
+        <Suspense fallback={loading}>
           <EditorRoot session={session} onLogout={handleLogout}>
             {children}
           </EditorRoot>
@@ -4156,4 +4158,3 @@ git push origin main
    - 无痕窗口里能看到这条新闻。
 4. 删除这条测试新闻，确认同样完成提交和部署。
 5. 点"退出"。用 `gh api` 或重新登录确认旧令牌已失效。
-````

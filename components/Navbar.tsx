@@ -22,7 +22,7 @@ const Navbar: React.FC = () => {
           Zihan <span className="font-light text-gray-600 group-hover:text-purple-500 transition-colors duration-200">ZHAO</span>
         </Link>
         
-        <div className="flex gap-6 text-sm font-medium">
+        <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm font-medium">
           {links.map((link) => (
             <NavLink
               key={link.name}

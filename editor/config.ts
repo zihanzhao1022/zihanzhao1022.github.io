@@ -9,7 +9,7 @@ export const EDITOR_CONFIG = {
   /** GitHub App client ID. */
   clientId: 'Iv23liGqrkAjs9Kn7RKo',
   /** Cloudflare Worker URL without a trailing slash, e.g. https://homepage-auth.<subdomain>.workers.dev */
-  workerUrl: '',
+  workerUrl: 'https://homepage-auth.zihanzhao1022.workers.dev',
 };
 
 /** The login entry stays hidden until both values are filled in. */

@@ -137,6 +137,10 @@ const RowsInput: React.FC<{ field: Field; value: unknown; onChange: (value: unkn
 }) => {
   const rows = Array.isArray(value) ? (value as Values[]) : [];
   const columns = field.columns ?? [];
+  // Text columns share the free width; selects and images only take what they need.
+  const template = columns
+    .map((column) => (column.type === 'text' ? 'minmax(0,1fr)' : column.type === 'select' ? '7.5rem' : 'auto'))
+    .join(' ');
   const update = (index: number, key: string, cell: unknown) =>
     onChange(rows.map((row, i) => (i === index ? { ...row, [key]: cell } : row)));
   const move = (index: number, delta: number) => {
@@ -150,7 +154,10 @@ const RowsInput: React.FC<{ field: Field; value: unknown; onChange: (value: unkn
     <div className="space-y-2">
       {rows.map((row, index) => (
         <div key={index} className="flex items-start gap-2 p-2 rounded-md border border-gray-200">
-          <div className={`flex-1 grid gap-2 ${columns.length > 2 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+          <div
+            className="flex-1 grid gap-2 sm:[grid-template-columns:var(--row-columns)]"
+            style={{ '--row-columns': template } as React.CSSProperties}
+          >
             {columns.map((column) => (
               <CellInput
                 key={column.key}

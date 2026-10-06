@@ -25,6 +25,10 @@
 
 改好后推送到 `main` 分支，也可以直接在 GitHub 网页上编辑这些文件。GitHub Actions 会自动测试、构建并发布，1–2 分钟后生效，进度可以在仓库的 Actions 页面查看。
 
+### 在网页上编辑
+
+点页脚的小锁图标，用 GitHub 账号 zihanzhao1022 登录后进入编辑模式：每条内容旁有编辑按钮，各板块有"添加"按钮，保存后立即提交并自动部署。配置和维护方法见 [docs/admin-setup.md](docs/admin-setup.md)。本地调试编辑界面可以运行 `npm run dev:mock`，这时不需要登录，保存也不会写入 GitHub。
+
 ## 本地开发
 
 ```bash

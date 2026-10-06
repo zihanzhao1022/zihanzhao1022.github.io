@@ -35,6 +35,7 @@ npx wrangler@4 secret put GITHUB_CLIENT_SECRET
 - 点页脚版权文字后面的小锁图标登录。登录后页面顶部出现管理栏，各处出现编辑按钮。
 - 每次保存都会立即提交到 `main`，GitHub Actions 自动部署，约 1 分钟后访客可以看到。管理栏会显示部署进度。
 - 登录 8 小时后过期，再点一次登录即可，不需要重新授权。
+- 编辑弹窗里的"隐藏"可以让条目暂时不对访客显示，编辑模式下它会变成半透明并带"已隐藏"标签，随时可以取消隐藏。仓库是公开的，需要保密的内容请删除。
 - 本地调试界面用 `npm run dev:mock`：不需要登录，保存只写入内存。可以用 `localStorage.setItem('mock-fail', 'conflict' | 'network' | 'expired' | 'deploy')` 模拟各种失败。
 
 ## 四、出问题时

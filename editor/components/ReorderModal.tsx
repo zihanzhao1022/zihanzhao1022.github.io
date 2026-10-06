@@ -89,7 +89,10 @@ export const ReorderModal: React.FC<Props> = ({ collection, category, content, o
         {order.map((id, index) => (
           <li key={id} className="flex items-center gap-3 px-3 py-2">
             <span className="w-5 text-xs text-gray-400">{index + 1}</span>
-            <span className="flex-1 text-sm text-gray-800 line-clamp-2">{schema.label(byId.get(id) ?? {})}</span>
+            <span className="flex-1 text-sm text-gray-800 line-clamp-2">
+              {schema.label(byId.get(id) ?? {})}
+              {byId.get(id)?.hidden === true && <span className="ml-2 text-xs text-gray-400">已隐藏</span>}
+            </span>
             <button
               type="button"
               aria-label="上移"

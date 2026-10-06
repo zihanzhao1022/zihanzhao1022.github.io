@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Eye, EyeOff, Trash2 } from 'lucide-react';
 import { EditRequest, SiteContent } from '../../types';
 import { ImageUpload, describeSaveError } from '../backend';
 import { ContentOp, ListItem, commitMessage, itemNoun } from '../ops';
@@ -76,6 +76,7 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
   }
 
   const dirty = JSON.stringify(state) !== JSON.stringify(initial);
+  const isHidden = form.item.hidden === true;
 
   const close = () => {
     if (saving) return;
@@ -125,6 +126,17 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
     );
   };
 
+  // Hiding acts on the stored item, like delete; unsaved form changes are dropped after confirmation.
+  const toggleHidden = () => {
+    if (request.kind !== 'edit') return;
+    if (dirty && !window.confirm('放弃未保存的修改？')) return;
+    void submit(
+      { kind: 'setHidden', collection: request.collection, id: request.id, hidden: !isHidden },
+      [],
+      commitMessage(isHidden ? 'unhide' : 'hide', itemNoun(request.collection), form.schema.label(form.item)),
+    );
+  };
+
   const setField = (key: string, value: unknown) => {
     setState((current) => ({ ...current, [key]: value }));
     setErrors((current) => {
@@ -152,6 +164,17 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
               删除
             </button>
           )}
+          {request.kind === 'edit' && (
+            <button
+              type="button"
+              disabled={saving}
+              onClick={toggleHidden}
+              className="ml-3 inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50"
+            >
+              {isHidden ? <Eye size={14} /> : <EyeOff size={14} />}
+              {isHidden ? '取消隐藏' : '隐藏'}
+            </button>
+          )}
           <div className="ml-auto flex items-center gap-2">
             <button type="button" disabled={saving} onClick={close} className={BUTTON_SECONDARY}>
               取消
@@ -168,6 +191,7 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
           {saveError}
         </div>
       )}
+      {isHidden && <div className="mb-4 p-3 rounded-md bg-gray-50 text-sm text-gray-600">这一条目前对访客隐藏。</div>}
       {visibleFields(form.schema, state).map((field) => (
         <FieldControl
           key={field.key}

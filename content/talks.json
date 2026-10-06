@@ -1,0 +1,33 @@
+[
+  {
+    "id": "t1",
+    "title": "Natural Language Processing (NLP) and Large Language Model (LLM) Roadmap 2024: How to Learn? Challenges and Opportunities",
+    "date": "Dec 2024",
+    "host": "Computer and Artificial Intelligence Association, SWUST",
+    "location": "Southwest University of Science and Technology, China",
+    "collaborators": "Co-hosted with Hosei Univ., Sichuan Univ., and Shenzhen Univ."
+  },
+  {
+    "id": "t2",
+    "title": "Building an Object Detection System from Scratch: Taking YOLOv5 as an Example",
+    "date": "Jan 2022",
+    "host": "Computer and Artificial Intelligence Association, SWUST",
+    "location": "Southwest University of Science and Technology, China",
+    "collaborators": "Co-hosted with Microsoft Student Club (MSC)"
+  },
+  {
+    "id": "t3",
+    "title": "Using Web Front-ends as the Platform for Scientific Visualization",
+    "date": "Oct 2021",
+    "host": "Computer and Artificial Intelligence Association, SWUST",
+    "location": "Southwest University of Science and Technology, China",
+    "collaborators": "VR&VIS Laboratory II"
+  },
+  {
+    "id": "t4",
+    "title": "Introduction to Visualization: Principle and Implementation",
+    "date": "Mar 2021",
+    "host": "Computer and Artificial Intelligence Association, SWUST",
+    "location": "Southwest University of Science and Technology, China"
+  }
+]

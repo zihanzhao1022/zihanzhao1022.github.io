@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { profile } from '../data';
+import { useContent } from '../components/ContentContext';
 import { Icon } from '../components/Icon';
 
 const About: React.FC = () => {
+  const { profile, news } = useContent();
   const [activeQr, setActiveQr] = useState<string | null>(null);
 
   const toggleQr = (platform: string) => {
@@ -113,8 +114,8 @@ const About: React.FC = () => {
       <div className="border-t border-gray-100 pt-6">
         <h2 className="text-2xl font-light text-gray-900 mb-6">news</h2>
         <div className="space-y-4">
-          {profile.news.map((item, idx) => (
-            <div key={idx} className="flex flex-col sm:flex-row gap-2 sm:gap-8 text-sm">
+          {news.map((item) => (
+            <div key={item.id} className="flex flex-col sm:flex-row gap-2 sm:gap-8 text-sm">
               <div className="font-bold text-gray-900 min-w-[100px]">{item.date}</div>
               <div className="text-gray-600">{item.content}</div>
             </div>

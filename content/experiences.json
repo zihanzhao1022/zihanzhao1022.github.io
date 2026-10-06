@@ -1,0 +1,97 @@
+[
+  {
+    "id": "edu1",
+    "category": "education",
+    "title": "Ph.D. candidate in Informatics",
+    "institution": "The University of Osaka",
+    "department": "Graduate School of Information Science and Technology",
+    "location": "Osaka, Japan",
+    "date": "Apr. 2026 - Apr. 2029",
+    "image": "/images/experiences/logo-uosaka.png",
+    "rank": "N/A"
+  },
+  {
+    "id": "edu2",
+    "category": "education",
+    "title": "Master of Engineering in Applied Informatics",
+    "institution": "Hosei University",
+    "department": "Graduate School of Science and Engineering",
+    "location": "Tokyo, Japan",
+    "date": "Sep. 2023 - Sep. 2025",
+    "image": "/images/experiences/logo-hosei.png",
+    "gpa": "3.5/4.0",
+    "rank": "Top 1%"
+  },
+  {
+    "id": "edu3",
+    "category": "education",
+    "title": "Bachelor of Engineering in Computer Science",
+    "institution": "Southwest University of Science and Technology",
+    "department": "School of Computer Science and Technology",
+    "location": "Mianyang, China",
+    "date": "Sep. 2019 - July 2023",
+    "image": "/images/experiences/logo-swust.png",
+    "gpa": "3.68/5.0",
+    "rank": "Top 5%"
+  },
+  {
+    "id": "work1",
+    "category": "work",
+    "title": "Graduate School Tutor for Early-stage Graduate Student",
+    "institution": "Hosei University",
+    "location": "Tokyo, Japan",
+    "date": "Sep. 2024 - Sep. 2025",
+    "image": "/images/experiences/logo-hosei.png",
+    "description": "Give advice to lowerclassmen on research and study (e.g., assistance in writing reports), and on adjusting to life in graduate school."
+  },
+  {
+    "id": "work2",
+    "category": "work",
+    "title": "Teaching Assistant",
+    "institution": "Hosei University",
+    "location": "Tokyo, Japan",
+    "date": "Apr. 2024 - Apr. 2025",
+    "image": "/images/experiences/logo-hosei.png",
+    "description": "Mainly offering advice to students and assisting with classes, practical trainings, and experiments under the supervision of the assigned professors."
+  },
+  {
+    "id": "vol1",
+    "category": "volunteer",
+    "title": "Executive Committee Member (5th Committee) of China Computer Federation (CCF) Student Chapter",
+    "institution": "Southwest University of Science and Technology",
+    "location": "Mianyang, China",
+    "date": "Jun. 2021 - Jun. 2022",
+    "image": "/images/experiences/logo-ccf.png",
+    "description": "Served as a member of the executive committee, participating in the organization and coordination of academic and technical activities for student members."
+  },
+  {
+    "id": "vol2",
+    "category": "volunteer",
+    "title": "Leader of Undergraduate in Visualization and Visual Analytics Laboratory II (Virtual Reality and Visualization Group)",
+    "institution": "Southwest University of Science and Technology",
+    "location": "Mianyang, China",
+    "date": "Jun. 2021 - May. 2022",
+    "image": "/images/experiences/logo-swust.png",
+    "description": "Led an undergraduate research team focusing on virtual reality and visualization projects, coordinating task allocation and project progress."
+  },
+  {
+    "id": "vol3",
+    "category": "volunteer",
+    "title": "Developer Member & Huawei Spark Campus Ambassador",
+    "institution": "Huawei Campus Developers Alliance",
+    "location": "Mianyang, China",
+    "date": "Mar. 2021 - May. 2023",
+    "image": "",
+    "description": "Active member of the Huawei Campus Developers Alliance and served as a Huawei Spark Campus Ambassador at Southwest University of Science and Technology, promoting developer activities and technical exchange."
+  },
+  {
+    "id": "vol4",
+    "category": "volunteer",
+    "title": "Vice President of Computer and Artificial Intelligence Association",
+    "institution": "Southwest University of Science and Technology",
+    "location": "Mianyang, China",
+    "date": "Nov. 2020 - Sep. 2022",
+    "image": "/images/experiences/logo-swust.png",
+    "description": "Served as Vice President of the association, organizing multiple academic activities including lectures, seminars, outreach events, and technical training sessions."
+  }
+]

@@ -1,0 +1,112 @@
+{
+  "name": {
+    "first": "Zihan",
+    "last": "ZHAO",
+    "chinese": "子涵 赵"
+  },
+  "title": "PhD Candidate",
+  "affiliation": "Onizuka Lab, The University of Osaka, Japan",
+  "email": "zihanzhao1022@gmail.com",
+  "avatar": "/images/zzh.png",
+  "bio": [
+    "I am Zihan Zhao (子涵 赵 in Chinese), currently a Ph.D. candidate under the supervision of Professor Makoto Onizuka at the University of Osaka. My research interests focus on Self-Evolving AI Agents. Researchers and collaborators interested in Self-Evolving AI Agents are welcome to contact me via email: <a href='mailto:zihan.zhao@ieee.org' target='_blank' rel='noreferrer' class='text-purple-600 hover:underline font-medium'>zihan.zhao@ieee.org</a> or <a href='mailto:zihanzhao1022@gmail.com' target='_blank' rel='noreferrer' class='text-purple-600 hover:underline font-medium'>zihanzhao1022@gmail.com</a>.",
+    "I received the Bachelor’s degree in Computer Science and Technology from Southwest University of Science and Technology in July 2023, where I was enrolled in the Outstanding Engineer Education and Training Program, and graduated as an Outstanding Graduate under the supervision of Associate Professor Jue Wu. In September 2025, I received the Master's degree in the Applied Informatics program (SGU Program) at Hosei University. My master's research concentrated on the application of Large Language Models to IoT security."
+  ],
+  "socials": [
+    {
+      "platform": "email",
+      "url": "mailto:zihanzhao1022@gmail.com"
+    },
+    {
+      "platform": "github",
+      "url": "https://github.com/zihanzhao1022"
+    },
+    {
+      "platform": "linkedin",
+      "url": "https://www.linkedin.com/in/zihan-zhao-652378264/"
+    },
+    {
+      "platform": "orcid",
+      "url": "https://orcid.org/0009-0001-2305-7689"
+    },
+    {
+      "platform": "wechat",
+      "url": "#",
+      "qrCode": "/images/wechat_qr.jpg"
+    }
+  ],
+  "education": [
+    {
+      "degree": "Ph.D. in Information Science and Technology",
+      "institution": "Osaka University",
+      "location": "Osaka, Japan",
+      "year": "Sep. 2025 - Present",
+      "details": [
+        "Advisor: Prof. Makoto Onizuka",
+        "Research: Self-Evolving AI Agents"
+      ]
+    },
+    {
+      "degree": "Master of Science in Applied Informatics (SGU Program)",
+      "institution": "Hosei University",
+      "location": "Tokyo, Japan",
+      "year": "Sep. 2023 - Sep. 2025",
+      "details": [
+        "Focus: LLMs for IoT Security"
+      ]
+    },
+    {
+      "degree": "Bachelor of Engineering in Computer Science and Technology",
+      "institution": "Southwest University of Science and Technology",
+      "location": "Mianyang, China",
+      "year": "Sep. 2019 - July 2023",
+      "details": [
+        "Outstanding Graduate Award"
+      ]
+    }
+  ],
+  "researchInterests": [
+    "Self-Evolving AI Agents",
+    "Large Language Models (LLMs)",
+    "IoT Security & Edge AI",
+    "Data-Centric AI"
+  ],
+  "awards": [
+    {
+      "id": "a1",
+      "title": "University Scholarship for Outstanding Students",
+      "date": "Oct 2024",
+      "year": 2024,
+      "issuer": "Hosei University",
+      "type": "scholarship"
+    },
+    {
+      "id": "a2",
+      "title": "Best Paper Award",
+      "date": "Aug 2023",
+      "year": 2023,
+      "issuer": "ICICS Conference",
+      "type": "international"
+    }
+  ],
+  "skills": [
+    "Python (PyTorch, TensorFlow)",
+    "C++ / Java",
+    "Docker / Kubernetes",
+    "Latex / Markdown"
+  ],
+  "languages": [
+    {
+      "language": "Chinese",
+      "proficiency": "Native Speaker"
+    },
+    {
+      "language": "English",
+      "proficiency": "IETLS Academic overall band 7.5; TOEIC L&R 935"
+    },
+    {
+      "language": "Japanese",
+      "proficiency": "About JLPT N3 level"
+    }
+  ]
+}

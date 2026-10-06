@@ -1,0 +1,92 @@
+[
+  {
+    "id": "aw1",
+    "title": "2025 Hosei University 100th Anniversary Master’s Course Scholarship",
+    "date": "Sep 2025",
+    "year": 2025,
+    "issuer": "Hosei University",
+    "type": "scholarship",
+    "prize": "JPY 200,000"
+  },
+  {
+    "id": "aw2",
+    "title": "Science Consortium Scholarship for International Conference Presentation",
+    "date": "Jan 2025",
+    "year": 2025,
+    "issuer": "Hosei University",
+    "type": "scholarship",
+    "prize": "JPY 30,000"
+  },
+  {
+    "id": "aw3",
+    "title": "IEEE 2024 Young Research’s Encouragement Award",
+    "date": "Oct 2024",
+    "year": 2024,
+    "issuer": "IEEE VTS Tokyo/Japan Chapter",
+    "type": "international",
+    "prize": "JPY 5,000"
+  },
+  {
+    "id": "aw4",
+    "title": "JASSO Honors Scholarship for Privately-Financed International Students",
+    "date": "Sep 2023",
+    "year": 2023,
+    "issuer": "JASSO Japan Student Services Organization",
+    "type": "scholarship",
+    "prize": "JPY 48,000 × 6 months"
+  },
+  {
+    "id": "aw5",
+    "title": "2022–2023 National College Students Algorithm Design Competition",
+    "date": "2023",
+    "year": 2023,
+    "issuer": "Chinese Association for Artificial Intelligence (CAAI)",
+    "type": "national",
+    "level": "Silver Award"
+  },
+  {
+    "id": "aw6",
+    "title": "2022 Asia-Pacific Mathematical Contest in Modeling (APMCM)",
+    "date": "2022",
+    "year": 2022,
+    "issuer": "APMCM Committee",
+    "type": "international",
+    "level": "Third Prize"
+  },
+  {
+    "id": "aw7",
+    "title": "2021 China University Big Data Challenge",
+    "date": "2021",
+    "year": 2021,
+    "issuer": "National Competition Committee",
+    "type": "national",
+    "level": "First Prize"
+  },
+  {
+    "id": "aw8",
+    "title": "2021 MathorCup University Mathematical Modeling Challenge",
+    "date": "2021",
+    "year": 2021,
+    "issuer": "MathorCup Organizing Committee",
+    "type": "national",
+    "level": "Third Prize"
+  },
+  {
+    "id": "aw9",
+    "title": "2021 Sichuan Province College Students Computer Design Competition",
+    "date": "2021",
+    "year": 2021,
+    "issuer": "Sichuan Provincial Department of Education",
+    "type": "provincial",
+    "level": "Second Prize"
+  },
+  {
+    "id": "aw10",
+    "title": "2020 Shuwei Cup International Mathematical Contest in Modeling",
+    "date": "2020",
+    "year": 2020,
+    "issuer": "Shuwei Cup Organizing Committee",
+    "type": "international",
+    "level": "Second Prize"
+  }
+]

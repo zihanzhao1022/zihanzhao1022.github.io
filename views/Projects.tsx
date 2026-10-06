@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
-import { projects } from '../data';
+import { useContent } from '../components/ContentContext';
 import ListItem from '../components/ListItem';
 
 const Projects: React.FC = () => {
+  const { projects } = useContent();
   // Helper to extract the start year from a string like "2023 - Present"
   const getStartYear = (yearStr: string): number => {
     const match = yearStr.match(/\d{4}/);
@@ -11,7 +12,7 @@ const Projects: React.FC = () => {
 
   const sortedProjects = useMemo(() => {
     return [...projects].sort((a, b) => getStartYear(b.year) - getStartYear(a.year));
-  }, []);
+  }, [projects]);
 
   const uniqueYears = useMemo(() => {
     return Array.from(new Set(sortedProjects.map(p => getStartYear(p.year)))).sort((a, b) => b - a);

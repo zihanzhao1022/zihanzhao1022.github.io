@@ -1,6 +1,9 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import { ContentContext } from '../components/ContentContext';
+import { SiteContent } from '../types';
+import fixture from './__fixtures__/content.json';
 import About from './About';
 import Awards from './Awards';
 import CV from './CV';
@@ -19,9 +22,16 @@ const VIEWS: Record<string, React.ComponentType> = {
   Talks,
 };
 
+// A frozen copy of the content, so editing the real content never breaks these snapshots.
+const content = fixture as SiteContent;
+
 // One tag per line keeps snapshot diffs readable.
 const render = (View: React.ComponentType): string =>
-  renderToStaticMarkup(<View />).replace(/></g, '>\n<') + '\n';
+  renderToStaticMarkup(
+    <ContentContext.Provider value={content}>
+      <View />
+    </ContentContext.Provider>,
+  ).replace(/></g, '>\n<') + '\n';
 
 describe('views render unchanged markup', () => {
   for (const [name, View] of Object.entries(VIEWS)) {

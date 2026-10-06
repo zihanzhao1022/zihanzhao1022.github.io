@@ -1,0 +1,202 @@
+[
+  {
+    "id": "p1",
+    "title": "Large Language Models for Temporal Sensor Networks: Graph-Constrained Multi-LLM Ensembles via Structural Causal Models",
+    "authors": [
+      "Franck Junior Aboya Messou",
+      "**Zihan Zhao**",
+      "Jinhua Chen",
+      "Alice Smith",
+      "Bob Johnson",
+      "Charlie Lee",
+      "David Kim"
+    ],
+    "year": 2026,
+    "venue": "IEEE International Conference on Communications (ICC)",
+    "type": "conference",
+    "rank": "CORE-B",
+    "image": "",
+    "highlight": true,
+    "links": {
+      "abs": "#",
+      "doi": "#",
+      "pdf": "#"
+    }
+  },
+  {
+    "id": "p2",
+    "title": "Federated Large Domain Model System",
+    "authors": [
+      "Chunming Rong",
+      "Jungwon Seo",
+      "**Zihan Zhao**",
+      "Ferhat Ozgur Catak",
+      "Jiahui Geng",
+      "Martin Gilje Jaatun"
+    ],
+    "year": 2025,
+    "venue": "Blockchain: Research and Applications",
+    "type": "journal",
+    "rank": "Q1",
+    "impactFactor": "6.9",
+    "image": "",
+    "links": {
+      "abs": "#",
+      "doi": "#",
+      "pdf": "#"
+    }
+  },
+  {
+    "id": "p3",
+    "title": "WMPA-ConvBERT-BM: A hybrid deep learning model optimized by whale-marine predator algorithm for IoT-enabled malicious URL detection",
+    "authors": [
+      "**Zihan Zhao**",
+      "**Yulin Zhu**",
+      "Shilong Zhang",
+      "Amr Tolba",
+      "Osama Alfarraj",
+      "Keping Yu"
+    ],
+    "year": 2025,
+    "venue": "Internet of Things",
+    "type": "journal",
+    "rank": "Q1",
+    "impactFactor": "7.6",
+    "links": {
+      "abs": "#",
+      "doi": "#",
+      "pdf": "#"
+    }
+  },
+  {
+    "id": "p4",
+    "title": "UnifiedLLM: Parameter-Efficient Fine-Tuning of Large Language Models for Time Series Forecasting: A Systematic Study of LoRA Configurations and Strategies",
+    "authors": [
+      "Franck Junior Aboya Messou",
+      "**Zihan Zhao**",
+      "et al."
+    ],
+    "year": 2026,
+    "venue": "IEEE Internet of Things Journal",
+    "type": "journal",
+    "rank": "Q1",
+    "impactFactor": "8.9",
+    "links": {
+      "abs": "#",
+      "doi": "#",
+      "pdf": "#"
+    }
+  },
+  {
+    "id": "p5",
+    "title": "MauBa: A Multi-Agent Coordination Framework for Vision-Language-Guided Zero-Shot Control of Unmanned Aerial Vehicles",
+    "authors": [
+      "**Yulin Zhu**",
+      "**Zihan Zhao**",
+      "Shilong Zhang",
+      "Junzhe Sun",
+      "Keping Yu"
+    ],
+    "year": 2025,
+    "venue": "IEEE Global Communications Conference (Globecom)",
+    "type": "conference",
+    "rank": "CORE-B",
+    "links": {
+      "abs": "#",
+      "doi": "#",
+      "pdf": "#"
+    }
+  },
+  {
+    "id": "p6",
+    "title": "FortiFed-SP: Client-Side Defense Against Label-Flipping Attacks in Federated Learning",
+    "authors": [
+      "Robert Katabarwa",
+      "Jinhua Chen",
+      "**Zihan Zhao**",
+      "et al."
+    ],
+    "year": 2025,
+    "venue": "The 2025 5th International Conference on Intelligent Communications and Computing (ICICC)",
+    "type": "conference",
+    "rank": "Unranked",
+    "links": {
+      "abs": "https://ieeexplore.ieee.org/abstract/document/11199513",
+      "doi": "#",
+      "pdf": "#"
+    }
+  },
+  {
+    "id": "p7",
+    "title": "A Resource-efficient Text-to-Text Transfer Transformer Encoder-based Vertical Hybrid Model for Malicious URLs Detection",
+    "authors": [
+      "**Zihan Zhao**",
+      "et al."
+    ],
+    "year": 2024,
+    "venue": "The 2024 IEEE 100th Vehicular Technology Conference (VTC2024-Fall)",
+    "type": "conference",
+    "rank": "CORE-B",
+    "links": {
+      "abs": "https://ieeexplore.ieee.org/document/10757492",
+      "doi": "#",
+      "pdf": "#"
+    }
+  },
+  {
+    "id": "p8",
+    "title": "A Byzantine-Fault-Tolerant Federated Learning Method Using Tree-Decentralized Network and Knowledge Distillation for Internet of Vehicles",
+    "authors": [
+      "Jinhua Chen",
+      "**Zihan Zhao**",
+      "et al."
+    ],
+    "year": 2024,
+    "venue": "The 2024 IEEE 100th Vehicular Technology Conference (VTC2024-Fall)",
+    "type": "conference",
+    "rank": "CORE-B",
+    "links": {
+      "abs": "https://ieeexplore.ieee.org/document/10757805",
+      "doi": "#",
+      "pdf": "#"
+    }
+  },
+  {
+    "id": "p9",
+    "title": "Enhancing Short-Term Load Forecasting in Internet of Things: A Hybrid Attention-based CNN-BiLSTM with Data Augmentation Approach",
+    "authors": [
+      "Franck Junior Aboya Messou",
+      "Jinhua Chen",
+      "Robert Katabarwa",
+      "**Zihan Zhao**",
+      "Keping Yu"
+    ],
+    "year": 2024,
+    "venue": "The 2024 IEEE 100th Vehicular Technology Conference (VTC2024-Fall)",
+    "type": "conference",
+    "rank": "CORE-B",
+    "links": {
+      "abs": "https://ieeexplore.ieee.org/document/10757868",
+      "doi": "#",
+      "pdf": "#"
+    }
+  },
+  {
+    "id": "p10",
+    "title": "Enhancing Production Planning in the Internet of Vehicles: A Transformer-based Federated Reinforcement Learning Approach",
+    "authors": [
+      "Jinhua Chen",
+      "**Zihan Zhao**",
+      "et al."
+    ],
+    "year": 2024,
+    "venue": "The 2024 IEEE 99th Vehicular Technology Conference (VTC2024-Spring)",
+    "type": "conference",
+    "rank": "CORE-B",
+    "links": {
+      "abs": "https://ieeexplore.ieee.org/document/10683236",
+      "doi": "#",
+      "pdf": "#"
+    }
+  }
+]

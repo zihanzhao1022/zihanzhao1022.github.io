@@ -1,5 +1,5 @@
 import React from 'react';
-import { experiences } from '../data';
+import { useContent } from '../components/ContentContext';
 import { ExperienceCategory } from '../types';
 import ListItem from '../components/ListItem';
 
@@ -10,6 +10,7 @@ const SECTIONS: { id: ExperienceCategory; title: string }[] = [
 ];
 
 const Experiences: React.FC = () => {
+  const { experiences } = useContent();
   return (
     <div className="animate-fade-in pb-20">
       <div className="mb-10">

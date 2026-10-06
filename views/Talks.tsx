@@ -1,8 +1,9 @@
 import React from 'react';
-import { talks } from '../data';
+import { useContent } from '../components/ContentContext';
 import { MapPin, User, Calendar } from 'lucide-react';
 
 const Talks: React.FC = () => {
+  const { talks } = useContent();
   return (
     <div className="animate-fade-in pb-20">
       <div className="mb-10">

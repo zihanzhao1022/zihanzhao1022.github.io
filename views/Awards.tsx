@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { awardsList } from '../data';
+import { useContent } from '../components/ContentContext';
 import { AwardType } from '../types';
 import ListItem from '../components/ListItem';
 
@@ -49,12 +49,13 @@ const getBadgeStyle = (level: string) => {
 };
 
 const Awards: React.FC = () => {
+  const { awards } = useContent();
   const [filter, setFilter] = useState('');
   const [selectedType, setSelectedType] = useState<AwardType | 'all'>('all');
 
   const sortedAwards = useMemo(() => {
     // 1. Filter
-    const filtered = awardsList.filter(item => {
+    const filtered = awards.filter(item => {
       // Text Search
       const matchesSearch = item.title.toLowerCase().includes(filter.toLowerCase()) ||
         item.issuer.toLowerCase().includes(filter.toLowerCase());
@@ -69,7 +70,7 @@ const Awards: React.FC = () => {
 
     // 2. Sort by Year Descending
     return filtered.sort((a, b) => b.year - a.year);
-  }, [filter, selectedType]);
+  }, [awards, filter, selectedType]);
 
   const uniqueYears = useMemo(() => {
     return Array.from(new Set(sortedAwards.map(a => a.year))).sort((a, b) => b - a);

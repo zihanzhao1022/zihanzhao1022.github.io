@@ -11,6 +11,7 @@ export interface SocialLink {
 }
 
 export interface NewsItem {
+  id: string;
   date: string;
   content: string;
 }
@@ -109,11 +110,20 @@ export interface Profile {
   bio: string[]; // Paragraphs
   avatar: string;
   socials: SocialLink[];
-  news: NewsItem[];
   // New fields for CV
   education: Education[];
   researchInterests: string[];
   awards: Award[]; // Used for CV summary
   skills: string[];
   languages: Language[];
+}
+
+export interface SiteContent {
+  profile: Profile;
+  news: NewsItem[];
+  experiences: Experience[];
+  publications: Publication[];
+  projects: Project[];
+  talks: Talk[];
+  awards: Award[];
 }

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { publications } from '../data';
+import { useContent } from '../components/ContentContext';
 import { Rank } from '../types';
 import ListItem from '../components/ListItem';
 
@@ -76,6 +76,7 @@ const AuthorList: React.FC<{ authors: string[] }> = ({ authors }) => {
 };
 
 const Publications: React.FC = () => {
+  const { publications } = useContent();
   const [filter, setFilter] = useState('');
   const [selectedType, setSelectedType] = useState<'all' | 'journal' | 'conference'>('all');
   const [selectedRanks, setSelectedRanks] = useState<Rank[]>([]);
@@ -118,7 +119,7 @@ const Publications: React.FC = () => {
       const rankScoreB = RANK_PRIORITY[b.rank] || 0;
       return rankScoreB - rankScoreA; // Higher rank first
     });
-  }, [filter, selectedType, selectedRanks]);
+  }, [publications, filter, selectedType, selectedRanks]);
 
   const displayedTypes = selectedType === 'all' ? ['journal', 'conference'] : [selectedType];
 

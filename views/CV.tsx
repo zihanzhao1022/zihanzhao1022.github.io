@@ -1,8 +1,9 @@
 import React from 'react';
-import { profile, publications, projects, talks } from '../data';
+import { useContent } from '../components/ContentContext';
 import { Download } from 'lucide-react';
 
 const CV: React.FC = () => {
+  const { profile, publications, projects, talks } = useContent();
   // Sort publications by year desc for the CV
   const sortedPubs = [...publications].sort((a, b) => b.year - a.year);
   const journals = sortedPubs.filter(p => p.type === 'journal');

@@ -67,7 +67,7 @@
 
 ### 4.2 加载方式
 
-- `content.ts` 取代 `data.ts`：带类型地导入 7 个 JSON，导出 `bundledContent: SiteContent`。
+- `content/index.ts` 取代 `data.ts`：带类型地导入同目录下的 7 个 JSON，导出 `bundledContent: SiteContent`。
 - `ContentProvider` + `useContent()` 保存当前内容：
   - 访客看到的始终是 `bundledContent`。
   - 所有者进入编辑模式后，替换为从 GitHub 读取的最新内容。
@@ -304,7 +304,7 @@ type ContentOp =
 
 ```
 content/*.json                  内容数据
-content.ts                      导入 JSON，导出 bundledContent
+content/index.ts                导入 JSON，导出 bundledContent
 types.ts                        类型（调整 Profile / NewsItem，新增 SiteContent 等）
 lib/markdown.ts                 轻量 Markdown 渲染
 lib/session.ts                  会话读写与过期判断（主包和编辑器共用）

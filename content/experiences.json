@@ -73,7 +73,8 @@
     "location": "Mianyang, China",
     "date": "Jun. 2021 - May. 2022",
     "image": "/images/experiences/logo-swust.png",
-    "description": "Led an undergraduate research team focusing on virtual reality and visualization projects, coordinating task allocation and project progress."
+    "description": "Led an undergraduate research team focusing on virtual reality and visualization projects, coordinating task allocation and project progress.",
+    "hidden": true
   },
   {
     "id": "vol3",

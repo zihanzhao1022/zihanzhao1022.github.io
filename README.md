@@ -1,20 +1,37 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Zihan ZHAO 的学术主页
 
-# Run and deploy your AI Studio app
+线上地址：https://zihanzhao1022.github.io/
 
-This contains everything you need to run your app locally.
+使用 Vite + React + TypeScript + Tailwind CSS 构建，部署在 GitHub Pages 上。
 
-View your app in AI Studio: https://ai.studio/apps/drive/1SAs2aIqHWc-2y8Mg7iQjqV1Yx6jXWL7n
+## 修改内容
 
-## Run Locally
+网站内容都在 `content/` 目录下的 JSON 文件里：
 
-**Prerequisites:**  Node.js
+| 文件 | 内容 |
+|---|---|
+| `content/profile.json` | 姓名、职位、简介、头像、联系方式、语言等 |
+| `content/news.json` | 新闻 |
+| `content/experiences.json` | 教育、工作、志愿经历 |
+| `content/publications.json` | 论文 |
+| `content/projects.json` | 项目 |
+| `content/talks.json` | 报告 |
+| `content/awards.json` | 奖项 |
 
+- 简介和新闻支持 `[文字](链接)` 和 `**加粗**`，不支持其他 HTML。
+- 论文作者用 `**名字**` 表示加粗高亮。
+- 图片放在 `public/images/` 下，在 JSON 里用 `/images/...` 引用。
+- 列表里的每一条都需要一个不重复的 `id`。
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+改好后推送到 `main` 分支，也可以直接在 GitHub 网页上编辑这些文件。GitHub Actions 会自动测试、构建并发布，1–2 分钟后生效，进度可以在仓库的 Actions 页面查看。
+
+## 本地开发
+
+```bash
+npm install
+npm run dev      # 本地预览：http://localhost:3000
+npm test         # 运行测试
+npm run build    # 生产构建，输出到 dist/
+```
+
+`views/__snapshots__/` 里是页面快照测试，用的是 `views/__fixtures__/content.json` 中的固定内容，所以修改网站内容不会让它失败。修改页面结构后，如果快照测试失败，确认差异符合预期，再运行 `npx vitest run -u` 更新快照。

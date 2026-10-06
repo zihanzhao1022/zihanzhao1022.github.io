@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useContent } from '../components/ContentContext';
 import { Icon } from '../components/Icon';
+import { renderInlineMarkdown } from '../lib/markdown';
 
 const About: React.FC = () => {
   const { profile, news } = useContent();
@@ -42,7 +43,7 @@ const About: React.FC = () => {
         <div className="flex-1 order-2 md:order-1">
           <div className="text-gray-700 space-y-4 text-justify font-light mb-8">
             {profile.bio.map((paragraph, idx) => (
-              <p key={idx} dangerouslySetInnerHTML={{ __html: paragraph }} />
+              <p key={idx} dangerouslySetInnerHTML={{ __html: renderInlineMarkdown(paragraph) }} />
             ))}
           </div>
         </div>
@@ -117,7 +118,7 @@ const About: React.FC = () => {
           {news.map((item) => (
             <div key={item.id} className="flex flex-col sm:flex-row gap-2 sm:gap-8 text-sm">
               <div className="font-bold text-gray-900 min-w-[100px]">{item.date}</div>
-              <div className="text-gray-600">{item.content}</div>
+              <div className="text-gray-600" dangerouslySetInnerHTML={{ __html: renderInlineMarkdown(item.content) }} />
             </div>
           ))}
         </div>

@@ -10,4 +10,11 @@ describe('bundled content', () => {
       expect(new Set(ids).size).toBe(ids.length);
     }
   });
+
+  it('uses Markdown instead of raw HTML in bio and news', () => {
+    const texts = [...bundledContent.profile.bio, ...bundledContent.news.map((item) => item.content)];
+    for (const text of texts) {
+      expect(text).not.toMatch(/<[a-z/]/i);
+    }
+  });
 });

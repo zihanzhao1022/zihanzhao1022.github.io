@@ -1,5 +1,5 @@
 import React from 'react';
-import { EditButton } from './EditMode';
+import { EditButton, HiddenBadge } from './EditMode';
 import { resolveImage } from '../lib/localImages';
 import { EditRequest } from '../types';
 
@@ -12,6 +12,7 @@ interface ListItemProps {
   tags?: React.ReactNode;
   sideContent?: React.ReactNode; // e.g. Year displayed on the side
   editRequest?: EditRequest; // Shows a pencil in edit mode
+  hidden?: boolean; // Hidden from visitors; only rendered in edit mode, faded and labelled
 }
 
 const ListItem: React.FC<ListItemProps> = ({
@@ -22,10 +23,11 @@ const ListItem: React.FC<ListItemProps> = ({
   links,
   tags,
   sideContent,
-  editRequest
+  editRequest,
+  hidden
 }) => {
   return (
-    <div className="group relative flex flex-col sm:flex-row gap-6 p-4 mb-6 hover:bg-gray-50 rounded-lg transition-colors duration-300">
+    <div className={`group relative flex flex-col sm:flex-row gap-6 p-4 mb-6 hover:bg-gray-50 rounded-lg transition-colors duration-300${hidden ? ' opacity-50' : ''}`}>
       {/* Side Content (e.g. Year) - Visible on larger screens primarily */}
       {sideContent && (
         <div className="absolute top-4 right-4 text-3xl font-bold text-gray-100 select-none pointer-events-none group-hover:text-gray-200 transition-colors">
@@ -49,6 +51,7 @@ const ListItem: React.FC<ListItemProps> = ({
         <h3 className="text-lg font-bold text-gray-900 leading-tight mb-2">
           {editRequest && <EditButton request={editRequest} label="编辑" className="float-right ml-3" />}
           {title}
+          {hidden && <HiddenBadge />}
         </h3>
         
         <div className="text-gray-700 text-sm mb-2 font-light">

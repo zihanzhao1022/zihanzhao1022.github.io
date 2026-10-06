@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useContent } from '../components/ContentContext';
-import { AddButton } from '../components/EditMode';
+import { AddButton, useVisibleItems } from '../components/EditMode';
 import { AwardType } from '../types';
 import ListItem from '../components/ListItem';
 
@@ -50,7 +50,7 @@ const getBadgeStyle = (level: string) => {
 };
 
 const Awards: React.FC = () => {
-  const { awards } = useContent();
+  const awards = useVisibleItems(useContent().awards);
   const [filter, setFilter] = useState('');
   const [selectedType, setSelectedType] = useState<AwardType | 'all'>('all');
 
@@ -134,6 +134,7 @@ const Awards: React.FC = () => {
                   <ListItem
                     key={award.id}
                     editRequest={{ kind: 'edit', collection: 'awards', id: award.id }}
+                    hidden={award.hidden}
                     title={award.title}
                     image={award.image}
                     subtitle={

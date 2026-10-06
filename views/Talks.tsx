@@ -1,10 +1,10 @@
 import React from 'react';
 import { useContent } from '../components/ContentContext';
-import { AddButton, EditButton, ReorderButton } from '../components/EditMode';
+import { AddButton, EditButton, HiddenBadge, ReorderButton, useVisibleItems } from '../components/EditMode';
 import { MapPin, User, Calendar } from 'lucide-react';
 
 const Talks: React.FC = () => {
-  const { talks } = useContent();
+  const talks = useVisibleItems(useContent().talks);
   return (
     <div className="animate-fade-in pb-20">
       <div className="mb-10">
@@ -17,7 +17,7 @@ const Talks: React.FC = () => {
 
       <div className="grid gap-6">
         {talks.map((talk) => (
-          <div key={talk.id} className="bg-white border-l-4 border-purple-500 shadow-sm hover:shadow-md transition-shadow p-6 rounded-r-lg">
+          <div key={talk.id} className={`bg-white border-l-4 border-purple-500 shadow-sm hover:shadow-md transition-shadow p-6 rounded-r-lg${talk.hidden ? ' opacity-50' : ''}`}>
             <h3 className="text-xl font-bold text-gray-900 mb-2">
               <EditButton
                 request={{ kind: 'edit', collection: 'talks', id: talk.id }}
@@ -25,6 +25,7 @@ const Talks: React.FC = () => {
                 className="float-right ml-3"
               />
               {talk.title}
+              {talk.hidden && <HiddenBadge />}
             </h3>
             {talk.event && (
                 <div className="text-purple-600 font-medium text-sm mb-3 uppercase tracking-wide">

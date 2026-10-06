@@ -3,7 +3,12 @@ import { useContent } from '../components/ContentContext';
 import { Download } from 'lucide-react';
 
 const CV: React.FC = () => {
-  const { profile, publications, projects, talks } = useContent();
+  const content = useContent();
+  const { profile } = content;
+  // The CV is for printing, so hidden items never appear on it, not even while editing.
+  const publications = content.publications.filter((item) => !item.hidden);
+  const projects = content.projects.filter((item) => !item.hidden);
+  const talks = content.talks.filter((item) => !item.hidden);
   // Sort publications by year desc for the CV
   const sortedPubs = [...publications].sort((a, b) => b.year - a.year);
   const journals = sortedPubs.filter(p => p.type === 'journal');

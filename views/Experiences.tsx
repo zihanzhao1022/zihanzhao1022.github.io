@@ -1,6 +1,6 @@
 import React from 'react';
 import { useContent } from '../components/ContentContext';
-import { AddButton, ReorderButton } from '../components/EditMode';
+import { AddButton, ReorderButton, useVisibleItems } from '../components/EditMode';
 import { ExperienceCategory } from '../types';
 import ListItem from '../components/ListItem';
 
@@ -11,7 +11,7 @@ const SECTIONS: { id: ExperienceCategory; title: string; addText: string }[] = [
 ];
 
 const Experiences: React.FC = () => {
-  const { experiences } = useContent();
+  const experiences = useVisibleItems(useContent().experiences);
   return (
     <div className="animate-fade-in pb-20">
       <div className="mb-10">
@@ -45,6 +45,7 @@ const Experiences: React.FC = () => {
                   <ListItem
                     key={exp.id}
                     editRequest={{ kind: 'edit', collection: 'experiences', id: exp.id }}
+                    hidden={exp.hidden}
                     title={exp.title}
                     image={exp.image}
                     subtitle={

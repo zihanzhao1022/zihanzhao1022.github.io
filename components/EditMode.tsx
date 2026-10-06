@@ -1,5 +1,5 @@
 import React, { Suspense, createContext, lazy, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUpDown, Pencil, Plus, X } from 'lucide-react';
+import { ArrowUpDown, EyeOff, Pencil, Plus, X } from 'lucide-react';
 import { loginConfigured } from '../editor/config';
 import { LoginCallback, MOCK_MODE, Session, loadSession } from '../lib/session';
 import { EditRequest } from '../types';
@@ -25,6 +25,19 @@ export const EditModeContext = createContext<EditModeValue>({
 });
 
 export const useEditMode = (): EditModeValue => useContext(EditModeContext);
+
+/** Items to show: everything while editing (hidden ones get marked), only visible ones otherwise. */
+export function useVisibleItems<T extends { hidden?: boolean }>(items: T[]): T[] {
+  const { editing } = useEditMode();
+  return useMemo(() => (editing ? items : items.filter((item) => !item.hidden)), [editing, items]);
+}
+
+export const HiddenBadge: React.FC = () => (
+  <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 align-middle text-[10px] font-medium normal-case tracking-normal text-gray-500">
+    <EyeOff size={11} />
+    已隐藏
+  </span>
+);
 
 // Loaded only once the owner signs in, so visitors never download the editor.
 const EditorRoot = lazy(() => import('../editor/EditorRoot'));

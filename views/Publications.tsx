@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useContent } from '../components/ContentContext';
-import { AddButton } from '../components/EditMode';
+import { AddButton, useVisibleItems } from '../components/EditMode';
 import { Rank } from '../types';
 import ListItem from '../components/ListItem';
 
@@ -77,7 +77,7 @@ const AuthorList: React.FC<{ authors: string[] }> = ({ authors }) => {
 };
 
 const Publications: React.FC = () => {
-  const { publications } = useContent();
+  const publications = useVisibleItems(useContent().publications);
   const [filter, setFilter] = useState('');
   const [selectedType, setSelectedType] = useState<'all' | 'journal' | 'conference'>('all');
   const [selectedRanks, setSelectedRanks] = useState<Rank[]>([]);
@@ -226,6 +226,7 @@ const Publications: React.FC = () => {
                         <ListItem
                           key={pub.id}
                           editRequest={{ kind: 'edit', collection: 'publications', id: pub.id }}
+                          hidden={pub.hidden}
                           title={pub.title}
                           image={pub.image}
                           subtitle={<AuthorList authors={pub.authors} />}

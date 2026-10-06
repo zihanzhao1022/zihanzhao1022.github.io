@@ -1,10 +1,10 @@
 import React, { useMemo } from 'react';
 import { useContent } from '../components/ContentContext';
-import { AddButton } from '../components/EditMode';
+import { AddButton, useVisibleItems } from '../components/EditMode';
 import ListItem from '../components/ListItem';
 
 const Projects: React.FC = () => {
-  const { projects } = useContent();
+  const projects = useVisibleItems(useContent().projects);
   // Helper to extract the start year from a string like "2023 - Present"
   const getStartYear = (yearStr: string): number => {
     const match = yearStr.match(/\d{4}/);
@@ -45,6 +45,7 @@ const Projects: React.FC = () => {
                 <ListItem
                   key={proj.id}
                   editRequest={{ kind: 'edit', collection: 'projects', id: proj.id }}
+                  hidden={proj.hidden}
                   title={proj.title}
                   image={proj.image}
                   subtitle={

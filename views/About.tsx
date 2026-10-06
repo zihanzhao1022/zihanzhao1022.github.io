@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useContent } from '../components/ContentContext';
-import { AddButton, EditButton, ReorderButton } from '../components/EditMode';
+import { AddButton, EditButton, HiddenBadge, ReorderButton, useVisibleItems } from '../components/EditMode';
 import { Icon } from '../components/Icon';
 import { resolveImage } from '../lib/localImages';
 import { renderInlineMarkdown } from '../lib/markdown';
 
 const About: React.FC = () => {
-  const { profile, news } = useContent();
+  const { profile, news: allNews } = useContent();
+  const news = useVisibleItems(allNews);
   const [activeQr, setActiveQr] = useState<string | null>(null);
 
   const toggleQr = (platform: string) => {
@@ -131,9 +132,10 @@ const About: React.FC = () => {
         </h2>
         <div className="space-y-4">
           {news.map((item) => (
-            <div key={item.id} className="flex flex-col sm:flex-row gap-2 sm:gap-8 text-sm">
+            <div key={item.id} className={`flex flex-col sm:flex-row gap-2 sm:gap-8 text-sm${item.hidden ? ' opacity-50' : ''}`}>
               <div className="font-bold text-gray-900 min-w-[100px]">{item.date}</div>
               <div className="text-gray-600" dangerouslySetInnerHTML={{ __html: renderInlineMarkdown(item.content) }} />
+              {item.hidden && <HiddenBadge />}
               <EditButton
                 request={{ kind: 'edit', collection: 'news', id: item.id }}
                 label="编辑这条新闻"

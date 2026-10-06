@@ -10,13 +10,18 @@ export interface SocialLink {
   qrCode?: string; // Optional: URL to QR code image (e.g. for WeChat)
 }
 
-export interface NewsItem {
+/** List items can be hidden: kept in the data, left out for visitors. */
+interface Hideable {
+  hidden?: boolean;
+}
+
+export interface NewsItem extends Hideable {
   id: string;
   date: string;
   content: string;
 }
 
-export interface Publication {
+export interface Publication extends Hideable {
   id: string;
   title: string;
   authors: string[]; // List of authors
@@ -35,7 +40,7 @@ export interface Publication {
   highlight?: boolean; // If true, maybe show a red border or distinct style
 }
 
-export interface Project {
+export interface Project extends Hideable {
   id: string;
   title: string;
   description: string;
@@ -45,7 +50,7 @@ export interface Project {
   role: string; // e.g., "Project Leader"
 }
 
-export interface Talk {
+export interface Talk extends Hideable {
   id: string;
   title: string;
   date: string;
@@ -63,7 +68,7 @@ export interface Education {
   details?: string[]; // Thesis title, GPA, etc.
 }
 
-export interface Award {
+export interface Award extends Hideable {
   id: string;
   title: string;
   date: string;
@@ -75,7 +80,7 @@ export interface Award {
   image?: string;
 }
 
-export interface Experience {
+export interface Experience extends Hideable {
   id: string;
   category: ExperienceCategory;
   title: string; // Degree (Edu) or Role (Work/Vol)

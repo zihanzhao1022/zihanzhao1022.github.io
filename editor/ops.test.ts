@@ -51,6 +51,14 @@ describe('applyListOp', () => {
     ]);
   });
 
+  it('hides and unhides an item without touching anything else', () => {
+    const hidden = applyListOp(list, { kind: 'setHidden', collection: 'experiences', id: 'b', hidden: true });
+    expect(hidden).toEqual([list[0], { id: 'b', category: 'education', hidden: true }, list[2], list[3]]);
+    const shown = applyListOp(hidden, { kind: 'setHidden', collection: 'experiences', id: 'b', hidden: false });
+    expect(shown[1]).toEqual({ id: 'b', category: 'education' });
+    expect('hidden' in shown[1]).toBe(false);
+  });
+
   it('does not change the input list', () => {
     const before = structuredClone(list);
     applyListOp(list, { kind: 'delete', collection: 'experiences', id: 'a' });
@@ -80,6 +88,8 @@ describe('commitMessage', () => {
     );
     expect(commitMessage('reorder', 'experiences')).toBe('content: reorder experiences');
     expect(commitMessage('update', 'profile bio')).toBe('content: update profile bio');
+    expect(commitMessage('hide', 'publication', 'Old paper')).toBe('content: hide publication "Old paper"');
+    expect(commitMessage('unhide', 'talk', 'A talk')).toBe('content: unhide talk "A talk"');
   });
 
   it('flattens whitespace and shortens long labels', () => {

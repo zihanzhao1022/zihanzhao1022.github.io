@@ -6,6 +6,7 @@ export type ContentOp =
   | { kind: 'upsert'; collection: ListCollection; item: ListItem }
   | { kind: 'delete'; collection: ListCollection; id: string }
   | { kind: 'reorder'; collection: ListCollection; ids: string[] }
+  | { kind: 'setHidden'; collection: ListCollection; id: string; hidden: boolean }
   | { kind: 'patchProfile'; collection: 'profile'; fields: Partial<Profile> };
 
 export type ListOp = Exclude<ContentOp, { kind: 'patchProfile' }>;
@@ -20,6 +21,14 @@ export function applyListOp<T extends { id: string }>(list: T[], op: ListOp): T[
     }
     case 'delete':
       return list.filter((entry) => entry.id !== op.id);
+    case 'setHidden':
+      return list.map((entry) => {
+        if (entry.id !== op.id) return entry;
+        const next: Record<string, unknown> = { ...entry };
+        if (op.hidden) next.hidden = true;
+        else delete next.hidden;
+        return next as unknown as T;
+      });
     case 'reorder': {
       const wanted = [...new Set(op.ids)].filter((id) => list.some((entry) => entry.id === id));
       const slots = list.flatMap((entry, i) => (wanted.includes(entry.id) ? [i] : []));
@@ -51,7 +60,11 @@ const NOUNS: Record<ListCollection, string> = {
 export const itemNoun = (collection: ListCollection): string => NOUNS[collection];
 
 /** e.g. content: update publication "Federated Large Domain Model System" */
-export function commitMessage(action: 'add' | 'update' | 'delete' | 'reorder', target: string, label?: string): string {
+export function commitMessage(
+  action: 'add' | 'update' | 'delete' | 'reorder' | 'hide' | 'unhide',
+  target: string,
+  label?: string,
+): string {
   const text = label?.replace(/\s+/g, ' ').trim();
   const short = text && text.length > 60 ? `${text.slice(0, 57)}...` : text;
   return `content: ${action} ${target}${short ? ` "${short}"` : ''}`;

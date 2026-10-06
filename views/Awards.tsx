@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useContent } from '../components/ContentContext';
+import { AddButton } from '../components/EditMode';
 import { AwardType } from '../types';
 import ListItem from '../components/ListItem';
 
@@ -79,7 +80,10 @@ const Awards: React.FC = () => {
   return (
     <div className="animate-fade-in pb-20">
       <div className="mb-10">
-        <h1 className="text-3xl font-light text-gray-900 mb-2">honors & awards</h1>
+        <h1 className="text-3xl font-light text-gray-900 mb-2">
+          honors & awards
+          <AddButton request={{ kind: 'add', collection: 'awards' }} text="添加奖项" className="ml-3" />
+        </h1>
         <p className="text-sm text-gray-500">
           competitions, scholarships, and recognitions.
         </p>
@@ -129,6 +133,7 @@ const Awards: React.FC = () => {
                 .map((award) => (
                   <ListItem
                     key={award.id}
+                    editRequest={{ kind: 'edit', collection: 'awards', id: award.id }}
                     title={award.title}
                     image={award.image}
                     subtitle={

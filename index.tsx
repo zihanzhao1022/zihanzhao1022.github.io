@@ -2,6 +2,10 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
+import { takeLoginCallback } from './lib/session';
+
+// Read GitHub's login redirect before the router looks at the address bar.
+const loginCallback = takeLoginCallback();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -11,6 +15,6 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <App />
+    <App loginCallback={loginCallback} />
   </React.StrictMode>
 );

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useContent } from '../components/ContentContext';
+import { AddButton, EditButton, ReorderButton } from '../components/EditMode';
 import { MapPin, User, Calendar } from 'lucide-react';
 
 const Talks: React.FC = () => {
@@ -7,13 +8,24 @@ const Talks: React.FC = () => {
   return (
     <div className="animate-fade-in pb-20">
       <div className="mb-10">
-        <h1 className="text-3xl font-light text-gray-900 mb-2">invited talks</h1>
+        <h1 className="text-3xl font-light text-gray-900 mb-2">
+          invited talks
+          <AddButton request={{ kind: 'add', collection: 'talks' }} text="添加报告" className="ml-3" />
+          <ReorderButton request={{ kind: 'reorder', collection: 'talks' }} className="ml-2" />
+        </h1>
       </div>
 
       <div className="grid gap-6">
         {talks.map((talk) => (
           <div key={talk.id} className="bg-white border-l-4 border-purple-500 shadow-sm hover:shadow-md transition-shadow p-6 rounded-r-lg">
-            <h3 className="text-xl font-bold text-gray-900 mb-2">{talk.title}</h3>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              <EditButton
+                request={{ kind: 'edit', collection: 'talks', id: talk.id }}
+                label="编辑这场报告"
+                className="float-right ml-3"
+              />
+              {talk.title}
+            </h3>
             {talk.event && (
                 <div className="text-purple-600 font-medium text-sm mb-3 uppercase tracking-wide">
                     {talk.event}

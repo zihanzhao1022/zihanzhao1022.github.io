@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useContent } from '../components/ContentContext';
+import { AddButton, EditButton, ReorderButton } from '../components/EditMode';
 import { Icon } from '../components/Icon';
+import { resolveImage } from '../lib/localImages';
 import { renderInlineMarkdown } from '../lib/markdown';
 
 const About: React.FC = () => {
@@ -17,6 +19,7 @@ const About: React.FC = () => {
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-gray-900 mb-1">
           {profile.name.first} <span className="font-light">{profile.name.last}</span>
+          <EditButton request={{ kind: 'profile', section: 'basics' }} label="编辑基本信息" className="ml-3 align-middle" />
         </h1>
         <p className="text-sm text-gray-500 mb-4">
           {profile.title} at <span className="text-purple-600">{profile.affiliation}</span>
@@ -42,6 +45,7 @@ const About: React.FC = () => {
         {/* Left: Bio */}
         <div className="flex-1 order-2 md:order-1">
           <div className="text-gray-700 space-y-4 text-justify font-light mb-8">
+            <EditButton request={{ kind: 'profile', section: 'bio' }} label="编辑简介" className="float-right ml-3" />
             {profile.bio.map((paragraph, idx) => (
               <p key={idx} dangerouslySetInnerHTML={{ __html: renderInlineMarkdown(paragraph) }} />
             ))}
@@ -54,10 +58,16 @@ const About: React.FC = () => {
           <div className="relative group w-full">
             <div className="absolute -inset-1 bg-gradient-to-r from-purple-100 to-gray-100 rounded-lg blur opacity-50 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
             <img
-              src={profile.avatar}
+              src={resolveImage(profile.avatar)}
               alt="Profile"
               /* Removed grayscale classes. Use h-auto to keep aspect ratio, or h-96 to force height. */
               className="relative w-full h-auto rounded-lg shadow-lg object-cover transition-all duration-500"
+            />
+            <EditButton
+              request={{ kind: 'profile', section: 'avatar' }}
+              label="更换头像"
+              text="更换照片"
+              className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 shadow"
             />
           </div>
 
@@ -74,7 +84,7 @@ const About: React.FC = () => {
                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-40 p-2 bg-white rounded-lg shadow-xl border border-gray-100 animate-[fadeIn_0.2s_ease-out] z-50">
                       {/* QR Image */}
                       <img
-                        src={social.qrCode}
+                        src={resolveImage(social.qrCode)}
                         alt={`${social.platform} QR`}
                         className="w-full h-auto rounded block"
                       />
@@ -107,18 +117,28 @@ const About: React.FC = () => {
                 </div>
               );
             })}
+            <EditButton request={{ kind: 'profile', section: 'socials' }} label="编辑联系方式" />
           </div>
         </div>
       </div>
 
       {/* News Section */}
       <div className="border-t border-gray-100 pt-6">
-        <h2 className="text-2xl font-light text-gray-900 mb-6">news</h2>
+        <h2 className="text-2xl font-light text-gray-900 mb-6">
+          news
+          <AddButton request={{ kind: 'add', collection: 'news' }} text="添加新闻" className="ml-3" />
+          <ReorderButton request={{ kind: 'reorder', collection: 'news' }} className="ml-2" />
+        </h2>
         <div className="space-y-4">
           {news.map((item) => (
             <div key={item.id} className="flex flex-col sm:flex-row gap-2 sm:gap-8 text-sm">
               <div className="font-bold text-gray-900 min-w-[100px]">{item.date}</div>
               <div className="text-gray-600" dangerouslySetInnerHTML={{ __html: renderInlineMarkdown(item.content) }} />
+              <EditButton
+                request={{ kind: 'edit', collection: 'news', id: item.id }}
+                label="编辑这条新闻"
+                className="flex-shrink-0 sm:ml-auto"
+              />
             </div>
           ))}
         </div>

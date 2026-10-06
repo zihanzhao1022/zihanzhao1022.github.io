@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { useContent } from '../components/ContentContext';
+import { AddButton } from '../components/EditMode';
 import ListItem from '../components/ListItem';
 
 const Projects: React.FC = () => {
@@ -21,7 +22,10 @@ const Projects: React.FC = () => {
   return (
     <div className="animate-fade-in pb-20">
       <div className="mb-10">
-        <h1 className="text-3xl font-light text-gray-900 mb-2">projects</h1>
+        <h1 className="text-3xl font-light text-gray-900 mb-2">
+          projects
+          <AddButton request={{ kind: 'add', collection: 'projects' }} text="添加项目" className="ml-3" />
+        </h1>
         <p className="text-sm text-gray-500">research and development projects.</p>
       </div>
 
@@ -40,6 +44,7 @@ const Projects: React.FC = () => {
                 .map((proj) => (
                 <ListItem
                   key={proj.id}
+                  editRequest={{ kind: 'edit', collection: 'projects', id: proj.id }}
                   title={proj.title}
                   image={proj.image}
                   subtitle={

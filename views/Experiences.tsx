@@ -1,12 +1,13 @@
 import React from 'react';
 import { useContent } from '../components/ContentContext';
+import { AddButton, ReorderButton } from '../components/EditMode';
 import { ExperienceCategory } from '../types';
 import ListItem from '../components/ListItem';
 
-const SECTIONS: { id: ExperienceCategory; title: string }[] = [
-  { id: 'education', title: 'Education' },
-  { id: 'work', title: 'Work Experience' },
-  { id: 'volunteer', title: 'Volunteer & Service' },
+const SECTIONS: { id: ExperienceCategory; title: string; addText: string }[] = [
+  { id: 'education', title: 'Education', addText: '添加教育经历' },
+  { id: 'work', title: 'Work Experience', addText: '添加工作经历' },
+  { id: 'volunteer', title: 'Volunteer & Service', addText: '添加志愿经历' },
 ];
 
 const Experiences: React.FC = () => {
@@ -32,11 +33,18 @@ const Experiences: React.FC = () => {
               <h2 className="text-xl font-bold uppercase tracking-wider text-purple-700 mb-8 border-b-2 border-purple-100 pb-2 inline-block">
                 {section.title}
               </h2>
+              <AddButton
+                request={{ kind: 'add', collection: 'experiences', preset: { category: section.id } }}
+                text={section.addText}
+                className="ml-3"
+              />
+              <ReorderButton request={{ kind: 'reorder', collection: 'experiences', category: section.id }} className="ml-2" />
 
               <div className="space-y-4">
                 {items.map((exp) => (
                   <ListItem
                     key={exp.id}
+                    editRequest={{ kind: 'edit', collection: 'experiences', id: exp.id }}
                     title={exp.title}
                     image={exp.image}
                     subtitle={

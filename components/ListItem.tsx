@@ -1,4 +1,7 @@
 import React from 'react';
+import { EditButton } from './EditMode';
+import { resolveImage } from '../lib/localImages';
+import { EditRequest } from '../types';
 
 interface ListItemProps {
   image?: string;
@@ -8,6 +11,7 @@ interface ListItemProps {
   links?: Record<string, string>;
   tags?: React.ReactNode;
   sideContent?: React.ReactNode; // e.g. Year displayed on the side
+  editRequest?: EditRequest; // Shows a pencil in edit mode
 }
 
 const ListItem: React.FC<ListItemProps> = ({
@@ -17,7 +21,8 @@ const ListItem: React.FC<ListItemProps> = ({
   meta,
   links,
   tags,
-  sideContent
+  sideContent,
+  editRequest
 }) => {
   return (
     <div className="group relative flex flex-col sm:flex-row gap-6 p-4 mb-6 hover:bg-gray-50 rounded-lg transition-colors duration-300">
@@ -31,7 +36,7 @@ const ListItem: React.FC<ListItemProps> = ({
       {/* Image Thumbnail */}
       <div className="flex-shrink-0 w-full sm:w-48 h-32 border border-gray-200 bg-white rounded-md overflow-hidden flex items-center justify-center relative z-10">
         {image ? (
-          <img src={image} alt="thumbnail" className="w-full h-full object-contain p-2" />
+          <img src={resolveImage(image)} alt="thumbnail" className="w-full h-full object-contain p-2" />
         ) : (
           <div className="w-full h-full bg-transparent flex items-center justify-center text-gray-300 text-xs uppercase tracking-wider">
             No Image
@@ -42,6 +47,7 @@ const ListItem: React.FC<ListItemProps> = ({
       {/* Content */}
       <div className="flex-grow z-10 relative">
         <h3 className="text-lg font-bold text-gray-900 leading-tight mb-2">
+          {editRequest && <EditButton request={editRequest} label="编辑" className="float-right ml-3" />}
           {title}
         </h3>
         

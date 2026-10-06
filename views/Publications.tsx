@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useContent } from '../components/ContentContext';
+import { AddButton } from '../components/EditMode';
 import { Rank } from '../types';
 import ListItem from '../components/ListItem';
 
@@ -126,7 +127,10 @@ const Publications: React.FC = () => {
   return (
     <div className="animate-fade-in pb-20">
       <div className="mb-10">
-        <h1 className="text-3xl font-light text-gray-900 mb-2">publications</h1>
+        <h1 className="text-3xl font-light text-gray-900 mb-2">
+          publications
+          <AddButton request={{ kind: 'add', collection: 'publications' }} text="添加论文" className="ml-3" />
+        </h1>
         <p className="text-sm text-gray-500">
           publications by categories in reversed chronological order.
         </p>
@@ -221,6 +225,7 @@ const Publications: React.FC = () => {
                       .map((pub) => (
                         <ListItem
                           key={pub.id}
+                          editRequest={{ kind: 'edit', collection: 'publications', id: pub.id }}
                           title={pub.title}
                           image={pub.image}
                           subtitle={<AuthorList authors={pub.authors} />}

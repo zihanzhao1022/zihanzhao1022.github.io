@@ -1,0 +1,9 @@
+name = "homepage-auth"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+# Public settings. The client secret is stored with `npx wrangler secret put GITHUB_CLIENT_SECRET`.
+[vars]
+GITHUB_CLIENT_ID = "Iv23liGqrkAjs9Kn7RKo"
+OWNER_LOGIN = "zihanzhao1022"
+ALLOWED_ORIGINS = "https://zihanzhao1022.github.io,http://localhost:3000"

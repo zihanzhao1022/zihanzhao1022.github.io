@@ -82,7 +82,8 @@
     "location": "Mianyang, China",
     "date": "Mar. 2021 - May. 2023",
     "image": "",
-    "description": "Active member of the Huawei Campus Developers Alliance and served as a Huawei Spark Campus Ambassador at Southwest University of Science and Technology, promoting developer activities and technical exchange."
+    "description": "Active member of the Huawei Campus Developers Alliance and served as a Huawei Spark Campus Ambassador at Southwest University of Science and Technology, promoting developer activities and technical exchange.",
+    "hidden": true
   },
   {
     "id": "vol4",

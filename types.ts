@@ -127,3 +127,14 @@ export interface SiteContent {
   talks: Talk[];
   awards: Award[];
 }
+
+export type ListCollection = 'news' | 'experiences' | 'publications' | 'projects' | 'talks' | 'awards';
+
+export type ProfileSection = 'basics' | 'bio' | 'avatar' | 'socials';
+
+/** What an edit button asks the edit mode to open. */
+export type EditRequest =
+  | { kind: 'edit'; collection: ListCollection; id: string }
+  | { kind: 'add'; collection: ListCollection; preset?: Record<string, unknown> }
+  | { kind: 'reorder'; collection: ListCollection; category?: ExperienceCategory }
+  | { kind: 'profile'; section: ProfileSection };

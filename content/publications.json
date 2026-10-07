@@ -21,7 +21,8 @@
       "abs": "#",
       "doi": "#",
       "pdf": "#"
-    }
+    },
+    "hidden": true
   },
   {
     "id": "p2",
@@ -85,7 +86,8 @@
       "abs": "#",
       "doi": "#",
       "pdf": "#"
-    }
+    },
+    "hidden": true
   },
   {
     "id": "p5",
@@ -124,7 +126,8 @@
       "abs": "https://ieeexplore.ieee.org/abstract/document/11199513",
       "doi": "#",
       "pdf": "#"
-    }
+    },
+    "hidden": true
   },
   {
     "id": "p7",

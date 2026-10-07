@@ -1,5 +1,25 @@
 [
   {
+    "id": "p4",
+    "title": "UnifiedLLM: Parameter-Efficient Fine-Tuning of Large Language Models for Time Series Forecasting: A Systematic Study of LoRA Configurations and Strategies",
+    "authors": [
+      "Franck Junior Aboya Messou",
+      "**Zihan Zhao**",
+      "et al."
+    ],
+    "year": 2026,
+    "venue": "IEEE Internet of Things Journal",
+    "type": "journal",
+    "rank": "Q1",
+    "impactFactor": "8.9",
+    "links": {
+      "abs": "#",
+      "doi": "#",
+      "pdf": "#"
+    },
+    "hidden": true
+  },
+  {
     "id": "p1",
     "title": "Large Language Models for Temporal Sensor Networks: Graph-Constrained Multi-LLM Ensembles via Structural Causal Models",
     "authors": [
@@ -68,26 +88,6 @@
       "doi": "#",
       "pdf": "#"
     }
-  },
-  {
-    "id": "p4",
-    "title": "UnifiedLLM: Parameter-Efficient Fine-Tuning of Large Language Models for Time Series Forecasting: A Systematic Study of LoRA Configurations and Strategies",
-    "authors": [
-      "Franck Junior Aboya Messou",
-      "**Zihan Zhao**",
-      "et al."
-    ],
-    "year": 2026,
-    "venue": "IEEE Internet of Things Journal",
-    "type": "journal",
-    "rank": "Q1",
-    "impactFactor": "8.9",
-    "links": {
-      "abs": "#",
-      "doi": "#",
-      "pdf": "#"
-    },
-    "hidden": true
   },
   {
     "id": "p5",

@@ -17,6 +17,7 @@
 | `content/projects.json` | 项目 |
 | `content/talks.json` | 报告 |
 | `content/awards.json` | 奖项 |
+| `content/navigation.json` | 导航栏：顺序、名称、自定义页面的正文、外部链接 |
 
 - 简介和新闻支持 `[文字](链接)` 和 `**加粗**`，不支持其他 HTML。
 - 论文作者用 `**名字**` 表示加粗高亮。
@@ -28,7 +29,7 @@
 
 ### 在网页上编辑
 
-点页脚的小锁图标，用 GitHub 账号 zihanzhao1022 登录后进入编辑模式：每条内容旁有编辑按钮，各板块有"添加"按钮，保存后立即提交并自动部署。配置和维护方法见 [docs/admin-setup.md](docs/admin-setup.md)。本地调试编辑界面可以运行 `npm run dev:mock`，这时不需要登录，保存也不会写入 GitHub。
+点页脚的小锁图标，用 GitHub 账号 zihanzhao1022 登录后进入编辑模式：每条内容旁有编辑按钮，左侧的把手可以拖动排序，各板块有"添加"按钮，导航栏末尾可以编辑导航。保存后立即提交并自动部署。配置和维护方法见 [docs/admin-setup.md](docs/admin-setup.md)。本地调试编辑界面可以运行 `npm run dev:mock`，这时不需要登录，保存也不会写入 GitHub。
 
 ## 本地开发
 

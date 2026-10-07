@@ -17,7 +17,8 @@ const CustomPage: React.FC<{ item: Extract<NavItem, { type: 'page' }> }> = ({ it
         {item.hidden && <HiddenBadge />}
       </h1>
     </div>
-    <div dangerouslySetInnerHTML={{ __html: renderMarkdown(item.body ?? '') }} />
+    {/* The body text is light, where the browser's "bolder" would barely show, so bold gets an explicit weight. */}
+    <div className="[&_strong]:font-semibold" dangerouslySetInnerHTML={{ __html: renderMarkdown(item.body ?? '') }} />
   </div>
 );
 

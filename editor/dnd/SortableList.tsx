@@ -49,7 +49,7 @@ function SortableRow({ id, handleClassName, children }: { id: string; handleClas
         {...attributes}
         {...listeners}
         aria-label="拖动排序"
-        className={`${handleClassName} z-20 p-0.5 rounded-md text-gray-300 hover:text-purple-600 hover:bg-purple-50 cursor-grab active:cursor-grabbing touch-none`}
+        className={`${handleClassName} z-20 p-0.5 rounded-md text-gray-400 hover:text-purple-600 hover:bg-purple-50 cursor-grab active:cursor-grabbing touch-none`}
       >
         <GripVertical size={18} />
       </button>

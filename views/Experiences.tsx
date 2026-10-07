@@ -1,6 +1,7 @@
 import React from 'react';
 import { useContent } from '../components/ContentContext';
-import { AddButton, ReorderButton, useVisibleItems } from '../components/EditMode';
+import { AddButton, useVisibleItems } from '../components/EditMode';
+import { SortableGroup } from '../components/SortableGroup';
 import { ExperienceCategory } from '../types';
 import ListItem from '../components/ListItem';
 
@@ -38,10 +39,12 @@ const Experiences: React.FC = () => {
                 text={section.addText}
                 className="ml-3"
               />
-              <ReorderButton request={{ kind: 'reorder', collection: 'experiences', category: section.id }} className="ml-2" />
 
-              <div className="space-y-4">
-                {items.map((exp) => (
+              <SortableGroup
+                collection="experiences"
+                items={items}
+                className="space-y-4"
+                renderItem={(exp) => (
                   <ListItem
                     key={exp.id}
                     editRequest={{ kind: 'edit', collection: 'experiences', id: exp.id }}
@@ -90,8 +93,8 @@ const Experiences: React.FC = () => {
                       ) : null
                     }
                   />
-                ))}
-              </div>
+                )}
+              />
             </div>
           );
         })}

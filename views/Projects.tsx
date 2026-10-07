@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { useContent } from '../components/ContentContext';
 import { AddButton, useVisibleItems } from '../components/EditMode';
+import { SortableGroup } from '../components/SortableGroup';
 import ListItem from '../components/ListItem';
 
 const Projects: React.FC = () => {
@@ -38,10 +39,11 @@ const Projects: React.FC = () => {
                <div className="h-px bg-gray-100 flex-grow"></div>
             </div>
 
-            <div className="space-y-4">
-              {sortedProjects
-                .filter((p) => getStartYear(p.year) === year)
-                .map((proj) => (
+            <SortableGroup
+              collection="projects"
+              items={sortedProjects.filter((p) => getStartYear(p.year) === year)}
+              className="space-y-4"
+              renderItem={(proj) => (
                 <ListItem
                   key={proj.id}
                   editRequest={{ kind: 'edit', collection: 'projects', id: proj.id }}
@@ -62,8 +64,8 @@ const Projects: React.FC = () => {
                     </span>
                   }
                 />
-              ))}
-            </div>
+              )}
+            />
           </div>
         ))}
       </div>

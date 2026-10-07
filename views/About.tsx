@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useContent } from '../components/ContentContext';
-import { AddButton, EditButton, HiddenBadge, ReorderButton, useVisibleItems } from '../components/EditMode';
+import { AddButton, EditButton, HiddenBadge, useVisibleItems } from '../components/EditMode';
+import { SortableGroup } from '../components/SortableGroup';
 import { Icon } from '../components/Icon';
 import { resolveImage } from '../lib/localImages';
 import { renderInlineMarkdown } from '../lib/markdown';
@@ -128,10 +129,12 @@ const About: React.FC = () => {
         <h2 className="text-2xl font-light text-gray-900 mb-6">
           news
           <AddButton request={{ kind: 'add', collection: 'news' }} text="添加新闻" className="ml-3" />
-          <ReorderButton request={{ kind: 'reorder', collection: 'news' }} className="ml-2" />
         </h2>
-        <div className="space-y-4">
-          {news.map((item) => (
+        <SortableGroup
+          collection="news"
+          items={news}
+          className="space-y-4"
+          renderItem={(item) => (
             <div key={item.id} className={`flex flex-col sm:flex-row gap-2 sm:gap-8 text-sm${item.hidden ? ' opacity-50' : ''}`}>
               <div className="font-bold text-gray-900 min-w-[100px]">{item.date}</div>
               <div className="text-gray-600" dangerouslySetInnerHTML={{ __html: renderInlineMarkdown(item.content) }} />
@@ -142,8 +145,8 @@ const About: React.FC = () => {
                 className="flex-shrink-0 sm:ml-auto"
               />
             </div>
-          ))}
-        </div>
+          )}
+        />
       </div>
     </div>
   );

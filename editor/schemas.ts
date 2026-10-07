@@ -42,7 +42,7 @@ export interface FormSchema {
   addTitle?: string;
   editTitle: string;
   fields: Field[];
-  /** Identifies an item in commit messages and the reorder dialog. */
+  /** Identifies an item in commit messages. */
   label: (item: Values) => string;
   /** Derives stored values from edited ones, e.g. an award's year from its date. */
   finalize?: (item: Values) => Values;

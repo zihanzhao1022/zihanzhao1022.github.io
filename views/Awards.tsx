@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useContent } from '../components/ContentContext';
 import { AddButton, useVisibleItems } from '../components/EditMode';
+import { SortableGroup } from '../components/SortableGroup';
 import { AwardType } from '../types';
 import ListItem from '../components/ListItem';
 
@@ -127,10 +128,11 @@ const Awards: React.FC = () => {
                <div className="h-px bg-gray-100 flex-grow"></div>
             </div>
 
-            <div className="space-y-4">
-              {sortedAwards
-                .filter((a) => a.year === year)
-                .map((award) => (
+            <SortableGroup
+              collection="awards"
+              items={sortedAwards.filter((a) => a.year === year)}
+              className="space-y-4"
+              renderItem={(award) => (
                   <ListItem
                     key={award.id}
                     editRequest={{ kind: 'edit', collection: 'awards', id: award.id }}
@@ -172,8 +174,8 @@ const Awards: React.FC = () => {
                       </div>
                     }
                   />
-                ))}
-            </div>
+                )}
+            />
           </div>
         ))}
       </div>

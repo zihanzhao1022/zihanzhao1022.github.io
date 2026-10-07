@@ -28,7 +28,15 @@ const content: SiteContent = {
   awards: hideFirst(base.awards),
 };
 
-const editing: EditModeValue = { editing: true, loggedIn: true, canLogin: true, open: () => {}, login: () => {} };
+const editing: EditModeValue = {
+  editing: true,
+  loggedIn: true,
+  canLogin: true,
+  ready: true,
+  open: () => {},
+  login: () => {},
+  reorder: () => {},
+};
 
 const render = (View: React.ComponentType, mode?: EditModeValue): string =>
   renderToStaticMarkup(

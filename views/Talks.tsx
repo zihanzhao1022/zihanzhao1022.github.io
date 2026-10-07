@@ -1,6 +1,7 @@
 import React from 'react';
 import { useContent } from '../components/ContentContext';
-import { AddButton, EditButton, HiddenBadge, ReorderButton, useVisibleItems } from '../components/EditMode';
+import { AddButton, EditButton, HiddenBadge, useVisibleItems } from '../components/EditMode';
+import { SortableGroup } from '../components/SortableGroup';
 import { MapPin, User, Calendar } from 'lucide-react';
 
 const Talks: React.FC = () => {
@@ -11,12 +12,14 @@ const Talks: React.FC = () => {
         <h1 className="text-3xl font-light text-gray-900 mb-2">
           invited talks
           <AddButton request={{ kind: 'add', collection: 'talks' }} text="添加报告" className="ml-3" />
-          <ReorderButton request={{ kind: 'reorder', collection: 'talks' }} className="ml-2" />
         </h1>
       </div>
 
-      <div className="grid gap-6">
-        {talks.map((talk) => (
+      <SortableGroup
+        collection="talks"
+        items={talks}
+        className="grid gap-6"
+        renderItem={(talk) => (
           <div key={talk.id} className={`bg-white border-l-4 border-purple-500 shadow-sm hover:shadow-md transition-shadow p-6 rounded-r-lg${talk.hidden ? ' opacity-50' : ''}`}>
             <h3 className="text-xl font-bold text-gray-900 mb-2">
               <EditButton
@@ -53,8 +56,8 @@ const Talks: React.FC = () => {
                 )}
             </div>
           </div>
-        ))}
-      </div>
+        )}
+      />
     </div>
   );
 };

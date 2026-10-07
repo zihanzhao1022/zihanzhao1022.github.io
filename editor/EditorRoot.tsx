@@ -3,19 +3,19 @@ import { useContent, useUpdateContent } from '../components/ContentContext';
 import { EditModeContext, EditModeValue, Toast } from '../components/EditMode';
 import { registerLocalImage } from '../lib/localImages';
 import { Session, clearSession, isExpiringSoon } from '../lib/session';
-import { EditRequest } from '../types';
+import { EditRequest, ListCollection } from '../types';
 import { logout, startLogin } from './auth';
-import { DeployStatus, EditorBackend, ImageUpload, createBackend } from './backend';
+import { DeployStatus, EditorBackend, ImageUpload, createBackend, describeSaveError } from './backend';
 import { GitHubError } from './github';
 import { publicUrl } from './images';
-import { ContentOp } from './ops';
+import { ContentOp, applyOp, commitMessage } from './ops';
 import { AdminBar, LoadState } from './components/AdminBar';
 import { ItemModal } from './components/ItemModal';
-import { ReorderModal } from './components/ReorderModal';
 
 const FIRST_POLL_MS = 5_000;
 const POLL_MS = 10_000;
 const POLL_LIMIT_MS = 10 * 60_000;
+const EXPIRING = '登录即将过期，请重新登录后再编辑';
 
 interface Props {
   session: Session;
@@ -34,6 +34,11 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
   const [toast, setToast] = useState<{ message: string; relogin?: boolean } | null>(null);
   const logoutRef = useRef(onLogout);
   logoutRef.current = onLogout;
+  const contentRef = useRef(content);
+  contentRef.current = content;
+  // Saves run one at a time. `pending` holds ops already shown on the page but not committed yet.
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
+  const pending = useRef<ContentOp[]>([]);
 
   // Swap the bundled content for the latest version on GitHub: the last deployment may still be running.
   useEffect(() => {
@@ -99,7 +104,7 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
   const open = useCallback(
     (next: EditRequest) => {
       if (isExpiringSoon(session)) {
-        setToast({ message: '登录即将过期，请重新登录后再编辑', relogin: true });
+        setToast({ message: EXPIRING, relogin: true });
         return;
       }
       setRequest(next);
@@ -108,14 +113,46 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
   );
 
   const save = useCallback(
-    async (op: ContentOp, uploads: ImageUpload[], message: string) => {
-      if (!backend) throw new Error('编辑器还在加载，请稍后再试');
-      const result = await backend.save(op, uploads, message, content);
-      uploads.forEach((upload) => registerLocalImage(publicUrl(upload.path), upload.previewUrl));
-      setContent(result.content);
-      setDeploy({ sha: result.commitSha, status: { state: 'pending' } });
+    (op: ContentOp, uploads: ImageUpload[], message: string): Promise<void> => {
+      if (!backend) return Promise.reject(new Error('编辑器还在加载，请稍后再试'));
+      pending.current.push(op);
+      const run = queue.current.then(async () => {
+        try {
+          const result = await backend.save(op, uploads, message, contentRef.current);
+          uploads.forEach((upload) => registerLocalImage(publicUrl(upload.path), upload.previewUrl));
+          pending.current = pending.current.filter((queued) => queued !== op);
+          // Every op is idempotent, so re-applying the still-queued ones keeps the page as the owner left it.
+          setContent(pending.current.reduce((current, queued) => applyOp(current, queued), result.content));
+          setDeploy({ sha: result.commitSha, status: { state: 'pending' } });
+        } catch (error) {
+          pending.current = pending.current.filter((queued) => queued !== op);
+          throw error;
+        }
+      });
+      queue.current = run.catch(() => undefined);
+      return run;
     },
-    [backend, content, setContent],
+    [backend, setContent],
+  );
+
+  const reorder = useCallback(
+    (collection: ListCollection, ids: string[]) => {
+      if (isExpiringSoon(session)) {
+        setToast({ message: EXPIRING, relogin: true });
+        return;
+      }
+      const op: ContentOp = { kind: 'reorder', collection, ids };
+      setContent((current) => applyOp(current, op));
+      save(op, [], commitMessage('reorder', collection)).catch((error: unknown) => {
+        setToast({ message: describeSaveError(error) });
+        // Put the page back in step with GitHub.
+        backend
+          ?.load()
+          .then(setContent)
+          .catch(() => undefined);
+      });
+    },
+    [session, setContent, save, backend],
   );
 
   const handleLogout = useCallback(() => {
@@ -125,8 +162,16 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
   const closeDialog = useCallback(() => setRequest(null), []);
 
   const value = useMemo<EditModeValue>(
-    () => ({ editing: enabled && loadState === 'ready', loggedIn: true, canLogin: true, open, login: relogin }),
-    [enabled, loadState, open, relogin],
+    () => ({
+      editing: enabled && loadState === 'ready',
+      loggedIn: true,
+      canLogin: true,
+      ready: loadState !== 'loading',
+      open,
+      login: relogin,
+      reorder,
+    }),
+    [enabled, loadState, open, relogin, reorder],
   );
 
   return (
@@ -140,18 +185,7 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
         onLogout={handleLogout}
       />
       {children}
-      {request?.kind === 'reorder' && (
-        <ReorderModal
-          collection={request.collection}
-          category={request.category}
-          content={content}
-          onSave={save}
-          onClose={closeDialog}
-        />
-      )}
-      {request && request.kind !== 'reorder' && (
-        <ItemModal request={request} content={content} onSave={save} onClose={closeDialog} />
-      )}
+      {request && <ItemModal request={request} content={content} onSave={save} onClose={closeDialog} />}
       {toast && (
         <Toast
           message={toast.message}

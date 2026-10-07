@@ -1,8 +1,8 @@
 import React, { Suspense, createContext, lazy, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUpDown, EyeOff, Pencil, Plus, X } from 'lucide-react';
+import { EyeOff, Pencil, Plus, X } from 'lucide-react';
 import { loginConfigured } from '../editor/config';
 import { LoginCallback, MOCK_MODE, Session, loadSession } from '../lib/session';
-import { EditRequest } from '../types';
+import { EditRequest, ListCollection } from '../types';
 
 export interface EditModeValue {
   /** True when the owner is signed in, the latest content has loaded and the edit switch is on. */
@@ -10,8 +10,12 @@ export interface EditModeValue {
   loggedIn: boolean;
   /** Whether to offer the login entry at all. */
   canLogin: boolean;
+  /** False only while a signed-in owner's editor is still loading the latest content. */
+  ready: boolean;
   open: (request: EditRequest) => void;
   login: () => void;
+  /** Saves a new order for some items of a list (drag and drop). */
+  reorder: (collection: ListCollection, ids: string[]) => void;
 }
 
 const noop = (): void => {};
@@ -20,8 +24,10 @@ export const EditModeContext = createContext<EditModeValue>({
   editing: false,
   loggedIn: false,
   canLogin: false,
+  ready: true,
   open: noop,
   login: noop,
+  reorder: noop,
 });
 
 export const useEditMode = (): EditModeValue => useContext(EditModeContext);
@@ -104,12 +110,22 @@ export const EditModeProvider: React.FC<{ loginCallback: LoginCallback | null; c
   }, []);
 
   const visitor = useMemo<EditModeValue>(
-    () => ({ editing: false, loggedIn: false, canLogin: MOCK_MODE || loginConfigured(), open: noop, login }),
+    () => ({
+      editing: false,
+      loggedIn: false,
+      canLogin: MOCK_MODE || loginConfigured(),
+      ready: true,
+      open: noop,
+      login,
+      reorder: noop,
+    }),
     [login],
   );
   const page = <EditModeContext.Provider value={visitor}>{children}</EditModeContext.Provider>;
   // While the editor loads for a signed-in owner, show the page without the login lock.
-  const loading = <EditModeContext.Provider value={{ ...visitor, loggedIn: true }}>{children}</EditModeContext.Provider>;
+  const loading = (
+    <EditModeContext.Provider value={{ ...visitor, loggedIn: true, ready: false }}>{children}</EditModeContext.Provider>
+  );
 
   return (
     <>
@@ -166,17 +182,6 @@ export const AddButton: React.FC<{ request: EditRequest; text: string; className
     <button type="button" onClick={() => open(request)} className={`${PILL} ${className}`}>
       <Plus size={14} />
       {text}
-    </button>
-  );
-};
-
-export const ReorderButton: React.FC<{ request: EditRequest; className?: string }> = ({ request, className = '' }) => {
-  const { editing, open } = useEditMode();
-  if (!editing) return null;
-  return (
-    <button type="button" onClick={() => open(request)} className={`${PILL} ${className}`}>
-      <ArrowUpDown size={14} />
-      排序
     </button>
   );
 };

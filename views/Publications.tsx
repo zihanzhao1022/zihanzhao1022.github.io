@@ -1,21 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { useContent } from '../components/ContentContext';
 import { AddButton, useVisibleItems } from '../components/EditMode';
+import { SortableGroup } from '../components/SortableGroup';
 import { Rank } from '../types';
 import ListItem from '../components/ListItem';
-
-// Define Rank Priority
-const RANK_PRIORITY: Record<Rank, number> = {
-  'Q1': 10,
-  'Q2': 9,
-  'Q3': 8,
-  'Q4': 7,
-  'CORE-A*': 10,
-  'CORE-A': 9,
-  'CORE-B': 8,
-  'CORE-C': 7,
-  'Unranked': 0
-};
 
 const ALL_RANKS: Rank[] = ['Q1', 'Q2', 'Q3', 'Q4', 'CORE-A*', 'CORE-A', 'CORE-B', 'CORE-C', 'Unranked'];
 
@@ -90,7 +78,7 @@ const Publications: React.FC = () => {
     }
   };
 
-  // Sorting Logic: Year (Desc) -> Type -> Rank (Desc)
+  // Filter, then sort by year (newest first); within a year the stored order applies (set by dragging).
   const sortedPublications = useMemo(() => {
     // 1. Filter
     const filtered = publications.filter(pub => {
@@ -110,16 +98,8 @@ const Publications: React.FC = () => {
       return true;
     });
 
-    // 2. Sort
-    return filtered.sort((a, b) => {
-      // Primary: Year Descending
-      if (b.year !== a.year) return b.year - a.year;
-
-      // Secondary: Rank Score
-      const rankScoreA = RANK_PRIORITY[a.rank] || 0;
-      const rankScoreB = RANK_PRIORITY[b.rank] || 0;
-      return rankScoreB - rankScoreA; // Higher rank first
-    });
+    // 2. Sort (stable, so items of the same year keep their stored order)
+    return filtered.sort((a, b) => b.year - a.year);
   }, [publications, filter, selectedType, selectedRanks]);
 
   const displayedTypes = selectedType === 'all' ? ['journal', 'conference'] : [selectedType];
@@ -219,10 +199,11 @@ const Publications: React.FC = () => {
                   </div>
 
                   {/* Publications for this year */}
-                  <div className="space-y-4">
-                    {typePubs
-                      .filter((p) => p.year === year)
-                      .map((pub) => (
+                  <SortableGroup
+                    collection="publications"
+                    items={typePubs.filter((p) => p.year === year)}
+                    className="space-y-4"
+                    renderItem={(pub) => (
                         <ListItem
                           key={pub.id}
                           editRequest={{ kind: 'edit', collection: 'publications', id: pub.id }}
@@ -256,8 +237,8 @@ const Publications: React.FC = () => {
                             </div>
                           }
                         />
-                    ))}
-                  </div>
+                    )}
+                  />
                 </div>
               ))}
             </div>

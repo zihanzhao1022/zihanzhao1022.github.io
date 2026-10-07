@@ -3,7 +3,7 @@ import { ListCollection, Profile, SiteContent } from '../types';
 export type ListItem = { id: string } & Record<string, unknown>;
 
 export type ContentOp =
-  | { kind: 'upsert'; collection: ListCollection; item: ListItem }
+  | { kind: 'upsert'; collection: ListCollection; item: ListItem; at?: 'start' | 'end' }
   | { kind: 'delete'; collection: ListCollection; id: string }
   | { kind: 'reorder'; collection: ListCollection; ids: string[] }
   | { kind: 'setHidden'; collection: ListCollection; id: string; hidden: boolean }
@@ -11,13 +11,14 @@ export type ContentOp =
 
 export type ListOp = Exclude<ContentOp, { kind: 'patchProfile' }>;
 
-/** Applies one edit to a list. New items go first; reordering only moves the listed items. */
+/** Applies one edit to a list. New items go first (or last, with at: 'end'); reordering only moves the listed items. */
 export function applyListOp<T extends { id: string }>(list: T[], op: ListOp): T[] {
   switch (op.kind) {
     case 'upsert': {
       const item = op.item as unknown as T;
       const index = list.findIndex((entry) => entry.id === item.id);
-      return index === -1 ? [item, ...list] : list.map((entry, i) => (i === index ? item : entry));
+      if (index !== -1) return list.map((entry, i) => (i === index ? item : entry));
+      return op.at === 'end' ? [...list, item] : [item, ...list];
     }
     case 'delete':
       return list.filter((entry) => entry.id !== op.id);
@@ -55,6 +56,7 @@ const NOUNS: Record<ListCollection, string> = {
   projects: 'project',
   talks: 'talk',
   awards: 'award',
+  navigation: 'nav item',
 };
 
 export const itemNoun = (collection: ListCollection): string => NOUNS[collection];

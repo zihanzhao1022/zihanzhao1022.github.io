@@ -3,7 +3,7 @@ import { ArrowDown, ArrowUp } from 'lucide-react';
 import { ExperienceCategory, ListCollection, SiteContent } from '../../types';
 import { describeSaveError } from '../backend';
 import { commitMessage } from '../ops';
-import { LIST_SCHEMAS, Values } from '../schemas';
+import { Values, listSchema } from '../schemas';
 import { SaveHandler } from './ItemModal';
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, Modal } from './Modal';
 
@@ -24,7 +24,7 @@ interface Props {
 }
 
 export const ReorderModal: React.FC<Props> = ({ collection, category, content, onSave, onClose }) => {
-  const schema = LIST_SCHEMAS[collection];
+  const schema = listSchema(collection, {});
   const [items] = useState(() =>
     (content[collection] as unknown as Values[]).filter((item) => !category || item.category === category),
   );

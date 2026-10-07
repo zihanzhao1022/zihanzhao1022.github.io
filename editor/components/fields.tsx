@@ -220,7 +220,7 @@ export const FieldControl: React.FC<{
         <textarea
           id={id}
           className={`${INPUT} leading-relaxed`}
-          rows={TEXTAREA_ROWS[field.type]}
+          rows={field.rows ?? TEXTAREA_ROWS[field.type]}
           placeholder={field.placeholder}
           value={textValue}
           onChange={(event) => onChange(event.target.value)}

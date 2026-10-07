@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { PendingImage } from './images';
 import {
   LIST_SCHEMAS,
+  NAV_SCHEMAS,
   PROFILE_SCHEMAS,
   fromFormState,
+  listSchema,
   newItem,
   profileFields,
   toFormState,
@@ -68,7 +70,7 @@ describe('publication form', () => {
   });
 
   it('starts new papers with sensible defaults', () => {
-    const item = newItem('publications');
+    const item = newItem(LIST_SCHEMAS.publications);
     expect(item.id).toMatch(/^p-[0-9a-z]+$/);
     expect(item).toMatchObject({ type: 'journal', rank: 'Q1', authors: ['**Zihan Zhao**'] });
   });
@@ -170,5 +172,38 @@ describe('profile forms', () => {
     const { item } = fromFormState(schema, { ...toFormState(schema, profile), 'name.chinese': '' }, profile, now);
     expect(Object.keys(profileFields(schema, item)).sort()).toEqual(['affiliation', 'email', 'languages', 'name', 'title']);
     expect(item.name).toEqual({ first: 'Zihan', last: 'ZHAO' });
+  });
+});
+
+describe('navigation forms', () => {
+  it('picks the form by entry type', () => {
+    expect(listSchema('navigation', { type: 'link' })).toBe(NAV_SCHEMAS.link);
+    expect(listSchema('navigation', { type: 'builtin' })).toBe(NAV_SCHEMAS.builtin);
+    expect(listSchema('talks', {})).toBe(LIST_SCHEMAS.talks);
+  });
+
+  it('needs an http(s) address for links', () => {
+    const schema = NAV_SCHEMAS.link;
+    expect(validateForm(schema, { label: 'scholar', url: 'scholar.google.com' })).toEqual({
+      url: '请填写以 http:// 或 https:// 开头的网址',
+    });
+    expect(validateForm(schema, { label: 'scholar', url: 'https://scholar.google.com' })).toEqual({});
+  });
+
+  it('checks page addresses and derives one from the label when left empty', () => {
+    const schema = NAV_SCHEMAS.page;
+    expect(validateForm(schema, { label: 'x', title: 'X', slug: 'Bad Slug', body: '' })).toEqual({
+      slug: '只能用小写字母、数字和连字符，例如 teaching',
+    });
+    const page = newItem(schema, { type: 'page' });
+    expect(String(page.id)).toMatch(/^page-/);
+    const { item } = fromFormState(schema, { label: 'Teaching Notes', title: 'Teaching', slug: '', body: '## Hi' }, page, now);
+    expect(item).toMatchObject({ type: 'page', label: 'Teaching Notes', title: 'Teaching', slug: 'teaching-notes', body: '## Hi' });
+  });
+
+  it('falls back to the id for labels without ASCII letters, and keeps an empty body', () => {
+    const { item } = fromFormState(NAV_SCHEMAS.page, { label: '教学', title: '教学', slug: '', body: '' }, { id: 'page-abc', type: 'page' }, now);
+    expect(item.slug).toBe('page-abc');
+    expect(item.body).toBe('');
   });
 });

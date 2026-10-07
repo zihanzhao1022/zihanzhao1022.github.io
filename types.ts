@@ -123,6 +123,21 @@ export interface Profile {
   languages: Language[];
 }
 
+export const BUILTIN_PAGES = ['about', 'experiences', 'publications', 'projects', 'talks', 'awards', 'cv'] as const;
+export type BuiltinPage = (typeof BUILTIN_PAGES)[number];
+
+interface NavBase extends Hideable {
+  id: string;
+  /** Text shown in the navigation bar. */
+  label: string;
+}
+
+/** One entry of the navigation bar; the array order is the bar's order. */
+export type NavItem =
+  | (NavBase & { type: 'builtin'; page: BuiltinPage })
+  | (NavBase & { type: 'page'; slug: string; title: string; body: string })
+  | (NavBase & { type: 'link'; url: string });
+
 export interface SiteContent {
   profile: Profile;
   news: NewsItem[];
@@ -131,9 +146,10 @@ export interface SiteContent {
   projects: Project[];
   talks: Talk[];
   awards: Award[];
+  navigation: NavItem[];
 }
 
-export type ListCollection = 'news' | 'experiences' | 'publications' | 'projects' | 'talks' | 'awards';
+export type ListCollection = 'news' | 'experiences' | 'publications' | 'projects' | 'talks' | 'awards' | 'navigation';
 
 export type ProfileSection = 'basics' | 'bio' | 'avatar' | 'socials';
 

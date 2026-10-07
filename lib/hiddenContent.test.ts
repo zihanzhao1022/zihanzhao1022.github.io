@@ -9,9 +9,10 @@ describe('stripHiddenItems', () => {
 });
 
 describe('isContentListFile', () => {
-  it('matches the six list files, with or without a query or Windows separators', () => {
+  it('matches the list files, with or without a query or Windows separators', () => {
     expect(isContentListFile('/repo/content/news.json')).toBe(true);
     expect(isContentListFile('/repo/content/publications.json?import')).toBe(true);
+    expect(isContentListFile('/repo/content/navigation.json')).toBe(true);
     expect(isContentListFile('C:\\repo\\content\\awards.json')).toBe(true);
   });
 

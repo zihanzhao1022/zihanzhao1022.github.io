@@ -597,5 +597,50 @@
       "type": "international",
       "level": "Second Prize"
     }
+  ],
+  "navigation": [
+    {
+      "id": "about",
+      "type": "builtin",
+      "page": "about",
+      "label": "about"
+    },
+    {
+      "id": "experiences",
+      "type": "builtin",
+      "page": "experiences",
+      "label": "experiences"
+    },
+    {
+      "id": "publications",
+      "type": "builtin",
+      "page": "publications",
+      "label": "publications"
+    },
+    {
+      "id": "projects",
+      "type": "builtin",
+      "page": "projects",
+      "label": "projects"
+    },
+    {
+      "id": "talks",
+      "type": "builtin",
+      "page": "talks",
+      "label": "talks"
+    },
+    {
+      "id": "awards",
+      "type": "builtin",
+      "page": "awards",
+      "label": "awards"
+    },
+    {
+      "id": "cv",
+      "type": "builtin",
+      "page": "cv",
+      "label": "cv",
+      "hidden": true
+    }
   ]
 }

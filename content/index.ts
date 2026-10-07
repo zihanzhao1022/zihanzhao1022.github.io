@@ -1,6 +1,7 @@
-import { Award, Experience, NewsItem, Profile, Project, Publication, SiteContent, Talk } from '../types';
+import { Award, Experience, NavItem, NewsItem, Profile, Project, Publication, SiteContent, Talk } from '../types';
 import awards from './awards.json';
 import experiences from './experiences.json';
+import navigation from './navigation.json';
 import news from './news.json';
 import profile from './profile.json';
 import projects from './projects.json';
@@ -16,4 +17,6 @@ export const bundledContent: SiteContent = {
   projects: projects as Project[],
   talks: talks as Talk[],
   awards: awards as Award[],
+  // JSON infers plain strings for the entry types, so this union needs the cast through unknown.
+  navigation: navigation as unknown as NavItem[],
 };

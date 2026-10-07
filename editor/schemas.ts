@@ -1,4 +1,4 @@
-import { ListCollection, Profile, ProfileSection, Rank } from '../types';
+import { ListCollection, NavItem, Profile, ProfileSection, Rank } from '../types';
 import { ImageUpload } from './backend';
 import { isPendingImage, publicUrl, uploadPath } from './images';
 
@@ -34,6 +34,8 @@ export interface Field {
   addLabel?: string;
   pattern?: { regex: RegExp; message: string };
   showIf?: (state: FormState) => boolean;
+  /** Height of textareas, overriding the default for the field type. */
+  rows?: number;
 }
 
 export interface FormSchema {
@@ -51,6 +53,8 @@ export interface FormSchema {
 export interface ListSchema extends FormSchema {
   addTitle: string;
   idPrefix: string;
+  /** Keys whose value must differ from every other item in the list, with the message shown otherwise. */
+  unique?: Record<string, string>;
 }
 
 const LINK_HELP = '支持 [文字](链接) 和 **加粗**';
@@ -60,7 +64,7 @@ const RANKS: Rank[] = ['Q1', 'Q2', 'Q3', 'Q4', 'CORE-A*', 'CORE-A', 'CORE-B', 'C
 const text = (value: unknown): string => (typeof value === 'string' ? value : '');
 const isEducation = (state: FormState): boolean => state.category === 'education';
 
-export const LIST_SCHEMAS: Record<ListCollection, ListSchema> = {
+export const LIST_SCHEMAS: Record<Exclude<ListCollection, 'navigation'>, ListSchema> = {
   news: {
     addTitle: '添加新闻',
     editTitle: '编辑新闻',
@@ -293,8 +297,71 @@ export function visibleFields(schema: FormSchema, state: FormState): Field[] {
   return schema.fields.filter((field) => !field.showIf || field.showIf(state));
 }
 
-export function newItem(collection: ListCollection, preset: Values = {}): Values {
-  const schema = LIST_SCHEMAS[collection];
+export const slugify = (value: string): string =>
+  value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+const SLUG = { regex: /^[a-z0-9]+(?:-[a-z0-9]+)*$/, message: '只能用小写字母、数字和连字符，例如 teaching' };
+const WEB_ADDRESS = { regex: /^https?:\/\/\S+$/i, message: '请填写以 http:// 或 https:// 开头的网址' };
+const BODY_HELP =
+  '支持 ## 小标题、- 列表、1. 编号列表、[文字](链接)、**加粗**；单独一行的 ![说明](图片地址) 会显示图片；空行分段';
+
+export const NAV_SCHEMAS: Record<NavItem['type'], ListSchema> = {
+  builtin: {
+    addTitle: '恢复页面',
+    editTitle: '编辑导航项',
+    idPrefix: 'nav',
+    label: (item) => text(item.label),
+    fields: [{ key: 'label', label: '导航名称', type: 'text', required: true }],
+  },
+  page: {
+    addTitle: '新增页面',
+    editTitle: '编辑页面',
+    idPrefix: 'page',
+    label: (item) => text(item.label),
+    defaults: () => ({ type: 'page', body: '' }),
+    unique: { slug: '这个地址已被其他页面使用' },
+    finalize: (item) => ({
+      ...item,
+      slug: text(item.slug) || slugify(text(item.label)) || String(item.id),
+      body: text(item.body),
+    }),
+    fields: [
+      { key: 'label', label: '导航名称', type: 'text', required: true, placeholder: 'teaching' },
+      { key: 'title', label: '页面标题', type: 'text', required: true, placeholder: 'teaching' },
+      { key: 'slug', label: '页面地址', type: 'text', pattern: SLUG, help: '网址为 #/p/<地址>；留空则根据导航名称生成' },
+      { key: 'body', label: '正文', type: 'markdown', rows: 14, help: BODY_HELP },
+    ],
+  },
+  link: {
+    addTitle: '新增外部链接',
+    editTitle: '编辑外部链接',
+    idPrefix: 'link',
+    label: (item) => text(item.label),
+    defaults: () => ({ type: 'link' }),
+    fields: [
+      { key: 'label', label: '导航名称', type: 'text', required: true, placeholder: 'scholar' },
+      {
+        key: 'url',
+        label: '网址',
+        type: 'text',
+        required: true,
+        pattern: WEB_ADDRESS,
+        placeholder: 'https://scholar.google.com/…',
+      },
+    ],
+  },
+};
+
+/** The form for an item of a list; navigation entries use a different form per type. */
+export function listSchema(collection: ListCollection, item: Values): ListSchema {
+  if (collection === 'navigation') return NAV_SCHEMAS[(item.type as NavItem['type']) ?? 'page'] ?? NAV_SCHEMAS.page;
+  return LIST_SCHEMAS[collection];
+}
+
+export function newItem(schema: ListSchema, preset: Values = {}): Values {
   return { id: `${schema.idPrefix}-${Date.now().toString(36)}`, ...schema.defaults?.(), ...preset };
 }
 

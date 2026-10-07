@@ -36,7 +36,7 @@ export class ConflictError extends Error {
   }
 }
 
-const COLLECTIONS = ['profile', 'news', 'experiences', 'publications', 'projects', 'talks', 'awards'] as const;
+const COLLECTIONS = ['profile', 'news', 'experiences', 'publications', 'projects', 'talks', 'awards', 'navigation'] as const;
 const MAX_ATTEMPTS = 3;
 
 export const contentPath = (collection: keyof SiteContent): string => `content/${collection}.json`;

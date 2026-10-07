@@ -59,6 +59,16 @@ describe('applyListOp', () => {
     expect('hidden' in shown[1]).toBe(false);
   });
 
+  it('appends new items at the end when asked', () => {
+    expect(ids(applyListOp(list, { kind: 'upsert', collection: 'navigation', item: { id: 'new' }, at: 'end' }))).toEqual([
+      'a',
+      'b',
+      'c',
+      'd',
+      'new',
+    ]);
+  });
+
   it('does not change the input list', () => {
     const before = structuredClone(list);
     applyListOp(list, { kind: 'delete', collection: 'experiences', id: 'a' });

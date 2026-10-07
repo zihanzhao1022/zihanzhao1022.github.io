@@ -6,10 +6,10 @@ import { ContentOp, ListItem, commitMessage, itemNoun } from '../ops';
 import {
   FormSchema,
   FormState,
-  LIST_SCHEMAS,
   PROFILE_SCHEMAS,
   Values,
   fromFormState,
+  listSchema,
   newItem,
   profileFields,
   toFormState,
@@ -21,26 +21,33 @@ import { BUTTON_PRIMARY, BUTTON_SECONDARY, Modal } from './Modal';
 
 export type SaveHandler = (op: ContentOp, uploads: ImageUpload[], message: string) => Promise<void>;
 
-export type FormRequest = Exclude<EditRequest, { kind: 'reorder' }>;
+export type FormRequest = Extract<EditRequest, { kind: 'edit' | 'add' | 'profile' }>;
 
 interface ResolvedForm {
   schema: FormSchema;
   item: Values;
   title: string;
   isNew: boolean;
+  /** The home page entry can be renamed, but not hidden or deleted. */
+  locked: boolean;
+  /** Keys whose value must differ from every other item's, with the message shown otherwise. */
+  unique: Record<string, string>;
 }
 
 function resolveForm(request: FormRequest, content: SiteContent): ResolvedForm | null {
   if (request.kind === 'profile') {
     const schema = PROFILE_SCHEMAS[request.section];
-    return { schema, item: content.profile as unknown as Values, title: schema.editTitle, isNew: false };
+    return { schema, item: content.profile as unknown as Values, title: schema.editTitle, isNew: false, locked: true, unique: {} };
   }
-  const schema = LIST_SCHEMAS[request.collection];
   if (request.kind === 'add') {
-    return { schema, item: newItem(request.collection, request.preset), title: schema.addTitle, isNew: true };
+    const schema = listSchema(request.collection, request.preset ?? {});
+    return { schema, item: newItem(schema, request.preset), title: schema.addTitle, isNew: true, locked: false, unique: schema.unique ?? {} };
   }
   const item = (content[request.collection] as unknown as Values[]).find((entry) => entry.id === request.id);
-  return item ? { schema, item, title: schema.editTitle, isNew: false } : null;
+  if (!item) return null;
+  const schema = listSchema(request.collection, item);
+  const locked = request.collection === 'navigation' && item.type === 'builtin' && item.page === 'about';
+  return { schema, item, title: schema.editTitle, isNew: false, locked, unique: schema.unique ?? {} };
 }
 
 interface Props {
@@ -107,13 +114,27 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
         uploads,
         commitMessage('update', `profile ${request.section}`),
       );
-    } else {
-      void submit(
-        { kind: 'upsert', collection: request.collection, item: item as ListItem },
-        uploads,
-        commitMessage(form.isNew ? 'add' : 'update', itemNoun(request.collection), form.schema.label(item)),
-      );
+      return;
     }
+    const others = (content[request.collection] as unknown as Values[]).filter((entry) => entry.id !== item.id);
+    const taken = Object.entries(form.unique).find(
+      ([key]) => item[key] !== undefined && others.some((entry) => entry[key] === item[key]),
+    );
+    if (taken) {
+      setErrors({ [taken[0]]: taken[1] });
+      return;
+    }
+    void submit(
+      {
+        kind: 'upsert',
+        collection: request.collection,
+        item: item as ListItem,
+        // New navigation entries go to the end of the bar; other new items start their list.
+        at: request.collection === 'navigation' ? 'end' : 'start',
+      },
+      uploads,
+      commitMessage(form.isNew ? 'add' : 'update', itemNoun(request.collection), form.schema.label(item)),
+    );
   };
 
   const remove = () => {
@@ -147,13 +168,15 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
     });
   };
 
+  const itemActions = request.kind === 'edit' && !form.locked;
+
   return (
     <Modal
       title={form.title}
       onClose={close}
       footer={
         <>
-          {request.kind === 'edit' && (
+          {itemActions && (
             <button
               type="button"
               disabled={saving}
@@ -164,7 +187,7 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
               删除
             </button>
           )}
-          {request.kind === 'edit' && (
+          {itemActions && (
             <button
               type="button"
               disabled={saving}

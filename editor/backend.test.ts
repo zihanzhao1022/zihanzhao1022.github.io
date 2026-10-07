@@ -29,7 +29,7 @@ describe('GitHub backend', () => {
   it('loads every content file from the latest commit', async () => {
     const api = fakeApi();
     expect(await createGitHubBackend(api).load()).toEqual(current);
-    expect(api.readText).toHaveBeenCalledTimes(7);
+    expect(api.readText).toHaveBeenCalledTimes(8);
     expect(api.readText).toHaveBeenCalledWith('content/news.json', 'head1');
   });
 

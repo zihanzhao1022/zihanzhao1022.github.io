@@ -157,4 +157,5 @@ export type ProfileSection = 'basics' | 'bio' | 'avatar' | 'socials';
 export type EditRequest =
   | { kind: 'edit'; collection: ListCollection; id: string }
   | { kind: 'add'; collection: ListCollection; preset?: Record<string, unknown> }
-  | { kind: 'profile'; section: ProfileSection };
+  | { kind: 'profile'; section: ProfileSection }
+  | { kind: 'navigation' };

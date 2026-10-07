@@ -17,12 +17,16 @@ interface ModalProps {
 export const Modal: React.FC<ModalProps> = ({ title, onClose, footer, children }) => {
   const close = useRef(onClose);
   close.current = onClose;
+  const panel = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close.current();
+      if (event.key !== 'Escape') return;
+      // With a dialog opened over another, only the top one closes.
+      const dialogs = document.querySelectorAll('[role="dialog"]');
+      if (dialogs[dialogs.length - 1] === panel.current) close.current();
     };
     window.addEventListener('keydown', onKey);
     return () => {
@@ -39,6 +43,7 @@ export const Modal: React.FC<ModalProps> = ({ title, onClose, footer, children }
       }}
     >
       <div
+        ref={panel}
         role="dialog"
         aria-modal="true"
         aria-label={title}

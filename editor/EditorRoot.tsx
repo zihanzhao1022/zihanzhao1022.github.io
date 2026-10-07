@@ -11,6 +11,7 @@ import { publicUrl } from './images';
 import { ContentOp, applyOp, commitMessage } from './ops';
 import { AdminBar, LoadState } from './components/AdminBar';
 import { ItemModal } from './components/ItemModal';
+import { NavigationModal } from './components/NavigationModal';
 
 const FIRST_POLL_MS = 5_000;
 const POLL_MS = 10_000;
@@ -185,7 +186,17 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
         onLogout={handleLogout}
       />
       {children}
-      {request && <ItemModal request={request} content={content} onSave={save} onClose={closeDialog} />}
+      {request?.kind === 'navigation' && (
+        <NavigationModal
+          content={content}
+          onSave={save}
+          onReorder={(ids) => reorder('navigation', ids)}
+          onClose={closeDialog}
+        />
+      )}
+      {request && request.kind !== 'navigation' && (
+        <ItemModal request={request} content={content} onSave={save} onClose={closeDialog} />
+      )}
       {toast && (
         <Toast
           message={toast.message}

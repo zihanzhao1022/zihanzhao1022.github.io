@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Eye, EyeOff, Trash2 } from 'lucide-react';
 import { EditRequest, SiteContent } from '../../types';
 import { ImageUpload, describeSaveError } from '../backend';
+import { existingImages } from '../existingImages';
 import { ContentOp, ListItem, commitMessage, itemNoun } from '../ops';
 import {
   FormSchema,
@@ -169,6 +170,8 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
   };
 
   const itemActions = request.kind === 'edit' && !form.locked;
+  // Image fields offer the images already used on the site; those used by the same kind of field come first.
+  const imageKind = request.kind === 'profile' ? 'profile' : request.collection;
 
   return (
     <Modal
@@ -222,6 +225,7 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
           value={state[field.key]}
           error={errors[field.key]}
           onChange={(value) => setField(field.key, value)}
+          imageChoices={field.type === 'image' ? existingImages(content, `${imageKind}.${field.key}`) : undefined}
         />
       ))}
       <p className="text-xs text-gray-400">保存后会立即提交到 GitHub，网站约 1 分钟后更新。</p>

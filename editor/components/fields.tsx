@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, ImagePlus, Trash2 } from 'lucide-react';
 import { resolveImage } from '../../lib/localImages';
+import { ImageChoice } from '../existingImages';
 import { isPendingImage, prepareImage, validateImage } from '../images';
 import { Column, Field, Option, Values } from '../schemas';
 import { BUTTON_SECONDARY } from './Modal';
@@ -29,15 +30,23 @@ const SelectInput: React.FC<{
   );
 };
 
-const ImageInput: React.FC<{ value: unknown; onChange: (value: unknown) => void; compact?: boolean }> = ({
-  value,
-  onChange,
-  compact = false,
-}) => {
+const fileName = (url: string): string => url.split('/').pop() || url;
+
+const ImageInput: React.FC<{
+  value: unknown;
+  onChange: (value: unknown) => void;
+  compact?: boolean;
+  /** Images already used on the site that can be picked instead of uploading. */
+  choices?: ImageChoice[];
+}> = ({ value, onChange, compact = false, choices = [] }) => {
   const fileInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const src = isPendingImage(value) ? value.previewUrl : resolveImage(typeof value === 'string' ? value : '');
+  const [browsing, setBrowsing] = useState(false);
+  const current = typeof value === 'string' ? value : '';
+  const src = isPendingImage(value) ? value.previewUrl : resolveImage(current);
+  // Picking the image the field already shows would change nothing.
+  const canChoose = choices.some((choice) => choice.url !== current);
 
   const pick = async (file: File | undefined) => {
     if (!file) return;
@@ -47,6 +56,7 @@ const ImageInput: React.FC<{ value: unknown; onChange: (value: unknown) => void;
     setBusy(true);
     try {
       onChange(await prepareImage(file));
+      setBrowsing(false);
     } catch {
       setError('图片处理失败，请换一张试试');
     } finally {
@@ -55,9 +65,15 @@ const ImageInput: React.FC<{ value: unknown; onChange: (value: unknown) => void;
     }
   };
 
+  const choose = (url: string) => {
+    onChange(url);
+    setError(null);
+    setBrowsing(false);
+  };
+
   return (
     <div>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <div
           className={`${compact ? 'w-10 h-10' : 'w-24 h-16'} flex-shrink-0 flex items-center justify-center overflow-hidden rounded-md border border-dashed border-gray-300 bg-gray-50`}
         >
@@ -71,6 +87,16 @@ const ImageInput: React.FC<{ value: unknown; onChange: (value: unknown) => void;
         >
           {busy ? '处理中…' : src ? '更换' : '上传图片'}
         </button>
+        {canChoose && !busy && (
+          <button
+            type="button"
+            aria-expanded={browsing}
+            onClick={() => setBrowsing((open) => !open)}
+            className={BUTTON_SECONDARY}
+          >
+            {browsing ? '收起' : '选择已有图片'}
+          </button>
+        )}
         {src && !busy && (
           <button type="button" onClick={() => onChange('')} className="text-xs text-gray-500 hover:text-red-600">
             移除
@@ -86,6 +112,26 @@ const ImageInput: React.FC<{ value: unknown; onChange: (value: unknown) => void;
           }}
         />
       </div>
+      {browsing && (
+        <div className="mt-2 grid grid-cols-3 sm:grid-cols-4 gap-2 p-2 rounded-md border border-gray-200 bg-gray-50">
+          {choices.map((choice) => (
+            <button
+              key={choice.url}
+              type="button"
+              title={choice.url}
+              onClick={() => choose(choice.url)}
+              className={`flex flex-col items-center gap-1 min-w-0 p-1.5 rounded-md border bg-white ${
+                choice.url === current ? 'border-purple-500 ring-1 ring-purple-500' : 'border-gray-200 hover:border-purple-300'
+              }`}
+            >
+              <span className="flex items-center justify-center w-full h-12 overflow-hidden">
+                <img src={resolveImage(choice.url)} alt="" className="max-w-full max-h-full object-contain" />
+              </span>
+              <span className="w-full truncate text-[10px] text-gray-500">{fileName(choice.url)}</span>
+            </button>
+          ))}
+        </div>
+      )}
       {!compact && <p className="mt-1 text-xs text-gray-400">PNG、JPG、WebP 或 GIF，最大 5MB；超过 1600 像素会自动缩小</p>}
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>
@@ -196,7 +242,9 @@ export const FieldControl: React.FC<{
   value: unknown;
   error?: string;
   onChange: (value: unknown) => void;
-}> = ({ field, value, error, onChange }) => {
+  /** For image fields: images already used on the site. */
+  imageChoices?: ImageChoice[];
+}> = ({ field, value, error, onChange, imageChoices }) => {
   const id = `field-${field.key.replace(/\W/g, '-')}`;
   const textValue = typeof value === 'string' ? value : '';
   let control: React.ReactNode;
@@ -207,7 +255,7 @@ export const FieldControl: React.FC<{
       );
       break;
     case 'image':
-      control = <ImageInput value={value} onChange={onChange} />;
+      control = <ImageInput value={value} onChange={onChange} choices={imageChoices} />;
       break;
     case 'rows':
       control = <RowsInput field={field} value={value} onChange={onChange} />;

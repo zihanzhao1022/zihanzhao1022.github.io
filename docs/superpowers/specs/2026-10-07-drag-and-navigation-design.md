@@ -30,7 +30,7 @@
 
 ### 2.2 交互与外观
 
-- **把手**：编辑模式下，每条内容左侧外边距里有一个拖拽把手（GripVertical 图标），垂直居中，位置是 `-left-6 sm:-left-8`。
+- **把手**：编辑模式下，每条内容左侧外边距里有一个拖拽把手（GripVertical 图标），垂直居中，位置是 `-left-6 md:-left-9`，和页面边距的断点一致（手机 24px，768px 起 48px）。
 - **操作方式**：鼠标按住把手移动 4px 后开始拖动。手机上把手设了 `touch-action: none`，可以直接拖。键盘也能操作：Tab 到把手，按空格拿起，方向键移动，空格放下。
 - **悬浮效果**：
   - 被拖的条目在浮层（`DragOverlay`）里渲染，带 `shadow-2xl`、`ring-1 ring-purple-200`、`scale-[1.02]`、`-rotate-1`、`cursor-grabbing`；

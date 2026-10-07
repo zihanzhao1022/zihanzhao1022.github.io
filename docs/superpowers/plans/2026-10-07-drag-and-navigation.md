@@ -1622,7 +1622,6 @@ OUT=$SCRATCH/navbar-before- npx vitest run views/navbar.tmp.test.tsx
 - [ ] **Step 1：编写失败的测试**
 
 ```tsx file=views/navigation.test.tsx
-import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
@@ -1830,14 +1829,13 @@ export default SiteRoutes;
 ```tsx file=components/Navbar.tsx
 import React from 'react';
 import { NavLink, Link } from 'react-router-dom';
-import { ExternalLink, EyeOff, Pencil } from 'lucide-react';
+import { ExternalLink, EyeOff } from 'lucide-react';
 import { useContent } from './ContentContext';
-import { useEditMode, useVisibleItems } from './EditMode';
+import { EditButton, useVisibleItems } from './EditMode';
 import { pathOf } from './pages';
 
 const Navbar: React.FC = () => {
   const items = useVisibleItems(useContent().navigation);
-  const { editing, open } = useEditMode();
 
   return (
     <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-sm border-b border-gray-100 py-4 px-6 md:px-12 mb-8">
@@ -1876,16 +1874,7 @@ const Navbar: React.FC = () => {
               </NavLink>
             ),
           )}
-          {editing && (
-            <button
-              type="button"
-              onClick={() => open({ kind: 'navigation' })}
-              className="inline-flex items-center gap-1 -my-1 px-2.5 py-1 rounded-full border border-purple-200 bg-white text-xs font-medium text-purple-700 hover:bg-purple-50"
-            >
-              <Pencil size={12} />
-              编辑导航
-            </button>
-          )}
+          <EditButton request={{ kind: 'navigation' }} label="编辑导航" text="编辑导航" className="-my-1" />
         </div>
       </div>
     </nav>

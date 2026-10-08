@@ -13,6 +13,7 @@ describe('isContentListFile', () => {
     expect(isContentListFile('/repo/content/news.json')).toBe(true);
     expect(isContentListFile('/repo/content/publications.json?import')).toBe(true);
     expect(isContentListFile('/repo/content/navigation.json')).toBe(true);
+    expect(isContentListFile('/repo/content/results.json')).toBe(true);
     expect(isContentListFile('C:\\repo\\content\\awards.json')).toBe(true);
   });
 

@@ -41,5 +41,12 @@
     "page": "cv",
     "label": "cv",
     "hidden": true
+  },
+  {
+    "id": "results",
+    "type": "builtin",
+    "page": "results",
+    "label": "results",
+    "hidden": true
   }
 ]

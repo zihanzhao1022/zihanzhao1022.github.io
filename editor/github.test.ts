@@ -32,6 +32,38 @@ describe('createGitHubApi', () => {
     expect(JSON.parse(String(init?.body))).toEqual({ sha: 'def', force: false });
   });
 
+  it('returns null for a file that does not exist, and other failures as errors', async () => {
+    const missing = createGitHubApi('t', repo, vi.fn(async () => new Response('{}', { status: 404 })));
+    expect(await missing.readTextIfExists('content/results.json', 'abc')).toBeNull();
+    const broken = createGitHubApi('t', repo, vi.fn(async () => new Response('{}', { status: 500 })));
+    await expect(broken.readTextIfExists('content/results.json', 'abc')).rejects.toMatchObject({ status: 500 });
+  });
+
+  it('reads raw bytes with the raw media type', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response(new Uint8Array([37, 80, 68, 70])));
+    const bytes = await createGitHubApi('t', repo, fetchMock).readBytes('results/a/b.pdf', 'abc');
+    expect([...bytes]).toEqual([37, 80, 68, 70]);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toMatch(/\/contents\/results\/a\/b\.pdf\?ref=abc$/);
+    expect((init?.headers as Record<string, string>).Accept).toBe('application/vnd.github.raw+json');
+  });
+
+  it('lists the files under a folder of a tree', async () => {
+    const tree = {
+      truncated: false,
+      tree: [
+        { path: 'public/results', type: 'tree', sha: 't1' },
+        { path: 'public/results/res-a/blk-1.pdf', type: 'blob', sha: 's1' },
+        { path: 'public/resultsX.txt', type: 'blob', sha: 's2' },
+        { path: 'content/results.json', type: 'blob', sha: 's3' },
+      ],
+    };
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => ok(tree));
+    const files = await createGitHubApi('t', repo, fetchMock).listFiles('tree1', 'public/results/');
+    expect(files).toEqual([{ path: 'public/results/res-a/blk-1.pdf', sha: 's1' }]);
+    expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/git\/trees\/tree1\?recursive=1$/);
+  });
+
   it('reports the HTTP status of failures', async () => {
     const api = createGitHubApi('t', repo, vi.fn(async () => new Response('{}', { status: 422 })));
     await expect(api.updateBranch('x')).rejects.toMatchObject({ status: 422 });

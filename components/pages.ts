@@ -7,6 +7,7 @@ import Experiences from '../views/Experiences';
 import Projects from '../views/Projects';
 import Publications from '../views/Publications';
 import Talks from '../views/Talks';
+import { ResultsListRoute } from './results/routes';
 
 export const BUILTIN_ROUTES: Record<BuiltinPage, { path: string; component: React.ComponentType }> = {
   about: { path: '/', component: About },
@@ -16,6 +17,7 @@ export const BUILTIN_ROUTES: Record<BuiltinPage, { path: string; component: Reac
   talks: { path: '/talks', component: Talks },
   awards: { path: '/awards', component: Awards },
   cv: { path: '/cv', component: CV },
+  results: { path: '/results', component: ResultsListRoute },
 };
 
 /** Where a navigation entry points: a route inside the site, or the URL of an external link. */

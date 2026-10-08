@@ -50,7 +50,9 @@ export function createGitHubBackend(api: GitHubApi): EditorBackend {
       const entries = await Promise.all(
         COLLECTIONS.map(async (collection) => [collection, JSON.parse(await api.readText(contentPath(collection), head))]),
       );
-      return Object.fromEntries(entries) as SiteContent;
+      // The published snapshot of the results pages; the private list replaces it once loaded.
+      const results = JSON.parse((await api.readTextIfExists(contentPath('results'), head)) ?? '[]') as unknown;
+      return { ...Object.fromEntries(entries), results } as SiteContent;
     },
 
     async save(op, uploads, message, current) {

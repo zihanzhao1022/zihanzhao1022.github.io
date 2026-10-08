@@ -194,7 +194,7 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
           onClose={closeDialog}
         />
       )}
-      {request && request.kind !== 'navigation' && (
+      {(request?.kind === 'edit' || request?.kind === 'add' || request?.kind === 'profile') && (
         <ItemModal request={request} content={content} onSave={save} onClose={closeDialog} />
       )}
       {toast && (

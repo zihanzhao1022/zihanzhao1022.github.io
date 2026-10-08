@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ConflictError, contentPath, createGitHubBackend, describeSaveError } from './backend';
-import { GitHubApi, GitHubError, TreeEntry, WorkflowRun } from './github';
+import { GitHubApi, GitHubError, RepoFile, TreeEntry, WorkflowRun } from './github';
 import { SiteContent } from '../types';
 import fixture from '../views/__fixtures__/content.json';
 
@@ -17,6 +17,9 @@ function fakeApi(overrides: Partial<Record<keyof SiteContent, unknown>> = {}) {
     headSha: vi.fn(async () => 'head1'),
     treeSha: vi.fn(async (_commit: string) => 'tree1'),
     readText: vi.fn(async (path: string, _ref: string) => files[path]),
+    readTextIfExists: vi.fn(async (path: string, _ref: string): Promise<string | null> => files[path] ?? null),
+    readBytes: vi.fn(async (_path: string, _ref: string) => new Uint8Array()),
+    listFiles: vi.fn(async (_tree: string, _prefix: string): Promise<RepoFile[]> => []),
     createBlob: vi.fn(async (_base64: string) => 'blob1'),
     createTree: vi.fn(async (_base: string, _entries: TreeEntry[]) => 'tree2'),
     createCommit: vi.fn(async (_message: string, _tree: string, _parent: string) => 'commit1'),
@@ -31,6 +34,13 @@ describe('GitHub backend', () => {
     expect(await createGitHubBackend(api).load()).toEqual(current);
     expect(api.readText).toHaveBeenCalledTimes(8);
     expect(api.readText).toHaveBeenCalledWith('content/news.json', 'head1');
+    expect(api.readTextIfExists).toHaveBeenCalledWith('content/results.json', 'head1');
+  });
+
+  it('treats a missing results snapshot as an empty list', async () => {
+    const api = fakeApi();
+    api.readTextIfExists.mockResolvedValueOnce(null);
+    expect((await createGitHubBackend(api).load()).results).toEqual([]);
   });
 
   it('commits the changed file and new images together', async () => {

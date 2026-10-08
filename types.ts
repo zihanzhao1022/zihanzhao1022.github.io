@@ -123,7 +123,50 @@ export interface Profile {
   languages: Language[];
 }
 
-export const BUILTIN_PAGES = ['about', 'experiences', 'publications', 'projects', 'talks', 'awards', 'cv'] as const;
+export type ResultBlockKind = 'text' | 'figure' | 'table';
+
+/** A block's compiled PDF. The bookkeeping fields stay in the private repository only. */
+export interface ResultBlockOutput {
+  /** Repository path, e.g. "results/res-abc/blk-xyz-1a2b3c4d.pdf"; published copies live under public/. */
+  pdf: string;
+  /** Page size in points. */
+  width: number;
+  height: number;
+  /** Hash of everything the compile depended on; a different hash means the PDF is out of date. */
+  inputHash?: string;
+  /** Counter values at the end of the block, for the next block to continue from. */
+  counters?: Record<string, number>;
+  /** Labels this block defined: name → contents of \newlabel's second argument. */
+  labels?: Record<string, string>;
+}
+
+export interface ResultBlock extends Hideable {
+  id: string;
+  kind: ResultBlockKind;
+  /** LaTeX source; left out of the public snapshot. */
+  source?: string;
+  output?: ResultBlockOutput;
+}
+
+/** A paper on the results pages. Unpublished papers exist only in the private repository. */
+export interface ResultPaper extends Hideable {
+  id: string;
+  /** Address of the paper's page: #/results/<slug>. */
+  slug: string;
+  title: string;
+  authors: string[];
+  /** Venue or status, e.g. "ICLR 2027 · under review". */
+  venue?: string;
+  year?: number;
+  summary?: string;
+  /** The paper's LaTeX preamble (\documentclass up to \begin{document}); private only. */
+  preamble?: string;
+  /** Attachment file names under results/<id>/files/ (style files, figures); private only. */
+  files?: string[];
+  blocks: ResultBlock[];
+}
+
+export const BUILTIN_PAGES = ['about', 'experiences', 'publications', 'projects', 'talks', 'awards', 'cv', 'results'] as const;
 export type BuiltinPage = (typeof BUILTIN_PAGES)[number];
 
 interface NavBase extends Hideable {
@@ -147,9 +190,19 @@ export interface SiteContent {
   talks: Talk[];
   awards: Award[];
   navigation: NavItem[];
+  /** Visitors get the published snapshot; the signed-in owner gets the private list. */
+  results: ResultPaper[];
 }
 
-export type ListCollection = 'news' | 'experiences' | 'publications' | 'projects' | 'talks' | 'awards' | 'navigation';
+export type ListCollection =
+  | 'news'
+  | 'experiences'
+  | 'publications'
+  | 'projects'
+  | 'talks'
+  | 'awards'
+  | 'navigation'
+  | 'results';
 
 export type ProfileSection = 'basics' | 'bio' | 'avatar' | 'socials';
 
@@ -158,4 +211,8 @@ export type EditRequest =
   | { kind: 'edit'; collection: ListCollection; id: string }
   | { kind: 'add'; collection: ListCollection; preset?: Record<string, unknown> }
   | { kind: 'profile'; section: ProfileSection }
-  | { kind: 'navigation' };
+  | { kind: 'navigation' }
+  /** Edit a block of a results paper, or add one of the given kind at the end. */
+  | { kind: 'block'; paperId: string; blockId?: string; blockKind?: ResultBlockKind }
+  /** A results paper's preamble and attachments. */
+  | { kind: 'paperSettings'; paperId: string };

@@ -17,8 +17,14 @@ export interface TreeEntry {
   path: string;
   mode: '100644';
   type: 'blob';
-  sha?: string;
+  /** A blob to use, or null to delete the path. */
+  sha?: string | null;
   content?: string;
+}
+
+export interface RepoFile {
+  path: string;
+  sha: string;
 }
 
 export interface WorkflowRun {
@@ -31,6 +37,12 @@ export interface GitHubApi {
   headSha(): Promise<string>;
   treeSha(commitSha: string): Promise<string>;
   readText(path: string, ref: string): Promise<string>;
+  /** Like readText, but null when the file does not exist. */
+  readTextIfExists(path: string, ref: string): Promise<string | null>;
+  /** A file's raw bytes (any size up to 100 MB). */
+  readBytes(path: string, ref: string): Promise<Uint8Array>;
+  /** Files under a folder (prefix ending in "/") of a tree, at any depth. */
+  listFiles(treeSha: string, prefix: string): Promise<RepoFile[]>;
   createBlob(base64: string): Promise<string>;
   createTree(baseTree: string, entries: TreeEntry[]): Promise<string>;
   createCommit(message: string, tree: string, parent: string): Promise<string>;
@@ -51,7 +63,7 @@ export function createGitHubApi(
 ): GitHubApi {
   const base = `https://api.github.com/repos/${repo.owner}/${repo.repo}`;
 
-  async function request<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
+  async function send(path: string, method: string, body: unknown, accept: string): Promise<Response> {
     let res: Response;
     try {
       res = await fetchImpl(`${base}${path}`, {
@@ -59,7 +71,7 @@ export function createGitHubApi(
         // The API sends max-age=60; a cached branch head would make every save conflict.
         cache: 'no-store',
         headers: {
-          Accept: 'application/vnd.github+json',
+          Accept: accept,
           Authorization: `Bearer ${token}`,
           ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
         },
@@ -69,14 +81,39 @@ export function createGitHubApi(
       throw new GitHubError('网络连接失败', 0);
     }
     if (!res.ok) throw new GitHubError(`GitHub 返回 ${res.status}`, res.status);
-    return (await res.json()) as T;
+    return res;
   }
+
+  async function request<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
+    return (await (await send(path, method, body, 'application/vnd.github+json')).json()) as T;
+  }
+
+  const readText = async (path: string, ref: string): Promise<string> =>
+    decodeBase64Utf8((await request<{ content: string }>(`/contents/${path}?ref=${ref}`)).content);
 
   return {
     headSha: async () => (await request<{ object: { sha: string } }>(`/git/ref/heads/${repo.branch}`)).object.sha,
     treeSha: async (commitSha) => (await request<{ tree: { sha: string } }>(`/git/commits/${commitSha}`)).tree.sha,
-    readText: async (path, ref) =>
-      decodeBase64Utf8((await request<{ content: string }>(`/contents/${path}?ref=${ref}`)).content),
+    readText,
+    readTextIfExists: async (path, ref) => {
+      try {
+        return await readText(path, ref);
+      } catch (error) {
+        if (error instanceof GitHubError && error.status === 404) return null;
+        throw error;
+      }
+    },
+    readBytes: async (path, ref) =>
+      new Uint8Array(await (await send(`/contents/${path}?ref=${ref}`, 'GET', undefined, 'application/vnd.github.raw+json')).arrayBuffer()),
+    listFiles: async (treeSha, prefix) => {
+      const tree = await request<{ tree: { path: string; type: string; sha: string }[]; truncated: boolean }>(
+        `/git/trees/${treeSha}?recursive=1`,
+      );
+      if (tree.truncated) throw new GitHubError('仓库文件太多，无法列出', 0);
+      return tree.tree
+        .filter((entry) => entry.type === 'blob' && entry.path.startsWith(prefix))
+        .map((entry) => ({ path: entry.path, sha: entry.sha }));
+    },
     createBlob: async (base64) =>
       (await request<{ sha: string }>('/git/blobs', 'POST', { content: base64, encoding: 'base64' })).sha,
     createTree: async (baseTree, entries) =>

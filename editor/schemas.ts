@@ -1,4 +1,5 @@
 import { ListCollection, NavItem, Profile, ProfileSection, Rank } from '../types';
+import { DEFAULT_PREAMBLE } from './tex/document';
 import { ImageUpload } from './backend';
 import { isPendingImage, publicUrl, uploadPath } from './images';
 
@@ -62,6 +63,7 @@ const YEAR_IN_TEXT = { regex: /\d{4}/, message: '需要包含四位数字的年�
 const RANKS: Rank[] = ['Q1', 'Q2', 'Q3', 'Q4', 'CORE-A*', 'CORE-A', 'CORE-B', 'CORE-C', 'Unranked'];
 
 const text = (value: unknown): string => (typeof value === 'string' ? value : '');
+const SLUG = { regex: /^[a-z0-9]+(?:-[a-z0-9]+)*$/, message: '只能用小写字母、数字和连字符，例如 teaching' };
 const isEducation = (state: FormState): boolean => state.category === 'education';
 
 export const LIST_SCHEMAS: Record<Exclude<ListCollection, 'navigation'>, ListSchema> = {
@@ -230,6 +232,35 @@ export const LIST_SCHEMAS: Record<Exclude<ListCollection, 'navigation'>, ListSch
       { key: 'image', label: '图片', type: 'image' },
     ],
   },
+  results: {
+    addTitle: '添加论文',
+    editTitle: '编辑论文信息',
+    idPrefix: 'res',
+    label: (item) => text(item.title),
+    // New papers stay private until the owner unhides (publishes) them.
+    defaults: () => ({
+      hidden: true,
+      authors: ['**Zihan Zhao**'],
+      year: new Date().getFullYear(),
+      preamble: DEFAULT_PREAMBLE,
+      files: [],
+      blocks: [],
+    }),
+    unique: { slug: '这个地址已被其他论文使用' },
+    finalize: (item) => ({
+      ...item,
+      slug: text(item.slug) || slugify(text(item.title)).slice(0, 60).replace(/-+$/, '') || String(item.id),
+      authors: Array.isArray(item.authors) ? item.authors : [],
+    }),
+    fields: [
+      { key: 'title', label: '标题', type: 'textarea', required: true },
+      { key: 'slug', label: '页面地址', type: 'text', pattern: SLUG, help: '网址为 #/results/<地址>；留空则根据标题生成' },
+      { key: 'authors', label: '作者', type: 'lines', help: '每行一位；用 **名字** 加粗（本人或共同一作）' },
+      { key: 'venue', label: '会议 / 状态', type: 'text', placeholder: 'ICLR 2027 · under review' },
+      { key: 'year', label: '年份', type: 'year' },
+      { key: 'summary', label: '简介', type: 'textarea', help: '显示在目录页的卡片上' },
+    ],
+  },
 };
 
 const PLATFORMS: Option[] = [
@@ -303,7 +334,6 @@ export const slugify = (value: string): string =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
-const SLUG = { regex: /^[a-z0-9]+(?:-[a-z0-9]+)*$/, message: '只能用小写字母、数字和连字符，例如 teaching' };
 const WEB_ADDRESS = { regex: /^https?:\/\/\S+$/i, message: '请填写以 http:// 或 https:// 开头的网址' };
 const BODY_HELP =
   '支持 ## 小标题、- 列表、1. 编号列表、[文字](链接)、**加粗**；单独一行的 ![说明](图片地址) 会显示图片；空行分段';

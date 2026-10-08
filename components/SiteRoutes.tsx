@@ -5,6 +5,7 @@ import { useContent } from './ContentContext';
 import CustomPage from './CustomPage';
 import { useEditMode } from './EditMode';
 import { BUILTIN_ROUTES } from './pages';
+import { ResultPageRoute } from './results/routes';
 
 // Development only: a page for trying the TeX engine. Production builds drop it and the engine.
 const TexLab = import.meta.env.DEV ? React.lazy(() => import('../editor/tex/TexLab')) : null;
@@ -30,7 +31,13 @@ const SiteRoutes: React.FC = () => {
           }
           if (item.type === 'builtin' && item.page !== 'about') {
             const { path, component: Page } = BUILTIN_ROUTES[item.page];
-            return <Route key={item.id} path={path} element={<Page />} />;
+            return (
+              <React.Fragment key={item.id}>
+                <Route path={path} element={<Page />} />
+                {/* Each paper of the results list has its own page. */}
+                {item.page === 'results' && <Route path="/results/:slug" element={<ResultPageRoute />} />}
+              </React.Fragment>
+            );
           }
           return null;
         })}

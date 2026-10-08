@@ -57,6 +57,7 @@ const NOUNS: Record<ListCollection, string> = {
   talks: 'talk',
   awards: 'award',
   navigation: 'nav item',
+  results: 'result',
 };
 
 export const itemNoun = (collection: ListCollection): string => NOUNS[collection];

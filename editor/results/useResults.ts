@@ -48,8 +48,6 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
   const [siteBehind, setSiteBehind] = useState(false);
   /** A collaborator's role on each paper shared with them. */
   const [roles, setRoles] = useState<Record<string, PaperRole> | undefined>(undefined);
-  /** A collaborator also sees the site's published papers that are not shared with them, listed after. */
-  const published = useRef<ResultPaper[]>([]);
   /** Once the private list is in, reloading the public content must not replace it with the snapshot. */
   const privateLoaded = useRef(false);
   /** The private list as last loaded or saved; queued work starts from it, never from the page. */
@@ -61,11 +59,7 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
 
   const show = useCallback(
     (papers: ResultPaper[]) =>
-      setContent((current) => {
-        const shown = pending.current.reduce(applyResultsOp, papers);
-        const others = published.current.filter((paper) => !shown.some((item) => item.id === paper.id));
-        return { ...current, results: [...shown, ...others] };
-      }),
+      setContent((current) => ({ ...current, results: pending.current.reduce(applyResultsOp, papers) })),
     [setContent],
   );
 
@@ -91,7 +85,6 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
         }
         // What the page showed until now is the published snapshot.
         const snapshotShown = contentRef.current.results.length > 0;
-        if (collaborator) published.current = contentRef.current.results;
         privateLoaded.current = true;
         latest.current = loaded.papers;
         setRoles(loaded.roles);

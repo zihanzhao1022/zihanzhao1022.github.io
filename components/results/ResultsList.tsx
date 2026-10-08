@@ -88,7 +88,7 @@ const ResultsList: React.FC = () => {
   const visible = useVisibleItems(all);
   const { editing } = useEditMode();
   const collaborator = isCollaborator(useResultsAccess());
-  // A collaborator got exactly the papers they may see: the shared ones, hidden or not, and the published ones.
+  // A collaborator got exactly the papers shared with them, hidden or not.
   const papers = collaborator ? all : visible;
 
   return (
@@ -99,7 +99,7 @@ const ResultsList: React.FC = () => {
           <AddButton request={{ kind: 'add', collection: 'results' }} text="添加论文" className="ml-3" />
         </h1>
         <p className="text-sm text-gray-500">figures, tables and notes from my papers.</p>
-        {collaborator && <p className="mt-2 text-sm text-purple-700">标着"你可以编辑"或"仅查看"的是作者共享给你的论文。</p>}
+        {collaborator && <p className="mt-2 text-sm text-purple-700">这里是作者共享给你的论文。</p>}
       </div>
       <ResultsUnavailable />
       <SortableGroup

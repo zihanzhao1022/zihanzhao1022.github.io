@@ -16,6 +16,8 @@ export interface EditModeValue {
   login: () => void;
   /** Saves a new order for some items of a list (drag and drop). */
   reorder: (collection: ListCollection, ids: string[]) => void;
+  /** Saves a new order for the blocks of a results paper. */
+  reorderBlocks: (paperId: string, ids: string[]) => void;
 }
 
 const noop = (): void => {};
@@ -28,6 +30,7 @@ export const EditModeContext = createContext<EditModeValue>({
   open: noop,
   login: noop,
   reorder: noop,
+  reorderBlocks: noop,
 });
 
 export const useEditMode = (): EditModeValue => useContext(EditModeContext);
@@ -118,6 +121,7 @@ export const EditModeProvider: React.FC<{ loginCallback: LoginCallback | null; c
       open: noop,
       login,
       reorder: noop,
+      reorderBlocks: noop,
     }),
     [login],
   );

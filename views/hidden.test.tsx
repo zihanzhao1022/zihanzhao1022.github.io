@@ -36,6 +36,7 @@ const editing: EditModeValue = {
   open: () => {},
   login: () => {},
   reorder: () => {},
+  reorderBlocks: () => {},
 };
 
 const render = (View: React.ComponentType, mode?: EditModeValue): string =>

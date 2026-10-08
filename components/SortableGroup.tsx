@@ -8,13 +8,15 @@ export interface SortableGroupProps<T extends { id: string }> {
   /** Class of the list container: the same element visitors get, so their page never changes. */
   className: string;
   renderItem: (item: T) => React.ReactNode;
+  /** Saves the new order; by default the edit mode reorders `collection`. */
+  onReorder?: (ids: string[]) => void;
 }
 
 // The drag-and-drop library only loads in edit mode.
 const SortableGroupImpl = lazy(() => import('../editor/dnd/SortableGroupImpl'));
 
 /** A list that can be reordered by dragging while editing, and a plain list otherwise. */
-export function SortableGroup<T extends { id: string }>({ collection, items, className, renderItem }: SortableGroupProps<T>) {
+export function SortableGroup<T extends { id: string }>({ collection, items, className, renderItem, onReorder }: SortableGroupProps<T>) {
   const { editing } = useEditMode();
   const plain = (
     <div className={className}>
@@ -31,6 +33,7 @@ export function SortableGroup<T extends { id: string }>({ collection, items, cla
         items={items}
         className={className}
         renderItem={renderItem as (item: { id: string }) => React.ReactNode}
+        onReorder={onReorder}
       />
     </Suspense>
   );

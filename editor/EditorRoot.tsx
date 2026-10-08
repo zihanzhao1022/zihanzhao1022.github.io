@@ -171,6 +171,7 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
       open,
       login: relogin,
       reorder,
+      reorderBlocks: () => {},
     }),
     [enabled, loadState, open, relogin, reorder],
   );

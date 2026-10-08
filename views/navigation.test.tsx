@@ -25,6 +25,7 @@ const owner: EditModeValue = {
   open: () => {},
   login: () => {},
   reorder: () => {},
+  reorderBlocks: () => {},
 };
 
 const render = (path: string, mode?: EditModeValue): string => {

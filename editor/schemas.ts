@@ -65,6 +65,28 @@ const RANKS: Rank[] = ['Q1', 'Q2', 'Q3', 'Q4', 'CORE-A*', 'CORE-A', 'CORE-B', 'C
 const text = (value: unknown): string => (typeof value === 'string' ? value : '');
 const SLUG = { regex: /^[a-z0-9]+(?:-[a-z0-9]+)*$/, message: '只能用小写字母、数字和连字符，例如 teaching' };
 const isEducation = (state: FormState): boolean => state.category === 'education';
+// One GitHub user name per line (blank lines are fine). Written so that no input makes it backtrack badly.
+const GITHUB_LOGINS = {
+  regex: /^[ \t]*(?:@?[A-Za-z0-9][A-Za-z0-9-]{0,38}[ \t]*)?(?:\r?\n[ \t]*(?:@?[A-Za-z0-9][A-Za-z0-9-]{0,38}[ \t]*)?)*$/,
+  message: '每行一个 GitHub 用户名，只能包含字母、数字和连字符',
+};
+
+/** User names without "@", each once (GitHub ignores case); undefined for an empty list. */
+function logins(value: unknown): string[] | undefined {
+  const names = Array.isArray(value) ? value.map((name) => String(name).trim().replace(/^@/, '')).filter(Boolean) : [];
+  const unique = names.filter((name, index) => names.findIndex((other) => other.toLowerCase() === name.toLowerCase()) === index);
+  return unique.length > 0 ? unique : undefined;
+}
+
+/** Sets or removes optional list fields. */
+function withLists(item: Values, lists: Record<string, string[] | undefined>): Values {
+  const next = { ...item };
+  for (const [key, list] of Object.entries(lists)) {
+    if (list) next[key] = list;
+    else delete next[key];
+  }
+  return next;
+}
 
 export const LIST_SCHEMAS: Record<Exclude<ListCollection, 'navigation'>, ListSchema> = {
   news: {
@@ -247,11 +269,15 @@ export const LIST_SCHEMAS: Record<Exclude<ListCollection, 'navigation'>, ListSch
       blocks: [],
     }),
     unique: { slug: '这个地址已被其他论文使用' },
-    finalize: (item) => ({
-      ...item,
-      slug: text(item.slug) || slugify(text(item.title)).slice(0, 60).replace(/-+$/, '') || String(item.id),
-      authors: Array.isArray(item.authors) ? item.authors : [],
-    }),
+    finalize: (item) =>
+      withLists(
+        {
+          ...item,
+          slug: text(item.slug) || slugify(text(item.title)).slice(0, 60).replace(/-+$/, '') || String(item.id),
+          authors: Array.isArray(item.authors) ? item.authors : [],
+        },
+        { viewers: logins(item.viewers), editors: logins(item.editors) },
+      ),
     fields: [
       { key: 'title', label: '标题', type: 'textarea', required: true },
       { key: 'slug', label: '页面地址', type: 'text', pattern: SLUG, help: '网址为 #/results/<地址>；留空则根据标题生成' },
@@ -259,6 +285,22 @@ export const LIST_SCHEMAS: Record<Exclude<ListCollection, 'navigation'>, ListSch
       { key: 'venue', label: '会议 / 状态', type: 'text', placeholder: 'ICLR 2027 · under review' },
       { key: 'year', label: '年份', type: 'year' },
       { key: 'summary', label: '简介', type: 'textarea', help: '显示在目录页的卡片上' },
+      {
+        key: 'viewers',
+        label: '可以查看的人',
+        type: 'lines',
+        pattern: GITHUB_LOGINS,
+        rows: 3,
+        help: '每行一个 GitHub 用户名。论文隐藏时他们登录后也能看到，但只看到可见块的结果，看不到 LaTeX 代码',
+      },
+      {
+        key: 'editors',
+        label: '可以编辑的人',
+        type: 'lines',
+        pattern: GITHUB_LOGINS,
+        rows: 3,
+        help: '每行一个 GitHub 用户名。他们还能编辑这篇论文的块、导言区和附件；论文公开后，他们的修改要你确认才会更新到网站。公开、隐藏、删除论文和修改这里的信息仍然只有你能做',
+      },
     ],
   },
 };

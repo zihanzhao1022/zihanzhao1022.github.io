@@ -1,8 +1,11 @@
 import { EDITOR_CONFIG } from './config';
+import { ConflictError } from './errors';
 import { GitHubApi, GitHubError, TreeEntry, createGitHubApi } from './github';
 import { ContentOp, applyOp } from './ops';
 import { Session } from '../lib/session';
 import { SiteContent } from '../types';
+
+export { ConflictError };
 
 export interface ImageUpload {
   /** Repository path, e.g. "public/images/uploads/20261006-153012-logo.png". */
@@ -28,12 +31,6 @@ export interface EditorBackend {
   /** Applies the edit to the latest version on GitHub and commits it together with the images. */
   save(op: ContentOp, uploads: ImageUpload[], message: string, current: SiteContent): Promise<SaveResult>;
   deployStatus(commitSha: string): Promise<DeployStatus>;
-}
-
-export class ConflictError extends Error {
-  constructor() {
-    super('内容已在别处修改，请刷新页面后再试');
-  }
 }
 
 const COLLECTIONS = ['profile', 'news', 'experiences', 'publications', 'projects', 'talks', 'awards', 'navigation'] as const;

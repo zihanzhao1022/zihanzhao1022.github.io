@@ -12,15 +12,15 @@ describe('base64url', () => {
 
 describe('sessions', () => {
   it('accepts its own unexpired tokens', async () => {
-    const token = await signSession({ login: 'collab', exp: 2_000 }, 'secret');
-    expect(await verifySession(token, 'secret', 1_000)).toEqual({ login: 'collab', exp: 2_000 });
+    const token = await signSession({ login: 'collab', id: 42, exp: 2_000 }, 'secret');
+    expect(await verifySession(token, 'secret', 1_000)).toEqual({ login: 'collab', id: 42, exp: 2_000 });
   });
 
   it('rejects expired, tampered or foreign tokens', async () => {
-    const token = await signSession({ login: 'collab', exp: 2_000 }, 'secret');
+    const token = await signSession({ login: 'collab', id: 42, exp: 2_000 }, 'secret');
     expect(await verifySession(token, 'secret', 2_000)).toBeNull();
     expect(await verifySession(token, 'other-secret', 1_000)).toBeNull();
-    const forged = `${base64UrlEncode(new TextEncoder().encode(JSON.stringify({ login: 'owner', exp: 9e15 })))}.${token.split('.')[1]}`;
+    const forged = `${base64UrlEncode(new TextEncoder().encode(JSON.stringify({ login: 'owner', id: 1, exp: 9e15 })))}.${token.split('.')[1]}`;
     expect(await verifySession(forged, 'secret', 1_000)).toBeNull();
     expect(await verifySession('not-a-token', 'secret', 1_000)).toBeNull();
     expect(await verifySession(`${token}.extra`, 'secret', 1_000)).toBeNull();

@@ -5,7 +5,7 @@ import { ResultPaper } from '../../types';
 import { useContent } from '../ContentContext';
 import { AddButton, EditButton, HiddenBadge, useEditMode, useVisibleItems } from '../EditMode';
 import { SortableGroup } from '../SortableGroup';
-import { useResultsAccess } from './access';
+import { isCollaborator, useResultsAccess } from './access';
 import Authors from './Authors';
 
 const UNAVAILABLE: Record<string, string> = {
@@ -23,7 +23,8 @@ export const ResultsUnavailable: React.FC = () => {
   if (access?.state === 'unavailable') {
     return (
       <div role="alert" className="mb-8 p-4 rounded-lg bg-amber-50 text-sm text-amber-800">
-        {UNAVAILABLE[access.reason ?? 'error']} 现在显示的是网站上已公开的内容，暂时不能编辑。
+        {isCollaborator(access) ? '暂时读不到共享给你的论文，请稍后刷新页面重试。' : UNAVAILABLE[access.reason ?? 'error']}{' '}
+        现在显示的是网站上已公开的内容，暂时不能编辑。
       </div>
     );
   }
@@ -40,6 +41,22 @@ export const ResultsUnavailable: React.FC = () => {
   return null;
 };
 
+const BADGE = 'ml-2 inline-flex items-center px-1.5 py-0.5 rounded align-middle text-[10px] font-medium normal-case tracking-normal';
+
+/** What the signed-in person should know about a paper at a glance. */
+const PaperBadge: React.FC<{ paper: ResultPaper }> = ({ paper }) => {
+  const access = useResultsAccess();
+  if (isCollaborator(access)) {
+    const role = access?.shared?.[paper.id];
+    if (!role) return null;
+    return <span className={`${BADGE} bg-purple-50 text-purple-700`}>{role === 'editor' ? '你可以编辑' : '仅查看'}</span>;
+  }
+  if (access && !paper.hidden && paper.pendingReview?.length) {
+    return <span className={`${BADGE} bg-amber-50 text-amber-700`}>有待发布的修改</span>;
+  }
+  return null;
+};
+
 const PaperCard: React.FC<{ paper: ResultPaper }> = ({ paper }) => (
   <div className={`relative p-4 rounded-lg hover:bg-gray-50 transition-colors duration-300${paper.hidden ? ' opacity-50' : ''}`}>
     <h3 className="text-lg font-bold text-gray-900 leading-tight mb-2">
@@ -48,6 +65,7 @@ const PaperCard: React.FC<{ paper: ResultPaper }> = ({ paper }) => (
         {paper.title}
       </Link>
       {paper.hidden && <HiddenBadge />}
+      <PaperBadge paper={paper} />
     </h3>
     {paper.authors.length > 0 && (
       <div className="text-gray-700 text-sm mb-2 font-light">
@@ -66,8 +84,12 @@ const PaperCard: React.FC<{ paper: ResultPaper }> = ({ paper }) => (
 
 /** The list of papers on the results pages. */
 const ResultsList: React.FC = () => {
-  const papers = useVisibleItems(useContent().results);
+  const all = useContent().results;
+  const visible = useVisibleItems(all);
   const { editing } = useEditMode();
+  const collaborator = isCollaborator(useResultsAccess());
+  // A collaborator got exactly the papers they may see: the shared ones, hidden or not, and the published ones.
+  const papers = collaborator ? all : visible;
 
   return (
     <div className="animate-fade-in pb-20">
@@ -77,6 +99,7 @@ const ResultsList: React.FC = () => {
           <AddButton request={{ kind: 'add', collection: 'results' }} text="添加论文" className="ml-3" />
         </h1>
         <p className="text-sm text-gray-500">figures, tables and notes from my papers.</p>
+        {collaborator && <p className="mt-2 text-sm text-purple-700">标着"你可以编辑"或"仅查看"的是作者共享给你的论文。</p>}
       </div>
       <ResultsUnavailable />
       <SortableGroup

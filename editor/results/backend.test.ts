@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ResultPaper } from '../../types';
-import { ConflictError } from '../backend';
+import { ConflictError } from '../errors';
 import { GitHubApi, GitHubError, RepoFile, TreeEntry, WorkflowRun } from '../github';
 import { GENERIC_PUBLIC_MESSAGE, RESULTS_PATH, createResultsBackend, toBase64 } from './backend';
 import { snapshotText } from './snapshot';
@@ -17,7 +17,7 @@ const draft: ResultPaper = {
 };
 
 /** A fake repository: text files, binary files and the files listed in its tree. */
-function fakeRepo(text: Record<string, string> = {}, bytes: Record<string, Uint8Array> = {}, listed: string[] = []) {
+function fakeRepo(text: Record<string, string> = {}, bytes: Record<string, Uint8Array<ArrayBuffer>> = {}, listed: string[] = []) {
   return {
     headSha: vi.fn(async () => 'head1'),
     treeSha: vi.fn(async (_commit: string) => 'tree1'),

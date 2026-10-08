@@ -2,14 +2,19 @@ import { ResultBlock, ResultBlockOutput, ResultPaper } from '../../types';
 import { ContentOp, applyListOp } from '../ops';
 
 /** What the paper form edits. Blocks, preamble, attachments and visibility change through their own operations. */
-const INFO_FIELDS = ['slug', 'title', 'authors', 'venue', 'year', 'summary'] as const;
+const INFO_FIELDS = ['slug', 'title', 'authors', 'venue', 'year', 'summary', 'viewers', 'editors', 'collaboratorIds'] as const;
 
 export type ResultsOp =
   /** A new paper goes first; an existing one gets the form's information fields. */
   | { kind: 'putPaper'; paper: ResultPaper }
   | { kind: 'deletePaper'; id: string }
   | { kind: 'reorderPapers'; ids: string[] }
+  /** Publishing a paper (hidden: false) also publishes edits that were waiting for review. */
   | { kind: 'setPaperHidden'; id: string; hidden: boolean }
+  /** The owner publishes collaborators' edits to a published paper. */
+  | { kind: 'approveEdits'; id: string }
+  /** Added by the worker to a collaborator's save: their edit to a published paper waits for the owner. */
+  | { kind: 'noteEdit'; paperId: string; login: string }
   | { kind: 'patchPaper'; id: string; fields: Partial<Pick<ResultPaper, 'preamble'>> }
   /** Adds an attachment, or records the new content hash of a replaced one. */
   | { kind: 'putFile'; paperId: string; name: string; hash: string }
@@ -28,6 +33,12 @@ export type ResultsOp =
 
 function updatePaper(papers: ResultPaper[], id: string, change: (paper: ResultPaper) => ResultPaper): ResultPaper[] {
   return papers.map((paper) => (paper.id === id ? change(paper) : paper));
+}
+
+function withoutReview(paper: ResultPaper): ResultPaper {
+  if (!paper.pendingReview) return paper;
+  const { pendingReview: _pendingReview, ...rest } = paper;
+  return rest;
 }
 
 function putInfo(existing: ResultPaper, form: ResultPaper): ResultPaper {
@@ -51,8 +62,20 @@ export function applyResultsOp(papers: ResultPaper[], op: ResultsOp): ResultPape
       return applyListOp(papers, { kind: 'delete', collection: 'results', id: op.id });
     case 'reorderPapers':
       return applyListOp(papers, { kind: 'reorder', collection: 'results', ids: op.ids });
-    case 'setPaperHidden':
-      return applyListOp(papers, { kind: 'setHidden', collection: 'results', id: op.id, hidden: op.hidden });
+    case 'setPaperHidden': {
+      const next = applyListOp(papers, { kind: 'setHidden', collection: 'results', id: op.id, hidden: op.hidden });
+      return op.hidden ? next : updatePaper(next, op.id, withoutReview);
+    }
+    case 'approveEdits':
+      return updatePaper(papers, op.id, withoutReview);
+    case 'noteEdit':
+      return updatePaper(papers, op.paperId, (paper) => {
+        // Hidden papers are not on the site; publishing them later publishes everything anyway.
+        if (paper.hidden) return paper;
+        const logins = paper.pendingReview ?? [];
+        if (logins.some((login) => login.toLowerCase() === op.login.toLowerCase())) return paper;
+        return { ...paper, pendingReview: [...logins, op.login] };
+      });
     case 'patchPaper':
       return updatePaper(papers, op.id, (paper) => ({ ...paper, ...op.fields }));
     case 'putFile':
@@ -114,6 +137,7 @@ export function touchedPapers(op: ResultsOp): string[] {
       return [op.paper.id];
     case 'deletePaper':
     case 'setPaperHidden':
+    case 'approveEdits':
     case 'patchPaper':
       return [op.id];
     case 'reorderPapers':

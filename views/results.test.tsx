@@ -28,6 +28,16 @@ const results: ResultPaper[] = [
     ],
   },
   { id: 'res-draft', slug: 'draft', title: 'A made-up draft', authors: [], hidden: true, blocks: [] },
+  {
+    id: 'res-review',
+    slug: 'reviewed',
+    title: 'A made-up paper a collaborator edited',
+    authors: [],
+    editors: ['alice'],
+    collaboratorIds: { alice: 101 },
+    pendingReview: ['alice'],
+    blocks: [{ id: 'b5', kind: 'table', source: '\\toprule', output: output('results/res-review/b5-eeee.pdf') }],
+  },
 ];
 
 const navigation = (hidden: boolean): NavItem[] => [
@@ -115,12 +125,58 @@ describe('paper page', () => {
     expect(html).toContain('这篇论文目前不公开');
   });
 
-  it('renders nothing for an unknown address (it redirects to the list)', () => {
-    expect(render('/results/nope', <ResultPage />)).toBe('');
+  it('asks visitors to sign in at an unknown address: it may be a paper shared with them', () => {
+    expect(render('/results/nope', <ResultPage />)).toContain('Sign in with GitHub to see the results shared with you.');
+  });
+
+  it('sends the signed-in owner back to the list from an unknown address', () => {
+    expect(render('/results/nope', <ResultPage />, owner, privateAccess)).toBe('');
+  });
+
+  it("asks the owner to publish collaborators' edits to a published paper", () => {
+    const html = render('/results/reviewed', <ResultPage />, owner, { ...privateAccess, approveEdits: () => {} });
+    expect(html).toContain('@alice 修改过这篇已公开的论文');
+    expect(html).toContain('发布这些修改');
   });
 
   it('waits for the owner private list before deciding a paper is missing', () => {
     expect(render('/results/nope', <ResultPage />, { ...owner, ready: false })).toBe('');
+  });
+});
+
+describe('collaborators', () => {
+  const collaborator: EditModeValue = { ...owner, editing: false };
+  const access: ResultsAccess = {
+    role: 'collaborator',
+    state: 'private',
+    readFile: async () => new Uint8Array(),
+    shared: { 'res-draft': 'viewer', 'res-review': 'editor' },
+  };
+
+  it('lists the papers shared with them, hidden or not, with their role', () => {
+    const html = render('/results', <ResultPage />, collaborator, access);
+    expect(html).toContain('A made-up draft');
+    expect(html).toContain('仅查看');
+    expect(html).toContain('你可以编辑');
+    expect(html).not.toContain('添加论文');
+    expect(html).not.toContain('编辑论文信息');
+  });
+
+  it('lets an editor edit the blocks of their paper, but not its information', () => {
+    const html = render('/results/reviewed', <ResultPage />, collaborator, access);
+    expect(html).toContain('导言区与附件');
+    expect(html).toContain('编辑表格');
+    expect(html.match(/复制 LaTeX<\/button>/g)).toHaveLength(1);
+    expect(html).not.toContain('编辑论文信息');
+    expect(html).toContain('作者确认后才会更新');
+    expect(html).not.toContain('发布这些修改');
+  });
+
+  it('shows a viewer the paper without editing controls', () => {
+    const html = render('/results/draft', <ResultPage />, collaborator, access);
+    expect(html).toContain('只有作者和受邀的协作者能看到');
+    expect(html).not.toContain('导言区与附件');
+    expect(html).not.toContain('编辑');
   });
 });
 
@@ -139,5 +195,9 @@ describe('results routes', () => {
   it('lists the results page in the navigation only when it is not hidden', () => {
     expect(site('/', false)).toContain('href="/results"');
     expect(site('/', true)).not.toContain('href="/results"');
+  });
+
+  it('asks visitors to sign in at a hidden results address instead of sending them home', () => {
+    expect(site('/results/draft', true)).toContain('Sign in with GitHub to see the results shared with you.');
   });
 });

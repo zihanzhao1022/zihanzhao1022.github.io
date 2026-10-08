@@ -165,6 +165,20 @@ export interface ResultPaper extends Hideable {
   files?: string[];
   /** Content hash of each attachment, so replacing a file recompiles the blocks that use it; private only. */
   fileHashes?: Record<string, string>;
+  /** GitHub users who may view the paper while it is hidden (case-insensitive); private only, never sent to them. */
+  viewers?: string[];
+  /** GitHub users who may also edit its blocks, preamble and attachments; private only, never sent to them. */
+  editors?: string[];
+  /**
+   * The GitHub account ID of everyone in `viewers` and `editors`, by lowercase user name. Access is checked
+   * against these, because a user name that is given up can be registered by someone else. Private only.
+   */
+  collaboratorIds?: Record<string, number>;
+  /**
+   * Collaborators who changed this published paper since the owner last published it. Until the owner
+   * publishes their edits, the site keeps showing the version from before them. Private only.
+   */
+  pendingReview?: string[];
   blocks: ResultBlock[];
 }
 

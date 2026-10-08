@@ -12,29 +12,51 @@ export const hasPublished = (papers: ResultPaper[]): boolean => papers.some((pap
 /**
  * What visitors get: published papers with their visible, compiled blocks. No LaTeX source, preamble or
  * attachments (comments in a source may hold unpublished numbers), and none of the compile bookkeeping.
+ * A paper with collaborators' edits waiting for review keeps the version the site shows now (`current`);
+ * if the site does not show it, it stays off until the owner publishes the edits.
  */
-export function buildSnapshot(papers: ResultPaper[]): ResultPaper[] {
+export function buildSnapshot(papers: ResultPaper[], current: ResultPaper[] = []): ResultPaper[] {
   return papers
     .filter((paper) => !paper.hidden)
-    .map((paper) => ({
-      id: paper.id,
-      slug: paper.slug,
-      title: paper.title,
-      authors: paper.authors,
-      ...(paper.venue === undefined ? {} : { venue: paper.venue }),
-      ...(paper.year === undefined ? {} : { year: paper.year }),
-      ...(paper.summary === undefined ? {} : { summary: paper.summary }),
-      blocks: paper.blocks
-        .filter((block) => !block.hidden && block.output)
-        .map((block) => ({
-          id: block.id,
-          kind: block.kind,
-          output: { pdf: block.output!.pdf, width: block.output!.width, height: block.output!.height },
-        })),
-    }));
+    .flatMap((paper): ResultPaper[] => {
+      if (!paper.pendingReview?.length) return [publicView(paper)];
+      const shown = current.find((item) => item.id === paper.id);
+      return shown ? [shown] : [];
+    });
 }
 
-export const snapshotText = (papers: ResultPaper[]): string => `${JSON.stringify(buildSnapshot(papers), null, 2)}\n`;
+/** A published paper as visitors get it. */
+export function publicView(paper: ResultPaper): ResultPaper {
+  return {
+    id: paper.id,
+    slug: paper.slug,
+    title: paper.title,
+    authors: paper.authors,
+    ...(paper.venue === undefined ? {} : { venue: paper.venue }),
+    ...(paper.year === undefined ? {} : { year: paper.year }),
+    ...(paper.summary === undefined ? {} : { summary: paper.summary }),
+    blocks: paper.blocks
+      .filter((block) => !block.hidden && block.output)
+      .map((block) => ({
+        id: block.id,
+        kind: block.kind,
+        output: { pdf: block.output!.pdf, width: block.output!.width, height: block.output!.height },
+      })),
+  };
+}
+
+export const snapshotText = (papers: ResultPaper[], current: ResultPaper[] = []): string =>
+  `${JSON.stringify(buildSnapshot(papers, current), null, 2)}\n`;
+
+/** The papers in the site's snapshot file; an unreadable or missing file shows none. */
+export function parseSnapshot(text: string | null): ResultPaper[] {
+  try {
+    const papers: unknown = text === null ? [] : JSON.parse(text);
+    return Array.isArray(papers) ? (papers as ResultPaper[]) : [];
+  } catch {
+    return [];
+  }
+}
 
 /** Private paths (results/...) of every file the snapshot shows. */
 export const snapshotFiles = (snapshot: ResultPaper[]): string[] =>
@@ -51,13 +73,15 @@ export interface PublicSyncPlan {
 
 /** What the site's repository needs so that it shows exactly the published papers. */
 export function planPublicSync(papers: ResultPaper[], currentJson: string | null, existingFiles: string[]): PublicSyncPlan {
-  const json = snapshotText(papers);
-  const wanted = snapshotFiles(buildSnapshot(papers));
+  const snapshot = buildSnapshot(papers, parseSnapshot(currentJson));
+  const json = `${JSON.stringify(snapshot, null, 2)}\n`;
+  const kept = new Set(papers.filter((paper) => paper.pendingReview?.length).map((paper) => paper.id));
   const existing = new Set(existingFiles);
-  const wantedPublic = new Set(wanted.map(publicPath));
+  const wantedPublic = new Set(snapshotFiles(snapshot).map(publicPath));
   return {
     json: json === currentJson ? null : json,
-    add: wanted.filter((path) => !existing.has(publicPath(path))),
+    // Only papers built from the private list bring files; a paper kept as the site shows it has them there.
+    add: snapshotFiles(snapshot.filter((paper) => !kept.has(paper.id))).filter((path) => !existing.has(publicPath(path))),
     remove: existingFiles.filter((path) => !wantedPublic.has(path)),
   };
 }

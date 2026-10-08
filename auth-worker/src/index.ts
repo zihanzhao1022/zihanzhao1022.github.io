@@ -1,9 +1,14 @@
 /**
- * Exchanges a GitHub login code for a user token, but only for the site owner.
- * GitHub requires the client secret for this exchange and its endpoint has no CORS,
- * so the static site cannot do it in the browser. The worker stores nothing.
+ * Exchanges a GitHub login code for a user token, but only for the site owner. GitHub requires the client
+ * secret for this exchange and its endpoint has no CORS, so the static site cannot do it in the browser.
+ * People the owner shared a results paper with get a session of the worker's own instead (see results.ts).
+ * The worker stores nothing.
  */
-export interface Env {
+import { githubHeaders } from './github-app';
+import { Headers, json } from './http';
+import { ResultsEnv, collaboratorLogin, handleResults } from './results';
+
+export interface Env extends ResultsEnv {
   GITHUB_CLIENT_ID: string;
   GITHUB_CLIENT_SECRET: string;
   OWNER_LOGIN: string;
@@ -13,18 +18,6 @@ export interface Env {
 
 // GitHub App user tokens expire after 8 hours unless the app opts out.
 const DEFAULT_TOKEN_SECONDS = 8 * 60 * 60;
-
-type Headers = Record<string, string>;
-
-const githubHeaders = (authorization: string): Headers => ({
-  Accept: 'application/vnd.github+json',
-  Authorization: authorization,
-  'User-Agent': 'homepage-auth-worker',
-  'X-GitHub-Api-Version': '2022-11-28',
-});
-
-const json = (body: unknown, status: number, cors: Headers): Response =>
-  new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
 
 async function revoke(env: Env, accessToken: string): Promise<void> {
   const basic = btoa(`${env.GITHUB_CLIENT_ID}:${env.GITHUB_CLIENT_SECRET}`);
@@ -61,10 +54,11 @@ async function exchange(body: Record<string, unknown>, env: Env, origins: string
   }
 
   const userRes = await fetch('https://api.github.com/user', { headers: githubHeaders(`Bearer ${token.access_token}`) });
-  const user = userRes.ok ? ((await userRes.json()) as { login: string; avatar_url: string }) : null;
+  const user = userRes.ok ? ((await userRes.json()) as { login: string; id: number; avatar_url: string }) : null;
   if (!user || user.login.toLowerCase() !== env.OWNER_LOGIN.toLowerCase()) {
+    // Only the owner keeps a GitHub token.
     await revoke(env, token.access_token);
-    return user ? json({ error: 'not_owner' }, 403, cors) : json({ error: 'user_lookup_failed' }, 502, cors);
+    return user ? collaboratorLogin(user, env, cors) : json({ error: 'user_lookup_failed' }, 502, cors);
   }
 
   const seconds = token.expires_in ?? DEFAULT_TOKEN_SECONDS;
@@ -89,13 +83,14 @@ export default {
     const cors: Headers = {
       'Access-Control-Allow-Origin': origin,
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       'Access-Control-Max-Age': '86400',
       Vary: 'Origin',
     };
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
 
     const { pathname } = new URL(request.url);
+    if (request.method === 'POST' && pathname.startsWith('/results/')) return handleResults(request, pathname, env, cors);
     if (request.method !== 'POST' || (pathname !== '/token' && pathname !== '/revoke')) {
       return json({ error: 'not_found' }, 404, cors);
     }

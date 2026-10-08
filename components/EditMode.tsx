@@ -48,8 +48,9 @@ export const HiddenBadge: React.FC = () => (
   </span>
 );
 
-// Loaded only once the owner signs in, so visitors never download the editor.
+// Loaded only once someone signs in, so visitors never download the editor.
 const EditorRoot = lazy(() => import('../editor/EditorRoot'));
+const CollaboratorRoot = lazy(() => import('../editor/CollaboratorRoot'));
 
 export const Toast: React.FC<{
   message: string;
@@ -135,9 +136,15 @@ export const EditModeProvider: React.FC<{ loginCallback: LoginCallback | null; c
     <>
       {session ? (
         <Suspense fallback={loading}>
-          <EditorRoot session={session} onLogout={handleLogout}>
-            {children}
-          </EditorRoot>
+          {session.role === 'collaborator' ? (
+            <CollaboratorRoot session={session} onLogout={handleLogout}>
+              {children}
+            </CollaboratorRoot>
+          ) : (
+            <EditorRoot session={session} onLogout={handleLogout}>
+              {children}
+            </EditorRoot>
+          )}
         </Suspense>
       ) : (
         page

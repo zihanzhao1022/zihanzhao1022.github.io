@@ -1,9 +1,12 @@
 export interface Session {
+  /** The owner's GitHub token, or a collaborator's session with the worker (they never hold a GitHub token). */
   token: string;
   login: string;
   avatarUrl: string;
   /** Epoch milliseconds. */
   expiresAt: number;
+  /** Set for someone the owner shared results papers with; the owner's sessions have none. */
+  role?: 'collaborator';
 }
 
 /** Kept in sessionStorage while the browser is away at GitHub. */
@@ -81,6 +84,7 @@ export function loadSession(storage = localStore(), now = Date.now()): Session |
     login: value.login as string,
     avatarUrl: typeof value.avatarUrl === 'string' ? value.avatarUrl : '',
     expiresAt: value.expiresAt as number,
+    ...(value.role === 'collaborator' ? { role: 'collaborator' as const } : {}),
   };
 }
 

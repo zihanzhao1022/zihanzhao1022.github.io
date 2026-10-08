@@ -76,21 +76,47 @@ export async function exchangeCode(
   } catch {
     throw new LoginError('无法连接登录服务，请稍后重试');
   }
-  if (res.status === 403) throw new LoginError('该账号没有编辑权限');
+  if (res.status === 403) throw new LoginError('这个 GitHub 账号没有访问权限');
   if (!res.ok) throw new LoginError('登录失败，请重新登录');
-  const data = (await res.json()) as { access_token: string; expires_at: number; login: string; avatar_url: string };
-  return { token: data.access_token, login: data.login, avatarUrl: data.avatar_url, expiresAt: data.expires_at };
+  const data = (await res.json()) as {
+    access_token?: string;
+    role?: string;
+    session?: string;
+    expires_at: number;
+    login: string;
+    avatar_url: string;
+  };
+  // Someone the owner shared results papers with gets a session with the worker instead of a GitHub token.
+  if (data.role === 'collaborator' && data.session) {
+    return { token: data.session, login: data.login, avatarUrl: data.avatar_url, expiresAt: data.expires_at, role: 'collaborator' };
+  }
+  return { token: data.access_token ?? '', login: data.login, avatarUrl: data.avatar_url, expiresAt: data.expires_at };
+}
+
+/** The GitHub account ID mock mode makes up for a user name. */
+export const mockUserId = (login: string): number =>
+  [...login.toLowerCase()].reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) % 1_000_000, 7) + 1000;
+
+/** Mock mode signs in as the owner, or as a collaborator after localStorage.setItem('mock-login', 'alice'). */
+function mockSession(): Session {
+  let login: string | null = null;
+  try {
+    login = localStorage.getItem('mock-login');
+  } catch {
+    // Signs in as the owner.
+  }
+  const expiresAt = Date.now() + MOCK_SESSION_MS;
+  if (login && login !== EDITOR_CONFIG.owner) {
+    // The mock "worker session" is just who it belongs to.
+    return { token: JSON.stringify({ login, id: mockUserId(login) }), login, avatarUrl: '', expiresAt, role: 'collaborator' };
+  }
+  return { token: 'mock-token', login: EDITOR_CONFIG.owner, avatarUrl: '', expiresAt };
 }
 
 /** Sends the browser to GitHub. In mock mode it signs in on the spot and returns the session. */
 export async function startLogin(): Promise<Session | null> {
   if (MOCK_MODE) {
-    const session: Session = {
-      token: 'mock-token',
-      login: EDITOR_CONFIG.owner,
-      avatarUrl: '',
-      expiresAt: Date.now() + MOCK_SESSION_MS,
-    };
+    const session = mockSession();
     saveSession(session);
     return session;
   }
@@ -114,7 +140,8 @@ export async function completeLogin(callback: LoginCallback): Promise<Session> {
 
 export async function logout(session: Session): Promise<void> {
   clearSession();
-  if (MOCK_MODE) return;
+  // A collaborator's GitHub token was revoked at login; their worker session simply expires.
+  if (MOCK_MODE || session.role === 'collaborator') return;
   try {
     await fetch(workerUrl('/revoke'), {
       method: 'POST',

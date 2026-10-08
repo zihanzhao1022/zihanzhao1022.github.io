@@ -73,6 +73,35 @@ describe('planPublicSync', () => {
     expect(isEmptyPlan(plan)).toBe(true);
   });
 
+  it("keeps a published paper as the site shows it while collaborators' edits wait for review", () => {
+    const onSite = snapshotText(papers);
+    const edited: ResultPaper = {
+      ...papers[0],
+      title: 'Retitled by a collaborator',
+      blocks: [{ id: 'b1', kind: 'table', source: '% new numbers', output: output('results/p1/b1-dddd.pdf') }],
+      pendingReview: ['alice'],
+    };
+    const plan = planPublicSync([edited, papers[1]], onSite, ['public/results/p1/b1-aaaa.pdf']);
+    expect(isEmptyPlan(plan)).toBe(true);
+    // Once the owner publishes the edits, the site follows.
+    const approved = planPublicSync([{ ...edited, pendingReview: undefined }, papers[1]], onSite, ['public/results/p1/b1-aaaa.pdf']);
+    expect(approved.json).toContain('Retitled by a collaborator');
+    expect(approved.add).toEqual(['results/p1/b1-dddd.pdf']);
+    expect(approved.remove).toEqual(['public/results/p1/b1-aaaa.pdf']);
+  });
+
+  it('leaves a paper with edits waiting for review off the site if the site does not show it yet', () => {
+    const plan = planPublicSync([{ ...papers[0], pendingReview: ['alice'] }], '[]\n', []);
+    expect(isEmptyPlan(plan)).toBe(true);
+  });
+
+  it("copies files only for papers built from the private list, never from what the site's file names", () => {
+    // A site file that (somehow) names a hidden paper's PDF must not make the sync copy it.
+    const tampered = JSON.stringify([{ id: 'p1', slug: 'x', title: 'x', authors: [], blocks: [{ id: 'b4', kind: 'table', output: output('results/p2/b4-cccc.pdf') }] }]);
+    const plan = planPublicSync([{ ...papers[0], pendingReview: ['alice'] }, papers[1]], tampered, []);
+    expect(plan.add).toEqual([]);
+  });
+
   it('empties the site when nothing is published', () => {
     const plan = planPublicSync([papers[1]], snapshotText(papers), ['public/results/p1/b1-aaaa.pdf']);
     expect(plan.json).toBe('[]\n');

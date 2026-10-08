@@ -68,8 +68,19 @@ describe('exchangeCode', () => {
     });
   });
 
+  it('keeps the worker session of a collaborator, who gets no GitHub token', async () => {
+    const fetchMock = reply(200, { role: 'collaborator', session: 'payload.signature', expires_at: 456, login: 'alice', avatar_url: '' });
+    expect(await exchangeCode('c', 'v', 'r', fetchMock)).toEqual({
+      token: 'payload.signature',
+      expiresAt: 456,
+      login: 'alice',
+      avatarUrl: '',
+      role: 'collaborator',
+    });
+  });
+
   it('explains a refused account', async () => {
-    await expect(exchangeCode('c', 'v', 'r', reply(403, { error: 'not_owner' }))).rejects.toThrow('该账号没有编辑权限');
+    await expect(exchangeCode('c', 'v', 'r', reply(403, { error: 'not_owner' }))).rejects.toThrow('这个 GitHub 账号没有访问权限');
   });
 
   it('explains other failures', async () => {

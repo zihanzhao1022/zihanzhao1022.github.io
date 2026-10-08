@@ -356,27 +356,33 @@ docs/admin-setup.md                   增加私有仓库的配置说明
 
 ## 13. 白名单协作者（2026-10-08 追加，用户选择方案 A）
 
-**目标**：所有者可以给每篇论文指定 GitHub 用户：一类只能看，一类还能编辑这一篇。协作者看不到其他论文，也不能编辑网站的任何其他地方。
+**目标**：所有者可以给每篇论文指定 GitHub 用户：一类只能看，一类还能编辑这一篇。协作者看不到其他未公开的论文，也不能编辑网站的任何其他地方。
 
-**数据**：`ResultPaper` 增加 `viewers?: string[]` 和 `editors?: string[]`（GitHub 用户名，不区分大小写）。只存在私有仓库，不进入公开快照，也不发给协作者。所有者在论文信息表单里编辑两份名单。
+**数据**（都只存在私有仓库，不进入公开快照，也不发给协作者）：
+
+- `viewers?: string[]`、`editors?: string[]`：GitHub 用户名，不区分大小写，所有者在论文信息表单里编辑。
+- `collaboratorIds?: Record<string, number>`：名单里每个人的 GitHub 账号数字 ID（小写用户名 → ID）。所有者保存表单时，编辑器用 `GET /users/<名字>` 查询新加入名单的人，已知的 ID 保持不变；查不到就不能保存。Worker 同时核对用户名和 ID，所以改名后被别人抢注的旧用户名拿不到权限。
+- `pendingReview?: string[]`：修改过这篇**已公开**论文、还没被所有者发布的协作者。
 
 **把关**：Cloudflare Worker 代替协作者访问私有仓库。
 
-- 协作者照常点锁形图标用 GitHub 登录。Worker 换到对方的令牌、确认身份后立即吊销该令牌；如果对方出现在任何一篇论文的名单里，就签发一个 Worker 自己的会话（HMAC 签名，8 小时有效），否则返回 403。
-- Worker 用 GitHub App 的私钥签 JWT，换取只限 `homepage-private`、只有 Contents 读写权限的安装令牌（缓存到过期前），由它读写私有仓库。协作者手里从来没有能访问仓库的令牌。
-- 接口（都需要协作者会话）：
-  - `POST /results/load`：返回对方能看的论文。只能看的人拿到的形状与公开快照相同（只有可见块的 PDF）；能编辑的人拿到这篇论文的完整数据（含源码、导言区、附件列表、隐藏块），但不含名单。
-  - `POST /results/file`：读取 `results/<论文id>/` 下的文件；只能看的人只能读可见块的 PDF。
-  - `POST /results/save`：只有编辑者可用。只接受针对这一篇论文的 `putBlock`、`deleteBlock`、`reorderBlocks`、`setBlockHidden`、`setOutputs`、`patchPaper`（仅导言区和附件）及其组合；写入和删除的文件必须在 `results/<论文id>/` 下。Worker 在最新的 `results.json` 上应用并提交，提交信息注明 `(by <用户名>)`。
-- 公开、隐藏、删除论文，修改论文信息和名单，只有所有者能做。协作者的修改不写网站仓库；所有者下次登录时，编辑器发现公开论文的快照落后，会自动同步并提示。
+- 协作者照常点锁形图标用 GitHub 登录。Worker 换到对方的令牌、读到用户名和 ID 后立即吊销该令牌；如果对方出现在任何一篇论文的名单里（用户名和 ID 都对上），就签发 Worker 自己的会话（`{login, id, exp}`，HMAC-SHA256，8 小时），否则返回 403。没有配置私钥和会话密钥时，Worker 和以前一样只放行所有者。
+- Worker 用 GitHub App 的私钥签 JWT（RS256，`iss` 为 Client ID），换取只限 `homepage-private`、只有 Contents 读写权限的安装令牌，缓存到过期前 5 分钟。协作者手里从来没有能访问仓库的令牌。
+- 接口（都需要 `Authorization: Bearer <会话>`，每次都读最新的 `results.json` 检查权限）：
+  - `POST /results/load`：对方能看的论文。只能看的人拿到的形状与公开快照相同（只有可见块的 PDF）；能编辑的人拿到完整数据（含源码、导言区、附件列表、隐藏块），但不含名单、ID 和 `pendingReview`。没有任何共享的论文时返回 403。
+  - `POST /results/file {path}`：读取 `results/<论文id>/` 下的文件；只能看的人只能读可见块的 PDF。
+  - `POST /results/upload {paperId, path, base64}`：只有编辑者可用。单个文件最大 1 MB（Cloudflare 免费版每个请求 10 ms CPU），路径必须在这篇论文的文件夹里。返回 blob 的 SHA 和 Worker 的签名回执（绑定账号 ID、路径和 SHA）。
+  - `POST /results/save {paperId, op, blobs, deletes, message}`：只有编辑者可用。操作只能是针对这一篇论文的 `putBlock`、`deleteBlock`、`reorderBlocks`、`setBlockHidden`、`setOutputs`、`putFile`、`removeFile`、`patchPaper`（仅导言区）及其一层组合；Worker 按字段重建每个操作，编译结果的 PDF 必须在这篇论文的文件夹里。`blobs` 必须带 Worker 签发的回执，`deletes` 必须在这篇论文的文件夹里。Worker 在最新的 `results.json` 上应用（编辑权限在同一份列表上再查一次），再加上 `noteEdit`，提交信息注明 `(by <用户名>)`，返回协作者视角的最新论文。
+- 公开、隐藏、删除论文，修改论文信息和名单，发布协作者的修改，只有所有者能做。
 
-**网站**：协作者登录后进入"协作者模式"：顶部条显示身份和退出；不出现任何网站编辑按钮；`#/results` 只列出对方能看的论文；能编辑的论文页显示块的编辑、复制 LaTeX、添加块和"导言区与附件"，编辑器与所有者相同（编译仍在对方浏览器里进行）。
+**公开**：协作者从不写网站仓库。`noteEdit` 只对已公开的论文生效：把协作者记进 `pendingReview`。同步网站时，有 `pendingReview` 的论文保留网站上现有的版本（不从私有仓库复制任何文件；网站上没有这篇就先不出现）。所有者登录时收到提示，论文卡片显示"有待发布的修改"，论文页显示"@某人 修改过这篇已公开的论文"和"发布这些修改"按钮（`approveEdits`）；隐藏后重新公开也会一并发布。
 
-**所有者的一次性配置**：在 GitHub App 设置页生成私钥；在 `auth-worker` 目录运行 `wrangler secret put GITHUB_APP_PRIVATE_KEY`（私钥文件内容）和 `wrangler secret put SESSION_SECRET`（随机字符串），再 `wrangler deploy`。
+**网站**：协作者登录后进入"协作者模式"：顶部条显示身份、"共享给你的论文"链接和退出；不出现任何网站编辑按钮；即使 results 在导航里隐藏，`#/results` 和论文页也能打开，列表包括共享的论文（标"你可以编辑"或"仅查看"）和已公开的论文；能编辑的论文页显示块的编辑、复制 LaTeX、拖动排序、添加块和"导言区与附件"，编辑器与所有者相同（编译仍在对方浏览器里进行）。未登录的人打开 results 的链接时，看到"用 GitHub 登录"的提示。
+
+**所有者的一次性配置**：见 `docs/admin-setup.md` 第四节（生成 App 私钥、`wrangler secret put GITHUB_APP_PRIVATE_KEY`、`wrangler secret put SESSION_SECRET`、`wrangler deploy`）。
 
 ## 14. 上线后待办（2026-10-08 记录）
 
 - **小节标题与导出全文**（用户提出，上线后再做）：
   - 在论文页上添加小节标题，按 HTML 显示，但等级只能取 LaTeX 有的四级：`\section`、`\subsection`、`\subsubsection`、`\paragraph`，每级都可选编号或不编号（带星号）。
   - 增加"导出全文 LaTeX"按钮：从上到下依次复制所有块的源码，小节标题转成对应的 LaTeX 命令一起导出。
-- **白名单协作者**（第 13 节）：在分支 `feat/results-collaborators` 上继续，完成后需要所有者做第 13 节末尾的一次性配置。

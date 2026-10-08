@@ -1,8 +1,8 @@
-import { Session } from '../../lib/session';
 import { ResultPaper } from '../../types';
-import { ConflictError } from '../backend';
 import { EDITOR_CONFIG } from '../config';
-import { GitHubApi, GitHubError, TreeEntry, createGitHubApi } from '../github';
+import { ConflictError } from '../errors';
+import { GitHubApi, GitHubError, TreeEntry } from '../github';
+import type { PaperRole } from './collaborators';
 import { ResultsOp, applyResultsOp, referencedPaths, touchedPapers } from './ops';
 import { PUBLIC_FILES_PREFIX, SNAPSHOT_PATH, hasPublished, isEmptyPlan, planPublicSync, publicPath } from './snapshot';
 
@@ -18,7 +18,8 @@ export interface FileWrite {
 }
 
 export type ResultsLoad =
-  | { state: 'ready'; papers: ResultPaper[] }
+  /** `roles` is set for a collaborator: the papers shared with them and what they may do with each. */
+  | { state: 'ready'; papers: ResultPaper[]; roles?: Record<string, PaperRole> }
   /** The private repository is missing, empty, or the GitHub App cannot see it. */
   | { state: 'unavailable'; reason: 'missing' | 'empty' };
 
@@ -28,6 +29,8 @@ export interface ResultsSaveResult {
   publicCommit: string | null;
   /** Set when the private save worked but updating the site failed; retry with resync. */
   publicError?: unknown;
+  /** A collaborator's roles after the save (see ResultsLoad). */
+  roles?: Record<string, PaperRole>;
 }
 
 export interface ResultsBackend {
@@ -57,11 +60,14 @@ export function toBase64(bytes: Uint8Array): string {
 const serialize = (papers: ResultPaper[]): string => `${JSON.stringify(papers, null, 2)}\n`;
 const isConflict = (error: unknown): boolean => error instanceof GitHubError && error.status === 422;
 
+/** The papers in results.json's text; a missing file is an empty list. */
+export const parsePapers = (text: string | null): ResultPaper[] => (text === null ? [] : (JSON.parse(text) as ResultPaper[]));
+
 /**
  * A JSON or text file's contents, or null if it does not exist. Read as raw bytes: the contents API's JSON
  * form leaves `content` empty for files over 1 MB.
  */
-async function readTextFile(api: GitHubApi, path: string, ref: string): Promise<string | null> {
+export async function readTextFile(api: GitHubApi, path: string, ref: string): Promise<string | null> {
   try {
     return new TextDecoder().decode(await api.readBytes(path, ref));
   } catch (error) {
@@ -71,6 +77,58 @@ async function readTextFile(api: GitHubApi, path: string, ref: string): Promise<
 }
 
 const isPublishedIn = (papers: ResultPaper[], id: string): boolean => papers.some((paper) => paper.id === id && !paper.hidden);
+
+export interface CommitResult {
+  /** The latest list the edit was applied to, and the list after it. */
+  before: ResultPaper[];
+  papers: ResultPaper[];
+  /** False when the edit changed nothing, so nothing was committed. */
+  changed: boolean;
+}
+
+/**
+ * Applies the edit to the latest results.json of the private repository and commits it with the uploaded
+ * blobs and the deletions, starting over when the branch moved in between. Deletions are limited to files
+ * that exist and that no paper refers to any more. The owner's editor and the Worker (for collaborators)
+ * both save through this; `check` sees each list read before the edit is applied, and throws to stop.
+ */
+export async function commitResults(
+  api: GitHubApi,
+  op: ResultsOp,
+  blobs: TreeEntry[],
+  deletes: string[],
+  message: string,
+  check?: (latest: ResultPaper[]) => void,
+): Promise<CommitResult> {
+  for (let attempt = 1; ; attempt += 1) {
+    const head = await api.headSha();
+    const tree = await api.treeSha(head);
+    const [text, existing] = await Promise.all([
+      readTextFile(api, RESULTS_PATH, head),
+      deletes.length > 0 ? api.listFiles(tree, FILES_PREFIX) : Promise.resolve([]),
+    ]);
+    const before = parsePapers(text);
+    check?.(before);
+    const papers = applyResultsOp(before, op);
+    const json = serialize(papers);
+    // GitHub rejects removing a missing path.
+    const present = new Set(existing.map((file) => file.path));
+    const used = referencedPaths(papers);
+    const removed = deletes
+      .filter((path) => present.has(path) && !used.has(path))
+      .map((path): TreeEntry => ({ path, mode: '100644', type: 'blob', sha: null }));
+    if (json === text && blobs.length === 0 && removed.length === 0) return { before, papers, changed: false };
+    const entries: TreeEntry[] = [{ path: RESULTS_PATH, mode: '100644', type: 'blob', content: json }, ...blobs, ...removed];
+    const commit = await api.createCommit(message, await api.createTree(tree, entries), head);
+    try {
+      await api.updateBranch(commit);
+      return { before, papers, changed: true };
+    } catch (error) {
+      if (!isConflict(error)) throw error;
+      if (attempt >= MAX_ATTEMPTS) throw new ConflictError();
+    }
+  }
+}
 
 export function createResultsBackend(privateApi: GitHubApi, publicApi: GitHubApi): ResultsBackend {
   const files = new Map<string, Promise<Uint8Array>>();
@@ -140,8 +198,7 @@ export function createResultsBackend(privateApi: GitHubApi, publicApi: GitHubApi
         if (error instanceof GitHubError && error.status === 409) return { state: 'unavailable', reason: 'empty' };
         throw error;
       }
-      const text = await readTextFile(privateApi, RESULTS_PATH, head);
-      return { state: 'ready', papers: text === null ? [] : (JSON.parse(text) as ResultPaper[]) };
+      return { state: 'ready', papers: parsePapers(await readTextFile(privateApi, RESULTS_PATH, head)) };
     },
 
     readFile,
@@ -155,44 +212,16 @@ export function createResultsBackend(privateApi: GitHubApi, publicApi: GitHubApi
           sha: await privateApi.createBlob(toBase64(write.data)),
         })),
       );
-      for (let attempt = 1; ; attempt += 1) {
-        const head = await privateApi.headSha();
-        const tree = await privateApi.treeSha(head);
-        const [text, existing] = await Promise.all([
-          readTextFile(privateApi, RESULTS_PATH, head),
-          deletes.length > 0 ? privateApi.listFiles(tree, FILES_PREFIX) : Promise.resolve([]),
-        ]);
-        const before = text === null ? [] : (JSON.parse(text) as ResultPaper[]);
-        const papers = applyResultsOp(before, op);
-        const json = serialize(papers);
-        // Only delete files that are there (GitHub rejects removing a missing path) and that nothing uses any more.
-        const present = new Set(existing.map((file) => file.path));
-        const used = referencedPaths(papers);
-        const removed = deletes
-          .filter((path) => present.has(path) && !used.has(path))
-          .map((path): TreeEntry => ({ path, mode: '100644', type: 'blob', sha: null }));
-        if (json === text && blobs.length === 0 && removed.length === 0 && !publicBehind) return { papers, publicCommit: null };
-        if (json !== text || blobs.length > 0 || removed.length > 0) {
-          const entries: TreeEntry[] = [{ path: RESULTS_PATH, mode: '100644', type: 'blob', content: json }, ...blobs, ...removed];
-          const commit = await privateApi.createCommit(message, await privateApi.createTree(tree, entries), head);
-          try {
-            await privateApi.updateBranch(commit);
-          } catch (error) {
-            if (!isConflict(error)) throw error;
-            if (attempt >= MAX_ATTEMPTS) throw new ConflictError();
-            continue;
-          }
-        }
-        writes.forEach((write) => files.set(write.path, Promise.resolve(write.data)));
-        if (!publicBehind && !hasPublished(before) && !hasPublished(papers)) return { papers, publicCommit: null };
-        // The site's history is public: name a paper only when it is (or just was) published.
-        const touched = touchedPapers(op);
-        const named = touched.length === 0 || touched.every((id) => isPublishedIn(before, id) || isPublishedIn(papers, id));
-        try {
-          return { papers, publicCommit: await syncPublic(papers, named ? publicMessage : GENERIC_PUBLIC_MESSAGE) };
-        } catch (publicError) {
-          return { papers, publicCommit: null, publicError };
-        }
+      const { before, papers, changed } = await commitResults(privateApi, op, blobs, deletes, message);
+      writes.forEach((write) => files.set(write.path, Promise.resolve(write.data)));
+      if (!publicBehind && (!changed || (!hasPublished(before) && !hasPublished(papers)))) return { papers, publicCommit: null };
+      // The site's history is public: name a paper only when it is (or just was) published.
+      const touched = touchedPapers(op);
+      const named = touched.length === 0 || touched.every((id) => isPublishedIn(before, id) || isPublishedIn(papers, id));
+      try {
+        return { papers, publicCommit: await syncPublic(papers, named ? publicMessage : GENERIC_PUBLIC_MESSAGE) };
+      } catch (publicError) {
+        return { papers, publicCommit: null, publicError };
       }
     },
 
@@ -201,22 +230,7 @@ export function createResultsBackend(privateApi: GitHubApi, publicApi: GitHubApi
     async resync(message) {
       // Behind until this succeeds, even if reading the private list fails first.
       publicBehind = true;
-      const head = await privateApi.headSha();
-      const text = await readTextFile(privateApi, RESULTS_PATH, head);
-      return syncPublic(text === null ? [] : (JSON.parse(text) as ResultPaper[]), message);
+      return syncPublic(parsePapers(await readTextFile(privateApi, RESULTS_PATH, await privateApi.headSha())), message);
     },
   };
-}
-
-export async function createResults(session: Session): Promise<ResultsBackend> {
-  // Written out in full (not MOCK_MODE) so production builds drop the mock module entirely.
-  if (import.meta.env.DEV && import.meta.env.VITE_EDITOR_MOCK === 'true') {
-    const { createMockResultsBackend } = await import('./mockBackend');
-    return createMockResultsBackend();
-  }
-  const { owner, branch, repo, privateRepo } = EDITOR_CONFIG;
-  return createResultsBackend(
-    createGitHubApi(session.token, { owner, repo: privateRepo, branch }),
-    createGitHubApi(session.token, { owner, repo, branch }),
-  );
 }

@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { publicFilePath } from '../../lib/results';
 import { ResultBlock } from '../../types';
-import { useResultsAccess } from './access';
+import { readsPrivately, useResultsAccess } from './access';
 import PdfView from './PdfView';
 
-/** A block's compiled PDF: read privately by the owner's editor, or from the site for visitors. */
-const BlockView: React.FC<{ block: ResultBlock }> = ({ block }) => {
+/** A block's compiled PDF: read privately by the signed-in editor, or from the site for visitors. */
+const BlockView: React.FC<{ paperId: string; block: ResultBlock }> = ({ paperId, block }) => {
   const access = useResultsAccess();
   const output = block.output;
-  const isPrivate = access?.state === 'private';
+  const isPrivate = readsPrivately(access, paperId);
   const [data, setData] = useState<Uint8Array | undefined>(undefined);
   const [failed, setFailed] = useState(false);
 

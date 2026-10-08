@@ -13,19 +13,33 @@ export function base64UrlDecode(text: string): Uint8Array<ArrayBuffer> {
   return Uint8Array.from(atob(base64 + '='.repeat((4 - (base64.length % 4)) % 4)), (char) => char.charCodeAt(0));
 }
 
-/** Who a collaborator session belongs to, and until when (epoch milliseconds). */
+/** Who a collaborator session belongs to (GitHub user name and account ID), and until when (epoch ms). */
 export interface SessionClaims {
   login: string;
+  id: number;
   exp: number;
 }
 
 const hmacKey = (secret: string): Promise<CryptoKey> =>
   crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
 
+/** HMAC-SHA256 of the text, base64url. */
+export async function signText(text: string, secret: string): Promise<string> {
+  return base64UrlEncode(new Uint8Array(await crypto.subtle.sign('HMAC', await hmacKey(secret), encoder.encode(text))));
+}
+
+/** Whether the signature is signText(text, secret); compared in constant time by WebCrypto. */
+export async function verifyText(text: string, signature: string, secret: string): Promise<boolean> {
+  try {
+    return await crypto.subtle.verify('HMAC', await hmacKey(secret), base64UrlDecode(signature), encoder.encode(text));
+  } catch {
+    return false;
+  }
+}
+
 export async function signSession(claims: SessionClaims, secret: string): Promise<string> {
   const payload = base64UrlEncode(encoder.encode(JSON.stringify(claims)));
-  const signature = new Uint8Array(await crypto.subtle.sign('HMAC', await hmacKey(secret), encoder.encode(payload)));
-  return `${payload}.${base64UrlEncode(signature)}`;
+  return `${payload}.${await signText(payload, secret)}`;
 }
 
 /** The claims of a valid, unexpired session token; null for anything else. */
@@ -33,11 +47,11 @@ export async function verifySession(token: string, secret: string, now = Date.no
   const parts = token.split('.');
   if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
   try {
-    const valid = await crypto.subtle.verify('HMAC', await hmacKey(secret), base64UrlDecode(parts[1]), encoder.encode(parts[0]));
-    if (!valid) return null;
+    if (!(await verifyText(parts[0], parts[1], secret))) return null;
     const claims = JSON.parse(new TextDecoder().decode(base64UrlDecode(parts[0]))) as Partial<SessionClaims>;
-    if (typeof claims.login !== 'string' || typeof claims.exp !== 'number' || claims.exp <= now) return null;
-    return { login: claims.login, exp: claims.exp };
+    if (typeof claims.login !== 'string' || typeof claims.id !== 'number' || typeof claims.exp !== 'number') return null;
+    if (claims.exp <= now) return null;
+    return { login: claims.login, id: claims.id, exp: claims.exp };
   } catch {
     return null;
   }

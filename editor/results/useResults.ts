@@ -5,9 +5,12 @@ import { ResultPaper, SiteContent } from '../../types';
 import { describeSaveError } from '../backend';
 import { ContentOp } from '../ops';
 import { attachmentPath, rebuildPaper, withOutputs } from './actions';
-import { GENERIC_PUBLIC_MESSAGE, ResultsBackend, ResultsSaveResult, createResults } from './backend';
+import { GENERIC_PUBLIC_MESSAGE, ResultsBackend, ResultsSaveResult } from './backend';
 import type { ResultsSave } from './BlockEditor';
+import { PaperRole, withCollaboratorIds } from './collaborators';
+import { createCollaboratorResults, createResults, createUserLookup } from './connect';
 import { ResultsOp, applyResultsOp, fromContentOp, resultsCommitMessage } from './ops';
+import { WorkerError } from './workerBackend';
 
 export interface EditorToast {
   message: string;
@@ -27,27 +30,42 @@ interface Options {
   queue: React.MutableRefObject<Promise<unknown>>;
   onDeploy: (commitSha: string) => void;
   onToast: (toast: EditorToast | null) => void;
+  /** Signs out a collaborator the worker no longer lets in (session expired, or nothing shared any more). */
+  onSignedOut?: (message: string) => void;
 }
 
 type LoadState = Pick<ResultsAccess, 'state' | 'reason'>;
 
-/** The owner's side of the results pages: the private list, its saves and publishing. */
-export function useResultsEditor({ session, setContent, contentRef, queue, onDeploy, onToast }: Options) {
+/**
+ * The editing side of the results pages: the private list, its saves and publishing for the owner; the
+ * shared papers, through the worker, for a collaborator.
+ */
+export function useResultsEditor({ session, setContent, contentRef, queue, onDeploy, onToast, onSignedOut }: Options) {
+  const collaborator = session.role === 'collaborator';
   const [backend, setBackend] = useState<ResultsBackend | null>(null);
   const [loadState, setLoadState] = useState<LoadState>({ state: 'loading' });
   /** The site's copy of the published papers may be out of date (a sync failed). */
   const [siteBehind, setSiteBehind] = useState(false);
+  /** A collaborator's role on each paper shared with them. */
+  const [roles, setRoles] = useState<Record<string, PaperRole> | undefined>(undefined);
+  /** A collaborator also sees the site's published papers that are not shared with them, listed after. */
+  const published = useRef<ResultPaper[]>([]);
   /** Once the private list is in, reloading the public content must not replace it with the snapshot. */
   const privateLoaded = useRef(false);
   /** The private list as last loaded or saved; queued work starts from it, never from the page. */
   const latest = useRef<ResultPaper[]>([]);
   /** Block reorders already shown on the page but not saved yet; re-applied after every save. */
   const pending = useRef<ResultsOp[]>([]);
-  const callbacks = useRef({ onDeploy, onToast });
-  callbacks.current = { onDeploy, onToast };
+  const callbacks = useRef({ onDeploy, onToast, onSignedOut });
+  callbacks.current = { onDeploy, onToast, onSignedOut };
 
   const show = useCallback(
-    (papers: ResultPaper[]) => setContent((current) => ({ ...current, results: pending.current.reduce(applyResultsOp, papers) })),
+    (papers: ResultPaper[]) =>
+      setContent((current) => {
+        const shown = pending.current.reduce(applyResultsOp, papers);
+        const others = published.current.filter((paper) => !shown.some((item) => item.id === paper.id));
+        return { ...current, results: [...shown, ...others] };
+      }),
     [setContent],
   );
 
@@ -62,7 +80,7 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
 
   useEffect(() => {
     let cancelled = false;
-    createResults(session)
+    (collaborator ? createCollaboratorResults(session) : createResults(session))
       .then(async (created) => {
         const loaded = await created.load();
         if (cancelled) return;
@@ -73,10 +91,17 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
         }
         // What the page showed until now is the published snapshot.
         const snapshotShown = contentRef.current.results.length > 0;
+        if (collaborator) published.current = contentRef.current.results;
         privateLoaded.current = true;
         latest.current = loaded.papers;
+        setRoles(loaded.roles);
         show(loaded.papers);
         setLoadState({ state: 'private' });
+        // Only the owner publishes.
+        if (collaborator) return;
+        if (loaded.papers.some((paper) => !paper.hidden && paper.pendingReview?.length)) {
+          callbacks.current.onToast({ message: '协作者修改了已公开的论文，在论文页确认后才会更新到网站' });
+        }
         if (loaded.papers.length === 0) {
           // An empty private list next to published papers looks like a lost results.json: never wipe the
           // site on its own, let the owner decide through the banner.
@@ -95,13 +120,18 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
           () => setSiteBehind(true),
         );
       })
-      .catch(() => {
-        if (!cancelled) setLoadState({ state: 'unavailable', reason: 'error' });
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        if (error instanceof WorkerError && (error.status === 401 || error.status === 403)) {
+          callbacks.current.onSignedOut?.(error.status === 401 ? '登录已过期，请重新登录' : '作者已经不再和你共享论文');
+          return;
+        }
+        setLoadState({ state: 'unavailable', reason: 'error' });
       });
     return () => {
       cancelled = true;
     };
-  }, [session, contentRef, queue, show]);
+  }, [session, collaborator, contentRef, queue, show]);
 
   const reload = useCallback(() => {
     if (!backend) return;
@@ -131,6 +161,7 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
   const settle = useCallback(
     (result: ResultsSaveResult) => {
       latest.current = result.papers;
+      if (result.roles) setRoles(result.roles);
       show(result.papers);
       if (result.publicCommit) callbacks.current.onDeploy(result.publicCommit);
       setSiteBehind(Boolean(result.publicError));
@@ -154,15 +185,25 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
     [backend, loadState.state, unavailable, enqueue, settle],
   );
 
+  const lookupUser = useMemo(() => createUserLookup(session), [session]);
+
   /** Saves an edit made through the generic dialogs or by dragging a paper. */
   const saveContentOp = useCallback(
-    (op: ContentOp): Promise<void> => {
+    async (op: ContentOp): Promise<void> => {
       const resultsOp = fromContentOp(op);
-      if (!resultsOp || op.kind === 'patchProfile') return Promise.reject(new Error('不支持的操作'));
+      if (!resultsOp || op.kind === 'patchProfile') throw new Error('不支持的操作');
       if (op.kind === 'upsert') {
         const title = String(op.item.title ?? '');
-        const isNew = !latest.current.some((paper) => paper.id === op.item.id);
-        return saveResults(resultsOp, [], [], resultsCommitMessage(isNew ? 'add paper' : 'update paper', title), `content: update result "${title}"`);
+        const previous = latest.current.find((paper) => paper.id === op.item.id);
+        // Access is checked against GitHub account IDs, looked up here for names newly added to the lists.
+        const paper = await withCollaboratorIds(op.item as unknown as ResultPaper, previous, lookupUser);
+        return saveResults(
+          { kind: 'putPaper', paper },
+          [],
+          [],
+          resultsCommitMessage(previous ? 'update paper' : 'add paper', title),
+          `content: update result "${title}"`,
+        );
       }
       if (op.kind === 'reorder') {
         return saveResults(resultsOp, [], [], resultsCommitMessage('reorder papers'), 'content: reorder results');
@@ -178,7 +219,7 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
           : [];
         return saveResults(resultsOp, [], files, resultsCommitMessage('delete paper', title), `content: unpublish result "${title}"`);
       }
-      if (!op.hidden && !window.confirm(PUBLISH_CONFIRM)) return Promise.reject(new Error('已取消公开'));
+      if (!op.hidden && !window.confirm(PUBLISH_CONFIRM)) throw new Error('已取消公开');
       return saveResults(
         resultsOp,
         [],
@@ -187,7 +228,27 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
         `content: ${op.hidden ? 'unpublish' : 'publish'} result "${title}"`,
       );
     },
-    [saveResults],
+    [saveResults, lookupUser],
+  );
+
+  /** Publishes collaborators' edits to a published paper: until then the site shows it as it was before them. */
+  const approveEdits = useCallback(
+    (paperId: string) => {
+      const paper = latest.current.find((item) => item.id === paperId);
+      if (!backend || !paper) return;
+      enqueue(async () => {
+        const result = await backend.save(
+          { kind: 'approveEdits', id: paperId },
+          [],
+          [],
+          resultsCommitMessage('publish edits to', paper.title),
+          `content: update result "${paper.title}"`,
+        );
+        settle(result);
+        if (!result.publicError) callbacks.current.onToast({ message: '修改已发布，网站约 1 分钟后更新' });
+      }).catch((error: unknown) => callbacks.current.onToast({ message: describeSaveError(error) }));
+    },
+    [backend, enqueue, settle],
   );
 
   /**
@@ -244,12 +305,13 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
 
   const access = useMemo<ResultsAccess>(
     () => ({
+      role: collaborator ? 'collaborator' : 'owner',
       ...loadState,
       readFile: backend?.readFile ?? notReady,
-      siteBehind,
-      syncSite,
+      shared: roles,
+      ...(collaborator ? {} : { siteBehind, syncSite, approveEdits }),
     }),
-    [loadState, backend, siteBehind, syncSite],
+    [collaborator, loadState, backend, roles, siteBehind, syncSite, approveEdits],
   );
 
   return { access, privateLoaded, saveResults, saveContentOp, reorderBlocks, reload, isReordering };

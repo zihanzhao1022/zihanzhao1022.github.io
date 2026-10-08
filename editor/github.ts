@@ -40,7 +40,7 @@ export interface GitHubApi {
   /** Like readText, but null when the file does not exist. */
   readTextIfExists(path: string, ref: string): Promise<string | null>;
   /** A file's raw bytes (any size up to 100 MB). */
-  readBytes(path: string, ref: string): Promise<Uint8Array>;
+  readBytes(path: string, ref: string): Promise<Uint8Array<ArrayBuffer>>;
   /** Files under a folder (prefix ending in "/") of a tree, at any depth. */
   listFiles(treeSha: string, prefix: string): Promise<RepoFile[]>;
   createBlob(base64: string): Promise<string>;

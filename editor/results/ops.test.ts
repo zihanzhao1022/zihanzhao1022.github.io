@@ -35,6 +35,27 @@ describe('applyResultsOp', () => {
     expect(updated.hidden).toBe(true);
   });
 
+  it('updates who a paper is shared with through the paper form', () => {
+    const latest = paper('p1', { viewers: ['alice'], editors: ['bob'] });
+    const [updated] = applyResultsOp([latest], { kind: 'putPaper', paper: paper('p1', { viewers: ['carol'] }) });
+    expect(updated.viewers).toEqual(['carol']);
+    expect(updated).not.toHaveProperty('editors');
+  });
+
+  it("keeps collaborators' edits to a published paper waiting until the owner publishes them", () => {
+    const published = paper('p1', { hidden: false });
+    const noted = applyResultsOp([published], { kind: 'noteEdit', paperId: 'p1', login: 'alice' });
+    expect(noted[0].pendingReview).toEqual(['alice']);
+    const twice = applyResultsOp(noted, { kind: 'batch', ops: [{ kind: 'noteEdit', paperId: 'p1', login: 'ALICE' }, { kind: 'noteEdit', paperId: 'p1', login: 'bob' }] });
+    expect(twice[0].pendingReview).toEqual(['alice', 'bob']);
+    expect(applyResultsOp(twice, { kind: 'approveEdits', id: 'p1' })[0]).not.toHaveProperty('pendingReview');
+    // Hidden papers are not on the site, and publishing one publishes all of it.
+    expect(applyResultsOp([paper('p2', { hidden: true })], { kind: 'noteEdit', paperId: 'p2', login: 'alice' })[0]).not.toHaveProperty('pendingReview');
+    const hidden = applyResultsOp(twice, { kind: 'setPaperHidden', id: 'p1', hidden: true });
+    expect(hidden[0].pendingReview).toEqual(['alice', 'bob']);
+    expect(applyResultsOp(hidden, { kind: 'setPaperHidden', id: 'p1', hidden: false })[0]).not.toHaveProperty('pendingReview');
+  });
+
   it('deletes, reorders and hides papers', () => {
     const papers = [paper('p1'), paper('p2'), paper('p3')];
     expect(applyResultsOp(papers, { kind: 'deletePaper', id: 'p2' }).map((item) => item.id)).toEqual(['p1', 'p3']);

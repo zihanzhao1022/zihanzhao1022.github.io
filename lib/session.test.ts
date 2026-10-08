@@ -24,6 +24,14 @@ describe('session storage', () => {
     expect(loadSession(storage, 5_000)).toEqual(session);
   });
 
+  it("keeps a collaborator's role, and nothing else unknown", () => {
+    const { storage } = memoryStorage();
+    saveSession({ ...session, role: 'collaborator' }, storage);
+    expect(loadSession(storage, 5_000)).toEqual({ ...session, role: 'collaborator' });
+    storage.setItem('homepage-editor-session', JSON.stringify({ ...session, role: 'admin' }));
+    expect(loadSession(storage, 5_000)).toEqual(session);
+  });
+
   it('drops expired sessions', () => {
     const { data, storage } = memoryStorage();
     saveSession(session, storage);

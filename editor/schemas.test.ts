@@ -76,6 +76,36 @@ describe('publication form', () => {
   });
 });
 
+describe('results paper form', () => {
+  const schema = LIST_SCHEMAS.results;
+  const paper = { id: 'res-a', slug: 'a', title: 'A', authors: ['**Zihan Zhao**'], hidden: true, blocks: [] };
+
+  it('keeps one GitHub user name per line, without "@" or repeats', () => {
+    const state = { ...toFormState(schema, paper), viewers: ' @Alice \n\nbob\nalice\n', editors: 'carol-1' };
+    expect(validateForm(schema, state)).toEqual({});
+    const { item } = fromFormState(schema, state, paper, now);
+    expect(item.viewers).toEqual(['Alice', 'bob']);
+    expect(item.editors).toEqual(['carol-1']);
+  });
+
+  it('removes a list that was emptied', () => {
+    const shared = { ...paper, viewers: ['alice'], editors: ['bob'] };
+    const { item } = fromFormState(schema, { ...toFormState(schema, shared), viewers: ' \n', editors: 'bob' }, shared, now);
+    expect(item).not.toHaveProperty('viewers');
+    expect(item.editors).toEqual(['bob']);
+  });
+
+  it('rejects anything that is not a user name', () => {
+    for (const viewers of ['alice bob', 'a/b', 'https://github.com/alice', `${'a'.repeat(40)}`]) {
+      expect(validateForm(schema, { ...toFormState(schema, paper), viewers })).toHaveProperty('viewers');
+    }
+    // Long blank-padded input fails fast instead of backtracking.
+    const started = Date.now();
+    validateForm(schema, { ...toFormState(schema, paper), viewers: `${' \n'.repeat(5000)}  a  b` });
+    expect(Date.now() - started).toBeLessThan(500);
+  });
+});
+
 describe('award form', () => {
   const schema = LIST_SCHEMAS.awards;
   const award = { id: 'aw1', title: 'T', date: 'Sep 2025', year: 2025, issuer: 'Hosei', type: 'scholarship' };

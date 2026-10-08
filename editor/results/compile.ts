@@ -38,7 +38,7 @@ export interface BlockCompileResult {
   log: string;
 }
 
-type Measure = (pdf: Uint8Array) => Promise<{ width: number; height: number }>;
+export type Measure = (pdf: Uint8Array) => Promise<{ width: number; height: number }>;
 
 // LaTeX asks for a rerun whenever labels change; the results pages rerun by themselves.
 const QUIET = /Label\(s\) may have changed|There were undefined references/;
@@ -105,7 +105,7 @@ export interface ReferencesCompileResult {
 
 /** BibTeX's own complaints, e.g. a .bst it could not find or a broken entry. */
 const bibtexProblem = (log = ''): string | null => {
-  const lines = log.split('\n').filter((line) => /^I couldn't|^I found no|error message|---line \d+/.test(line));
+  const lines = log.split('\n').map((line) => line.trim()).filter((line) => /^I couldn't|^I found no|\b(?:fatal error|error messages?)\b|---line \d+/.test(line));
   return lines.length > 0 ? `BibTeX：${lines.slice(0, 3).join(' ')}` : null;
 };
 
@@ -123,10 +123,22 @@ export async function compileReferences(
   const doc = buildBlockDocument({ preamble: input.preamble, source, kind: 'text' });
   const out = await engine.compile({ main: doc.main, files: { ...input.files, 'main.aux': doc.aux }, bibtex: true });
   const issues = parseErrors(out.log).map((issue): BlockIssue => (issue.file ? { message: issue.message, area: 'file', file: issue.file, line: issue.line } : { message: issue.message, area: 'wrapper' }));
+  // The final TeX pass can produce a PDF even if BibTeX failed or skipped an entry.
+  const bibtexIssue = bibtexProblem(out.bibtexLog);
+  if (bibtexIssue) issues.push({ message: bibtexIssue, area: 'wrapper' });
   if (!out.ok && issues.length === 0) {
-    issues.push({ message: out.reason ?? bibtexProblem(out.bibtexLog) ?? 'TeX 没有生成参考文献，详情见日志', area: 'wrapper' });
+    issues.push({ message: out.reason ?? 'TeX 没有生成参考文献，详情见日志', area: 'wrapper' });
+  }
+  const citations = parseAuxCitations(out.aux ?? '');
+  const missing = [...new Set(input.keys)].filter((key) => !Object.prototype.hasOwnProperty.call(citations, key));
+  if (out.ok && missing.length > 0) {
+    issues.push({
+      message: `未生成以下引用：${missing.join('、')}。请检查 ${REFERENCES_FILE} 中的引用键、条目格式和 BibTeX 日志。`,
+      area: 'wrapper',
+    });
   }
   const ok = out.ok && out.pdf !== undefined && issues.length === 0;
   const size = ok && out.pdf ? await measure(out.pdf) : { width: 0, height: 0 };
-  return { ok, pdf: ok ? out.pdf : undefined, ...size, citations: parseAuxCitations(out.aux ?? ''), issues, log: out.log };
+  const log = out.bibtexLog ? `${out.log}\n\nBibTeX log:\n${out.bibtexLog}` : out.log;
+  return { ok, pdf: ok ? out.pdf : undefined, ...size, citations, issues, log };
 }

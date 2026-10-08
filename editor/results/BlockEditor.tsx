@@ -24,9 +24,10 @@ import {
 import { addBibEntries } from './bibtex';
 import { FileWrite } from './backend';
 import CodeEditor, { CodeEditorHandle } from './CodeEditor';
-import { BlockCompileResult, REFERENCES_FILE, compileBlock, describeIssue } from './compile';
+import { BlockCompileResult, REFERENCES_FILE, describeIssue } from './compile';
 import { blockContext, describeFailure } from './numbering';
 import { ResultsOp, resultsCommitMessage } from './ops';
+import { createBlockPreview } from './preview';
 import { exportTex, preambleNames } from './texNames';
 
 export type ResultsSave = (op: ResultsOp, writes: FileWrite[], deletes: string[], message: string, publicMessage: string) => Promise<void>;
@@ -37,6 +38,7 @@ const COMPILE_DELAY_MS = 1000;
 interface Compiled {
   result: BlockCompileResult;
   source: string;
+  preview: ReturnType<typeof createBlockPreview>;
   ms: number;
 }
 
@@ -80,6 +82,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', read
     [paper.blocks, paper.references, block, index, isNew],
   );
   const labels = useMemo(() => Object.keys(context.labels).sort(), [context.labels]);
+  const preview = useMemo(() => (files ? createBlockPreview(paper, block, files, pdfPageSize) : null), [paper, block, files]);
   const dirty = source !== original || Object.keys(added).length > 0;
 
   useEffect(() => {
@@ -98,18 +101,14 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', read
 
   const compile = useCallback(
     async (text: string): Promise<Compiled | null> => {
-      if (!files) return null;
+      if (!preview) return null;
       const ticket = ++latest.current;
       setCompiling(true);
       try {
         const engine = await getTexEngine();
         const started = performance.now();
-        const result = await compileBlock(
-          engine,
-          { preamble, source: text, kind: block.kind, counters: context.counters, labels: context.labels, citations: context.citations, files },
-          pdfPageSize,
-        );
-        const next = { result, source: text, ms: Math.round(performance.now() - started) };
+        const result = await preview(engine, text);
+        const next = { result, source: text, preview, ms: Math.round(performance.now() - started) };
         if (ticket === latest.current) {
           setCompiled(next);
           if (result.ok) setLastPdf(result);
@@ -123,7 +122,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', read
         if (ticket === latest.current) setCompiling(false);
       }
     },
-    [files, preamble, block.kind, context],
+    [preview],
   );
 
   // Compile a moment after typing stops, and as soon as the attachments are in.
@@ -175,7 +174,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', read
   const save = () =>
     run(async () => {
       if (!files) return;
-      const current = compiled && compiled.source === source ? compiled : await compile(source);
+      const current = compiled && compiled.source === source && compiled.preview === preview ? compiled : await compile(source);
       if (!current) return;
       if (!current.result.ok) {
         setProblem('编译有错误，修好后才能保存');
@@ -307,7 +306,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', read
         merge.skipped.length > 0 ? `${merge.skipped.join('、')} 已经在参考文献里` : '',
         copied ? `引用名已复制：${keys.join(',')}` : `引用名：${keys.join(',')}`,
       ];
-      setNotice(`${parts.filter(Boolean).join('；')}。新引用的文献保存这个块后才会编号。`);
+      setNotice(`${parts.filter(Boolean).join('；')}。在正文中引用后，预览会自动更新。`);
     });
 
   const addFiles = async (list: FileList | null) => {

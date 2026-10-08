@@ -18,7 +18,7 @@ export const DEFAULT_PREAMBLE = String.raw`\documentclass{article}
 export const TEXT_WIDTH = '550pt';
 
 /** Changes whenever the wrapper's output changes, so stored PDFs made by an older wrapper count as stale. */
-export const WRAPPER_VERSION = 2;
+export const WRAPPER_VERSION = 3;
 
 /** Where the preamble and the block sit in main.tex (1-based lines), for mapping TeX's line numbers back. */
 export interface DocLines {
@@ -56,6 +56,9 @@ const COUNTER_NAME = /^[A-Za-z@0-9]+$/;
 // Floats become minipages so they sit inside the cropped box; \caption still numbers them.
 // At the end every counter (the list \include checkpoints) goes to the log for the next block.
 const SUPPORT = String.raw`\makeatletter
+% BibTeX styles such as plainnat otherwise fall back to texttt for URLs,
+% which cannot typeset literal underscores in bibliography links.
+\usepackage{url}
 \usepackage[active,tightpage]{preview}
 \setlength\PreviewBorder{2pt}
 \def\results@float#1{\def\@captype{#1}\par\noindent\begin{minipage}{\linewidth}}

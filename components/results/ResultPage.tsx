@@ -148,6 +148,7 @@ const ResultPage: React.FC = () => {
             text="导言区与附件"
             className="mt-3"
           />
+          <EditButton request={{ kind: 'references', paperId: paper.id }} label="参考文献" text="参考文献" className="mt-3 ml-2" />
         </div>
         <ResultsUnavailable />
         <Notices paper={paper} access={access} editing={editing} />
@@ -158,6 +159,15 @@ const ResultPage: React.FC = () => {
           onReorder={(ids) => reorderBlocks(paper.id, ids)}
           renderItem={(block) => <BlockItem paperId={paper.id} block={block} />}
         />
+        {/* "References": the entries the blocks cite from references.bib, typeset after them. */}
+        {paper.references && (
+          <div className="mt-10">
+            <BlockView paperId={paper.id} block={{ id: 'references', kind: 'text', output: paper.references }} />
+          </div>
+        )}
+        {!paper.references && editing && (paper.files ?? []).includes('references.bib') && (
+          <p className="mt-10 text-sm italic text-gray-400">References：正文里还没有用 \cite 引用 references.bib 里的文献。</p>
+        )}
         {blocks.length === 0 && (
           <div className="text-center text-gray-500 py-12 italic">{editing ? '用下面的按钮添加文字、图或表格。' : 'Nothing here yet.'}</div>
         )}

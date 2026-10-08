@@ -140,6 +140,12 @@ export interface ResultBlockOutput {
   labels?: Record<string, string>;
 }
 
+/** A paper's bibliography: the entries its blocks cite, typeset from references.bib under "References". */
+export interface ResultReferences extends ResultBlockOutput {
+  /** What the bibliography's \bibcite says for each cited key, so the blocks' \cite can show it. Private only. */
+  citations?: Record<string, string>;
+}
+
 export interface ResultBlock extends Hideable {
   id: string;
   kind: ResultBlockKind;
@@ -180,6 +186,8 @@ export interface ResultPaper extends Hideable {
    */
   pendingReview?: string[];
   blocks: ResultBlock[];
+  /** Set once the paper has references.bib and its blocks cite entries of it; shown after the blocks. */
+  references?: ResultReferences;
 }
 
 export const BUILTIN_PAGES = ['about', 'experiences', 'publications', 'projects', 'talks', 'awards', 'cv', 'results'] as const;
@@ -231,4 +239,6 @@ export type EditRequest =
   /** Edit a block of a results paper, or add one of the given kind at the end. */
   | { kind: 'block'; paperId: string; blockId?: string; blockKind?: ResultBlockKind }
   /** A results paper's preamble and attachments. */
-  | { kind: 'paperSettings'; paperId: string };
+  | { kind: 'paperSettings'; paperId: string }
+  /** A results paper's references.bib. */
+  | { kind: 'references'; paperId: string };

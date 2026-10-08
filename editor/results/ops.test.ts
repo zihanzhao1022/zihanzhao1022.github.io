@@ -56,6 +56,14 @@ describe('applyResultsOp', () => {
     expect(applyResultsOp(hidden, { kind: 'setPaperHidden', id: 'p1', hidden: false })[0]).not.toHaveProperty('pendingReview');
   });
 
+  it('sets and drops the typeset bibliography, whose PDF counts as in use', () => {
+    const references = { pdf: 'results/p1/references-aaaa.pdf', width: 400, height: 90, inputHash: 'h', citations: { a: '{1}' } };
+    const [withRefs] = applyResultsOp([paper('p1')], { kind: 'setReferences', paperId: 'p1', references });
+    expect(withRefs.references).toEqual(references);
+    expect(referencedPaths([withRefs]).has(references.pdf)).toBe(true);
+    expect(applyResultsOp([withRefs], { kind: 'setReferences', paperId: 'p1', references: null })[0]).not.toHaveProperty('references');
+  });
+
   it('deletes, reorders and hides papers', () => {
     const papers = [paper('p1'), paper('p2'), paper('p3')];
     expect(applyResultsOp(papers, { kind: 'deletePaper', id: 'p2' }).map((item) => item.id)).toEqual(['p1', 'p3']);

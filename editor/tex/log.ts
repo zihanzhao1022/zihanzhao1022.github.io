@@ -140,9 +140,8 @@ function readGroup(text: string, at: number): { body: string; end: number } | nu
 }
 
 /** \newlabel{name}{value} entries of an .aux file: name → value. */
-export function parseAuxLabels(aux: string): Record<string, string> {
+export function parseAuxLabels(aux: string, marker = '\\newlabel{'): Record<string, string> {
   const labels: Record<string, string> = {};
-  const marker = '\\newlabel{';
   let at = aux.indexOf(marker);
   while (at !== -1) {
     const nameStart = at + marker.length;
@@ -156,6 +155,9 @@ export function parseAuxLabels(aux: string): Record<string, string> {
   }
   return labels;
 }
+
+/** The \\bibcite entries of an .aux file (written by a typeset bibliography): key → second argument, like labels. */
+export const parseAuxCitations = (aux: string): Record<string, string> => parseAuxLabels(aux, '\\bibcite{');
 
 export function locateLine(line: number, doc: DocLines): LineLocation {
   if (line >= doc.sourceStartLine && line < doc.sourceStartLine + doc.sourceLineCount) {

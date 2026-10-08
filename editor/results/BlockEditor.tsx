@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Copy, Download, Eye, EyeOff, Loader2, Paperclip, Play, Trash2, Upload, X } from 'lucide-react';
+import { ClipboardPaste, Copy, Download, Eye, EyeOff, Loader2, Paperclip, Play, Trash2, Upload, X } from 'lucide-react';
 import PdfView from '../../components/results/PdfView';
 import { pdfPageSize } from '../../components/results/pdfjs';
 import { ResultBlock, ResultBlockKind, ResultPaper } from '../../types';
@@ -15,16 +15,17 @@ import {
   attachmentProblem,
   extensionOf,
   loadAttachments,
-  makeCompileFn,
   newBlockId,
   preambleOf,
   putFiles,
+  rebuildWith,
   withOutputs,
 } from './actions';
+import { addBibEntries } from './bibtex';
 import { FileWrite } from './backend';
 import CodeEditor, { CodeEditorHandle } from './CodeEditor';
-import { BlockCompileResult, compileBlock, describeIssue } from './compile';
-import { blockContext, rebuild } from './numbering';
+import { BlockCompileResult, REFERENCES_FILE, compileBlock, describeIssue } from './compile';
+import { blockContext, describeFailure } from './numbering';
 import { ResultsOp, resultsCommitMessage } from './ops';
 import { exportTex, preambleNames } from './texNames';
 
@@ -74,7 +75,10 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', read
   const names = useMemo(() => preambleNames(preamble), [preamble]);
   const files = useMemo(() => (stored ? { ...stored, ...added } : null), [stored, added]);
   const index = isNew ? paper.blocks.length : paper.blocks.findIndex((item) => item.id === block.id);
-  const context = useMemo(() => blockContext(isNew ? [...paper.blocks, block] : paper.blocks, index), [paper.blocks, block, index, isNew]);
+  const context = useMemo(
+    () => blockContext(isNew ? [...paper.blocks, block] : paper.blocks, index, paper.references?.citations),
+    [paper.blocks, paper.references, block, index, isNew],
+  );
   const labels = useMemo(() => Object.keys(context.labels).sort(), [context.labels]);
   const dirty = source !== original || Object.keys(added).length > 0;
 
@@ -102,7 +106,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', read
         const started = performance.now();
         const result = await compileBlock(
           engine,
-          { preamble, source: text, kind: block.kind, counters: context.counters, labels: context.labels, files },
+          { preamble, source: text, kind: block.kind, counters: context.counters, labels: context.labels, citations: context.citations, files },
           pdfPageSize,
         );
         const next = { result, source: text, ms: Math.round(performance.now() - started) };
@@ -186,10 +190,9 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', read
         fileHashes: { ...paper.fileHashes, ...uploads.hashes },
         blocks: isNew ? [...paper.blocks, nextBlock] : paper.blocks.map((item) => (item.id === block.id ? nextBlock : item)),
       };
-      const rebuilt = await rebuild(draft, makeCompileFn(await getTexEngine(), preamble, files));
+      const rebuilt = await rebuildWith(draft, files);
       if (rebuilt.failed) {
-        const position = draft.blocks.findIndex((item) => item.id === rebuilt.failed!.blockId) + 1;
-        setProblem(`第 ${position} 个块编译失败：${rebuilt.failed.message}`);
+        setProblem(describeFailure(draft.blocks, rebuilt.failed));
         return;
       }
       const ops: ResultsOp[] = [...uploads.ops, { kind: 'putBlock', paperId: paper.id, block: nextBlock }];
@@ -211,10 +214,9 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', read
     if (!files || !window.confirm('确定删除这个块吗？')) return;
     void run(async () => {
       const draft: ResultPaper = { ...paper, blocks: paper.blocks.filter((item) => item.id !== block.id) };
-      const rebuilt = await rebuild(draft, makeCompileFn(await getTexEngine(), preamble, files));
+      const rebuilt = await rebuildWith(draft, files);
       if (rebuilt.failed) {
-        const position = draft.blocks.findIndex((item) => item.id === rebuilt.failed!.blockId) + 1;
-        setProblem(`删除后第 ${position} 个块重新编译失败：${rebuilt.failed.message}。先修好那个块再删除。`);
+        setProblem(`${describeFailure(draft.blocks, rebuilt.failed, '删除后')}。先修好再删除。`);
         return;
       }
       const deletes = [...(block.output ? [block.output.pdf] : []), ...rebuilt.deletes];
@@ -261,6 +263,52 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', read
     link.click();
     setTimeout(() => URL.revokeObjectURL(link.href), 1000);
   };
+
+  /**
+   * Adds BibTeX entries copied from elsewhere (Google Scholar, DBLP…) to the paper's references.bib, creating it
+   * if needed, and puts their citation keys on the clipboard for \cite{…}. Saved at once, apart from the block.
+   */
+  const pasteBib = () =>
+    run(async () => {
+      if (!files) return;
+      let pasted = '';
+      try {
+        pasted = await navigator.clipboard.readText();
+      } catch {
+        pasted = window.prompt('把 BibTeX 条目粘贴到这里') ?? '';
+      }
+      const existing = files[REFERENCES_FILE] ? new TextDecoder().decode(files[REFERENCES_FILE]) : '';
+      const merge = addBibEntries(existing, pasted);
+      const keys = [...merge.added, ...merge.skipped];
+      if (keys.length === 0) {
+        setProblem('剪贴板里没有 BibTeX 条目（应该以 @article{… 这样开头）');
+        return;
+      }
+      const created = !(paper.files ?? []).includes(REFERENCES_FILE);
+      if (created && !window.confirm(`这篇论文还没有参考文献文件，要新建 ${REFERENCES_FILE} 并加入这些条目吗？`)) return;
+      if (merge.added.length > 0) {
+        const data = new TextEncoder().encode(merge.text);
+        const uploads = await putFiles(paper.id, { [REFERENCES_FILE]: data });
+        await onSave(
+          uploads.ops[0],
+          [{ path: attachmentPath(paper.id, REFERENCES_FILE), data }],
+          [],
+          resultsCommitMessage('add references to', paper.title),
+          publicMessage,
+        );
+        setStored((current) => ({ ...(current ?? {}), [REFERENCES_FILE]: data }));
+      }
+      const copied = await navigator.clipboard.writeText(keys.join(',')).then(
+        () => true,
+        () => false,
+      );
+      const parts = [
+        merge.added.length > 0 ? `已加入 ${merge.added.length} 条文献${created ? `（新建了 ${REFERENCES_FILE}）` : ''}` : '',
+        merge.skipped.length > 0 ? `${merge.skipped.join('、')} 已经在参考文献里` : '',
+        copied ? `引用名已复制：${keys.join(',')}` : `引用名：${keys.join(',')}`,
+      ];
+      setNotice(`${parts.filter(Boolean).join('；')}。新引用的文献保存这个块后才会编号。`);
+    });
 
   const addFiles = async (list: FileList | null) => {
     if (!list) return;
@@ -311,6 +359,16 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', read
           <button type="button" onClick={() => void copyTex()} className={BUTTON_SECONDARY} title="复制 LaTeX 代码（开头注明需要的宏包）">
             <Copy size={14} />
             复制 LaTeX
+          </button>
+          <button
+            type="button"
+            disabled={saving || !files}
+            onClick={() => void pasteBib()}
+            className={BUTTON_SECONDARY}
+            title="把复制来的 BibTeX 条目加入 references.bib，并把它们的引用名放到剪贴板"
+          >
+            <ClipboardPaste size={14} />
+            粘贴 BibTeX
           </button>
           <button type="button" onClick={downloadTex} className={BUTTON_SECONDARY} title="下载为 .tex 文件">
             <Download size={14} />

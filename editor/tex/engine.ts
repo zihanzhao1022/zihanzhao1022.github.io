@@ -9,6 +9,8 @@ export interface CompileInput {
   main: string;
   /** Other files in the working directory, by relative path (attachments, main.aux). */
   files?: Record<string, string | Uint8Array>;
+  /** Run BibTeX after the first pass and compile again, for a document with \bibliography. */
+  bibtex?: boolean;
 }
 
 export interface CompileOutput {
@@ -21,6 +23,8 @@ export interface CompileOutput {
   aux?: string;
   /** Why the engine itself gave up (a compile that never ended, a crash), in words for the owner. */
   reason?: string;
+  /** With `bibtex`: BibTeX's log (the .blg is not needed; its messages are in the log). */
+  bibtexLog?: string;
 }
 
 export interface TexEngine {
@@ -171,7 +175,7 @@ class WorkerEngine implements TexEngine {
     return run;
   }
 
-  private async run({ main, files = {} }: CompileInput): Promise<CompileOutput> {
+  private async run({ main, files = {}, bibtex = false }: CompileInput): Promise<CompileOutput> {
     // Start from an empty working directory so nothing leaks from the previous block.
     this.post({ cmd: 'flushcache' });
     const dirs = new Set<string>();
@@ -186,7 +190,18 @@ class WorkerEngine implements TexEngine {
     this.post({ cmd: 'writefile', url: 'main.tex', src: main });
     this.post({ cmd: 'setmainfile', url: 'main.tex' });
 
-    const reply = await this.request({ cmd: 'compilelatex' }, 'compile', [], COMPILE_TIMEOUT_MS);
+    let reply = await this.request({ cmd: 'compilelatex' }, 'compile', [], COMPILE_TIMEOUT_MS);
+    let bibtexLog: string | undefined;
+    if (bibtex && reply.status !== -254) {
+      // The first pass wrote the citations to main.aux; BibTeX turns them into main.bbl for the second.
+      const bib = await this.request({ cmd: 'bibtex' }, 'bibtex', [], COMPILE_TIMEOUT_MS);
+      bibtexLog = bib.log ?? '';
+      if (bib.status === -254) {
+        this.retire(bib.reason ?? 'BibTeX 意外退出');
+        return { ok: false, status: -254, log: bibtexLog, reason: bib.reason ?? 'BibTeX 意外退出', bibtexLog };
+      }
+      reply = await this.request({ cmd: 'compilelatex' }, 'compile', [], COMPILE_TIMEOUT_MS);
+    }
     if (reply.status === -254) {
       // The WebAssembly module aborted (or never answered) and cannot be reused; the next compile starts a new worker.
       this.retire(reply.log ?? '');
@@ -200,6 +215,7 @@ class WorkerEngine implements TexEngine {
       log: reply.log ?? '',
       pdf,
       aux: aux.result === 'ok' && typeof aux.data === 'string' ? aux.data : undefined,
+      ...(bibtexLog === undefined ? {} : { bibtexLog }),
     };
   }
 }

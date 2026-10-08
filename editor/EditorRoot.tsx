@@ -18,6 +18,7 @@ import { EditorToast, useResultsEditor } from './results/useResults';
 // The LaTeX editors (CodeMirror, the TeX engine) load only when a results dialog opens.
 const BlockEditor = lazy(() => import('./results/BlockEditor'));
 const PaperSettings = lazy(() => import('./results/PaperSettings'));
+const ReferencesEditor = lazy(() => import('./results/ReferencesEditor'));
 
 const FIRST_POLL_MS = 5_000;
 const POLL_MS = 10_000;
@@ -124,12 +125,15 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
         return;
       }
       const results =
-        next.kind === 'block' || next.kind === 'paperSettings' || ((next.kind === 'add' || next.kind === 'edit') && next.collection === 'results');
+        next.kind === 'block' ||
+        next.kind === 'paperSettings' ||
+        next.kind === 'references' ||
+        ((next.kind === 'add' || next.kind === 'edit') && next.collection === 'results');
       if (results && access.state !== 'private') {
         setToast({ message: access.state === 'loading' ? '论文结果还在加载，请稍后再试' : '私有仓库不可用，暂时不能编辑论文结果' });
         return;
       }
-      if ((next.kind === 'block' || next.kind === 'paperSettings') && isReordering(next.paperId)) {
+      if ((next.kind === 'block' || next.kind === 'paperSettings' || next.kind === 'references') && isReordering(next.paperId)) {
         setToast({ message: '正在保存新的顺序并更新编号，请几秒后再编辑' });
         return;
       }
@@ -212,7 +216,7 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
   );
 
   const paper =
-    request?.kind === 'block' || request?.kind === 'paperSettings'
+    request?.kind === 'block' || request?.kind === 'paperSettings' || request?.kind === 'references'
       ? content.results.find((item) => item.id === request.paperId)
       : undefined;
 
@@ -254,6 +258,11 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
         {request?.kind === 'paperSettings' && paper && (
           <Suspense fallback={null}>
             <PaperSettings paper={paper} readFile={access.readFile} onSave={saveResults} onClose={closeDialog} />
+          </Suspense>
+        )}
+        {request?.kind === 'references' && paper && (
+          <Suspense fallback={null}>
+            <ReferencesEditor paper={paper} readFile={access.readFile} onSave={saveResults} onClose={closeDialog} />
           </Suspense>
         )}
         {toast && (

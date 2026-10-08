@@ -45,6 +45,8 @@ export interface BlockDocInput {
    * the aux file written here wraps the value back in one pair of braces.
    */
   labels?: Record<string, string>;
+  /** The paper's bibliography: citation key → the contents of \bibcite's second argument, like labels. */
+  citations?: Record<string, string>;
 }
 
 // Reset by LaTeX itself or meaningless across blocks.
@@ -113,15 +115,17 @@ export function passOptionsLines(preamble: string): string[] {
   return [...options].filter(([, list]) => list.length > 0).map(([name, list]) => `\\PassOptionsToPackage{${list.join(',')}}{${name}}`);
 }
 
-const auxFor = (labels: Record<string, string>): string =>
+const auxFor = (labels: Record<string, string>, citations: Record<string, string>): string =>
   [
     '\\relax',
     '\\providecommand\\hyper@newdestlabel[2]{}',
     ...Object.entries(labels).map(([name, value]) => `\\newlabel{${name}}{${value}}`),
+    // \cite reads these like a document whose bibliography was typeset in an earlier run.
+    ...Object.entries(citations).map(([key, value]) => `\\bibcite{${key}}{${value}}`),
     '',
   ].join('\n');
 
-export function buildBlockDocument({ preamble, source, kind, counters = {}, labels = {} }: BlockDocInput): BlockDoc {
+export function buildBlockDocument({ preamble, source, kind, counters = {}, labels = {}, citations = {} }: BlockDocInput): BlockDoc {
   const ownPreamble = preamble.replace(/\s+$/, '');
   const head = passOptionsLines(ownPreamble);
   if (!/\\documentclass/.test(stripComments(ownPreamble))) head.push('\\documentclass{article}');
@@ -152,7 +156,7 @@ export function buildBlockDocument({ preamble, source, kind, counters = {}, labe
   const main = `${before}\n${body}\n\\end{minipage}\\end{preview}\n\\end{document}\n`;
   return {
     main,
-    aux: auxFor(labels),
+    aux: auxFor(labels, citations),
     preambleStartLine,
     preambleLineCount,
     sourceStartLine: before.split('\n').length + 1,

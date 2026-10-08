@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { locateLine, parseAuxLabels, parseCounters, parseErrors, parseWarnings, unwrapLog } from './log';
+import { locateLine, parseAuxCitations, parseAuxLabels, parseCounters, parseErrors, parseWarnings, unwrapLog } from './log';
 
 const LOG = [
   '(/tex/booktabs.sty)',
@@ -131,6 +131,13 @@ const MISSING_PACKAGE_LOG = lines(
   ' 943 strings out of 467525',
   '!  ==> Fatal error occurred, no output PDF file produced!',
 );
+
+describe('parseAuxCitations', () => {
+  it('reads natbib and plain \\bibcite entries', () => {
+    const aux = '\\relax\n\\citation{a}\n\\bibcite{a}{{1}{2024}{{Doe and Roe}}{{Doe and Roe}}}\n\\bibcite{b}{2}\n';
+    expect(parseAuxCitations(aux)).toEqual({ a: '{1}{2024}{{Doe and Roe}}{{Doe and Roe}}', b: '2' });
+  });
+});
 
 describe('unwrapLog', () => {
   const full = 'x'.repeat(79);

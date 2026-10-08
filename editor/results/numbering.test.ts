@@ -1,6 +1,20 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ResultBlock, ResultPaper } from '../../types';
-import { BlockContext, CompileFn, blockContext, hashText, inputHash, outputPath, rebuild, referencedLabels, staleBlocks, usedFiles } from './numbering';
+import {
+  BlockContext,
+  CompileFn,
+  ReferencesBuilder,
+  blockContext,
+  citedKeys,
+  hashText,
+  inputHash,
+  outputPath,
+  paperCitations,
+  rebuild,
+  referencedLabels,
+  staleBlocks,
+  usedFiles,
+} from './numbering';
 
 const paper = (blocks: ResultBlock[]): ResultPaper => ({
   id: 'p1',
@@ -34,7 +48,7 @@ describe('blockContext', () => {
       { id: 'b', kind: 'text' },
       { id: 'c', kind: 'table', output: { pdf: 'y', width: 1, height: 1, counters: { table: 2 }, labels: { 'tab:c': '{2}{1}' } } },
     ];
-    expect(blockContext(blocks, 0)).toEqual({ counters: {}, labels: { 'tab:a': '{1}{1}', 'tab:c': '{2}{1}' } });
+    expect(blockContext(blocks, 0)).toEqual({ counters: {}, labels: { 'tab:a': '{1}{1}', 'tab:c': '{2}{1}' }, citations: {} });
     expect(blockContext(blocks, 2).counters).toEqual({ table: 1 });
   });
 });
@@ -48,7 +62,7 @@ describe('usedFiles', () => {
 
 describe('inputHash', () => {
   const block: ResultBlock = { id: 'a', kind: 'text', source: 'See \\ref{tab:x}.' };
-  const context: BlockContext = { counters: { section: 1 }, labels: { 'tab:x': '{1}{1}', 'tab:other': '{2}{1}' } };
+  const context: BlockContext = { counters: { section: 1 }, labels: { 'tab:x': '{1}{1}', 'tab:other': '{2}{1}' }, citations: {} };
 
   it('changes with the source, preamble, counters and referenced labels only', () => {
     const base = inputHash(paper([block]), block, context);
@@ -163,5 +177,75 @@ describe('rebuild', () => {
     const result = await rebuild(paper([{ id: 'e', kind: 'text', source: '  ' }]), compile);
     expect(compile).not.toHaveBeenCalled();
     expect(result.outputs).toEqual({});
+  });
+});
+
+describe('citations', () => {
+  it('finds the keys a source cites, in order of first use, ignoring comments', () => {
+    const source = 'As \\citet{vaswani2017} and \\citep[see][p.~3]{bert, gpt3} show, \\cite{vaswani2017}. \\nocite{*} % \\cite{hidden}';
+    expect(citedKeys(source)).toEqual(['vaswani2017', 'bert', 'gpt3']);
+    expect(paperCitations([{ id: 'a', kind: 'text', source: '\\cite{b,a}' }, { id: 'b', kind: 'text', source: '\\cite{c, a}' }])).toEqual(['b', 'a', 'c']);
+  });
+
+  it('leaves the hash of blocks without citations as it was', () => {
+    const block: ResultBlock = { id: 'a', kind: 'text', source: 'No citations here.' };
+    const context: BlockContext = { counters: {}, labels: {}, citations: {} };
+    expect(inputHash(paper([block]), block, { ...context, citations: { x: '{1}' } })).toBe(inputHash(paper([block]), block, context));
+    const citing: ResultBlock = { id: 'b', kind: 'text', source: 'See \\cite{x}.' };
+    expect(inputHash(paper([citing]), citing, { ...context, citations: { x: '{2}' } })).not.toBe(
+      inputHash(paper([citing]), citing, { ...context, citations: { x: '{1}' } }),
+    );
+  });
+
+  /** A fake bibliography: numbers the keys it is given, in that order. */
+  const bibliography = (bibKeys: string[] | null) => {
+    const calls: string[][] = [];
+    const builder: ReferencesBuilder = {
+      bibKeys: bibKeys ? new Set(bibKeys) : null,
+      style: 'unsrt',
+      compile: async (keys) => {
+        calls.push(keys);
+        return { ok: true, pdf: new TextEncoder().encode(keys.join()), width: 400, height: 80, citations: Object.fromEntries(keys.map((key, index) => [key, `{${index + 1}}`])) };
+      },
+    };
+    return { builder, calls };
+  };
+
+  it('typesets the bibliography first, then gives every block its numbers', async () => {
+    const { builder, calls } = bibliography(['a', 'b', 'c']);
+    const { compile } = fakeCompiler();
+    const result = await rebuild(
+      paper([
+        { id: 't1', kind: 'text', source: 'First \\cite{b}, missing \\cite{zzz}.' },
+        { id: 't2', kind: 'text', source: 'Then \\cite{a,b}.' },
+      ]),
+      compile,
+      { references: builder },
+    );
+    // Cited keys that references.bib has, in order of first citation.
+    expect(calls).toEqual([['b', 'a']]);
+    expect(result.references).toMatchObject({ citations: { b: '{1}', a: '{2}' }, pdf: expect.stringMatching(/^results\/p1\/references-/) });
+    const t2 = new TextDecoder().decode(result.writes.find((write) => write.path === result.outputs.t2.pdf)!.data);
+    expect(t2).toContain('"citations":{"b":"{1}","a":"{2}"}');
+    expect(result.writes.map((write) => write.path)).toContain(result.references!.pdf);
+  });
+
+  it('keeps an unchanged bibliography and drops it with the last citation or the .bib', async () => {
+    const { builder, calls } = bibliography(['a']);
+    const blocks: ResultBlock[] = [{ id: 't1', kind: 'text', source: '\\cite{a}' }];
+    const first = await rebuild(paper(blocks), fakeCompiler().compile, { references: builder });
+    const withReferences = { ...paper([{ ...blocks[0], output: first.outputs.t1 }]), references: first.references! };
+    const again = await rebuild(withReferences, fakeCompiler().compile, { references: builder });
+    expect(calls).toHaveLength(1);
+    expect(again).not.toHaveProperty('references');
+    const noBib = await rebuild(withReferences, fakeCompiler().compile, { references: bibliography(null).builder });
+    expect(noBib.references).toBeNull();
+    expect(noBib.deletes).toContain(first.references!.pdf);
+  });
+
+  it('reports a bibliography that does not compile', async () => {
+    const builder: ReferencesBuilder = { bibKeys: new Set(['a']), style: 'unsrt', compile: async () => ({ ok: false, message: 'I found no \\bibstyle command' }) };
+    const result = await rebuild(paper([{ id: 't1', kind: 'text', source: '\\cite{a}' }]), fakeCompiler().compile, { references: builder });
+    expect(result.failed).toEqual({ blockId: 'references', message: 'I found no \\bibstyle command' });
   });
 });

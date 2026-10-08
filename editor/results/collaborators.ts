@@ -98,7 +98,7 @@ export const isPaperPath = (paperId: string, path: string): boolean => paperOfPa
 export function canReadFile(paper: ResultPaper, role: PaperRole, path: string): boolean {
   if (!isPaperPath(paper.id, path)) return false;
   if (role === 'editor') return true;
-  return paper.blocks.some((block) => !block.hidden && block.output?.pdf === path);
+  return paper.blocks.some((block) => !block.hidden && block.output?.pdf === path) || paper.references?.pdf === path;
 }
 
 const KINDS: ResultBlockKind[] = ['text', 'figure', 'table'];

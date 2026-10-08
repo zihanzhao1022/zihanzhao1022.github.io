@@ -42,6 +42,9 @@ export function publicView(paper: ResultPaper): ResultPaper {
         kind: block.kind,
         output: { pdf: block.output!.pdf, width: block.output!.width, height: block.output!.height },
       })),
+    ...(paper.references
+      ? { references: { pdf: paper.references.pdf, width: paper.references.width, height: paper.references.height } }
+      : {}),
   };
 }
 
@@ -60,7 +63,7 @@ export function parseSnapshot(text: string | null): ResultPaper[] {
 
 /** Private paths (results/...) of every file the snapshot shows. */
 export const snapshotFiles = (snapshot: ResultPaper[]): string[] =>
-  snapshot.flatMap((paper) => paper.blocks.map((block) => block.output!.pdf));
+  snapshot.flatMap((paper) => [...paper.blocks.map((block) => block.output!.pdf), ...(paper.references ? [paper.references.pdf] : [])]);
 
 export interface PublicSyncPlan {
   /** New text of the snapshot file, or null when it is unchanged. */

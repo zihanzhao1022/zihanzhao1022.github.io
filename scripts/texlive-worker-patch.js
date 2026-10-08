@@ -105,6 +105,9 @@ function kpse_find_file_impl(nameptr, format, _mustexist) {
 //       Writes the files into the worker's file system. Replies {cmd: 'preload', result: 'ok' | 'failed'}.
 //   readfile {url}
 //       Reads a file of the working directory as UTF-8. Replies {cmd: 'readfile', result, data}.
+//   bibtex {}
+//       Runs BibTeX on the main file's .aux, which the last compile left in the working directory (the next
+//       compile then reads the .bbl). Replies {cmd: 'bibtex', result, status, log}.
 function handleExtraCommand(cmd, data) {
   if (cmd === 'setbundle') {
     self.bundleBase = data.base || '';
@@ -134,6 +137,18 @@ function handleExtraCommand(cmd, data) {
     } catch (err) {
       self.postMessage({ result: 'failed', cmd: 'readfile' });
     }
+    return true;
+  }
+  if (cmd === 'bibtex') {
+    prepareExecutionContext();
+    cwrap('setMainEntry', 'number', ['string'])(self.mainfile);
+    let status = -254;
+    try {
+      status = _compileBibtex();
+    } catch (err) {
+      // An aborted run leaves the module unusable, like a failed compile.
+    }
+    self.postMessage({ result: status === 0 ? 'ok' : 'failed', status, log: self.memlog, cmd: 'bibtex' });
     return true;
   }
   return false;

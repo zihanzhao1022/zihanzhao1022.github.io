@@ -1,4 +1,4 @@
-import { ResultBlock, ResultBlockOutput, ResultPaper } from '../../types';
+import { ResultBlock, ResultBlockOutput, ResultPaper, ResultReferences } from '../../types';
 import { ContentOp, applyListOp } from '../ops';
 
 /** What the paper form edits. Blocks, preamble, attachments and visibility change through their own operations. */
@@ -29,6 +29,8 @@ export type ResultsOp =
   | { kind: 'setBlockHidden'; paperId: string; blockId: string; hidden: boolean }
   /** Compiled outputs, each kept only if the block's source is still the one it was compiled from. */
   | { kind: 'setOutputs'; paperId: string; outputs: Record<string, ResultBlockOutput>; sources: Record<string, string> }
+  /** The paper's typeset bibliography, or null to drop it (no references.bib, or nothing cited). */
+  | { kind: 'setReferences'; paperId: string; references: ResultReferences | null }
   | { kind: 'batch'; ops: ResultsOp[] };
 
 function updatePaper(papers: ResultPaper[], id: string, change: (paper: ResultPaper) => ResultPaper): ResultPaper[] {
@@ -125,6 +127,12 @@ export function applyResultsOp(papers: ResultPaper[], op: ResultsOp): ResultPape
           op.outputs[block.id] && block.source === op.sources[block.id] ? { ...block, output: op.outputs[block.id] } : block,
         ),
       }));
+    case 'setReferences':
+      return updatePaper(papers, op.paperId, (paper) => {
+        if (op.references) return { ...paper, references: op.references };
+        const { references: _references, ...rest } = paper;
+        return rest;
+      });
     case 'batch':
       return op.ops.reduce(applyResultsOp, papers);
   }
@@ -154,6 +162,7 @@ export function referencedPaths(papers: ResultPaper[]): Set<string> {
   const paths = new Set<string>();
   for (const paper of papers) {
     for (const block of paper.blocks) if (block.output) paths.add(block.output.pdf);
+    if (paper.references) paths.add(paper.references.pdf);
     for (const name of paper.files ?? []) paths.add(`results/${paper.id}/files/${name}`);
   }
   return paths;

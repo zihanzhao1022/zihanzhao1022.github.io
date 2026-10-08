@@ -2,8 +2,9 @@ import { pdfPageSize } from '../../components/results/pdfjs';
 import { ResultBlockKind, ResultPaper } from '../../types';
 import { DEFAULT_PREAMBLE } from '../tex/document';
 import { TexEngine, getTexEngine } from '../tex/engine';
-import { compileBlock, describeIssue } from './compile';
-import { CompileFn, RebuildResult, rebuild } from './numbering';
+import { bibKeysOf, bibliographyStyle } from './bibtex';
+import { REFERENCES_FILE, compileBlock, compileReferences, describeIssue } from './compile';
+import { CompileFn, RebuildResult, ReferencesBuilder, rebuild } from './numbering';
 import { ResultsOp } from './ops';
 
 export type ReadFile = (path: string) => Promise<Uint8Array>;
@@ -24,7 +25,15 @@ export function makeCompileFn(engine: TexEngine, preamble: string, files: Record
   return async (block, context) => {
     const result = await compileBlock(
       engine,
-      { preamble, source: block.source ?? '', kind: block.kind, counters: context.counters, labels: context.labels, files },
+      {
+        preamble,
+        source: block.source ?? '',
+        kind: block.kind,
+        counters: context.counters,
+        labels: context.labels,
+        citations: context.citations,
+        files,
+      },
       pdfPageSize,
     );
     if (result.ok && result.pdf) {
@@ -34,15 +43,36 @@ export function makeCompileFn(engine: TexEngine, preamble: string, files: Record
   };
 }
 
+/** How a paper's bibliography is typeset from its references.bib (null without one). */
+export function makeReferencesBuilder(engine: TexEngine, paper: ResultPaper, files: Record<string, Uint8Array>): ReferencesBuilder {
+  const bib = files[REFERENCES_FILE];
+  const style = bibliographyStyle(paper);
+  return {
+    bibKeys: bib ? bibKeysOf(new TextDecoder().decode(bib)) : null,
+    style,
+    compile: async (keys) => {
+      const result = await compileReferences(engine, { preamble: preambleOf(paper), keys, style, files }, pdfPageSize);
+      if (result.ok && result.pdf) return { ok: true, pdf: result.pdf, width: result.width, height: result.height, citations: result.citations };
+      return { ok: false, message: result.issues.map(describeIssue).join('；') || '编译失败' };
+    },
+  };
+}
+
+/** Recompiles what the paper's changes made out of date (bibliography first), with these attachments. */
+export async function rebuildWith(paper: ResultPaper, files: Record<string, Uint8Array>): Promise<RebuildResult> {
+  const engine = await getTexEngine();
+  return rebuild(paper, makeCompileFn(engine, preambleOf(paper), files), { references: makeReferencesBuilder(engine, paper, files) });
+}
+
 /** Recompiles the paper's out-of-date blocks with its preamble and attachments. */
 export async function rebuildPaper(paper: ResultPaper, readFile: ReadFile, files?: Record<string, Uint8Array>): Promise<RebuildResult> {
-  const [engine, attachments] = await Promise.all([getTexEngine(), files ?? loadAttachments(paper, readFile)]);
-  return rebuild(paper, makeCompileFn(engine, preambleOf(paper), attachments));
+  return rebuildWith(paper, files ?? (await loadAttachments(paper, readFile)));
 }
 
 /** The edits followed by the rebuilt outputs, as one save. */
 export function withOutputs(paperId: string, ops: ResultsOp[], rebuilt: RebuildResult): ResultsOp {
   const all = [...ops];
+  if (rebuilt.references !== undefined) all.push({ kind: 'setReferences', paperId, references: rebuilt.references });
   if (Object.keys(rebuilt.outputs).length > 0) {
     all.push({ kind: 'setOutputs', paperId, outputs: rebuilt.outputs, sources: rebuilt.sources });
   }

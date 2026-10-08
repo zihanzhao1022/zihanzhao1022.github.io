@@ -13,15 +13,15 @@ import {
   attachmentPath,
   attachmentProblem,
   loadAttachments,
-  makeCompileFn,
   preambleOf,
   putFiles,
+  rebuildWith,
   withOutputs,
 } from './actions';
 import { ResultsSave } from './BlockEditor';
 import CodeEditor from './CodeEditor';
 import { BlockCompileResult, compileBlock, describeIssue } from './compile';
-import { rebuild } from './numbering';
+import { describeFailure } from './numbering';
 import { ResultsOp, resultsCommitMessage } from './ops';
 
 const SAMPLE = String.raw`\section*{Preview}
@@ -146,10 +146,9 @@ const PaperSettings: React.FC<Props> = ({ paper, readFile, onSave, onClose }) =>
       const fileHashes = { ...paper.fileHashes, ...uploads.hashes };
       gone.forEach((name) => delete fileHashes[name]);
       const draft: ResultPaper = { ...paper, preamble, files: kept, fileHashes };
-      const rebuilt = await rebuild(draft, makeCompileFn(await getTexEngine(), preamble, files));
+      const rebuilt = await rebuildWith(draft, files);
       if (rebuilt.failed) {
-        const position = paper.blocks.findIndex((block) => block.id === rebuilt.failed!.blockId) + 1;
-        setProblem(`改动后第 ${position} 个块编译失败：${rebuilt.failed.message}`);
+        setProblem(describeFailure(paper.blocks, rebuilt.failed, '改动后'));
         return;
       }
       const writes = [

@@ -1,7 +1,7 @@
 import { ResultBlockKind } from '../../types';
 import { buildBlockDocument } from '../tex/document';
 import { TexEngine } from '../tex/engine';
-import { locateLine, parseAuxLabels, parseCounters, parseErrors, parseWarnings } from '../tex/log';
+import { locateLine, parseAuxCitations, parseAuxLabels, parseCounters, parseErrors, parseWarnings } from '../tex/log';
 import { referencedLabels } from './numbering';
 
 export interface BlockIssue {
@@ -19,6 +19,8 @@ export interface BlockCompileInput {
   kind: ResultBlockKind;
   counters: Record<string, number>;
   labels: Record<string, string>;
+  /** The paper's bibliography entries the block's \cite can show (see buildBlockDocument). */
+  citations?: Record<string, string>;
   /** Attachments by file name, placed next to main.tex. */
   files: Record<string, Uint8Array>;
 }
@@ -85,4 +87,46 @@ export function describeIssue(issue: BlockIssue): string {
   if (issue.area === 'file') return `${issue.file} 第 ${issue.line} 行：${issue.message}`;
   const where = { source: '代码', preamble: '导言区', wrapper: '包装文档' }[issue.area];
   return `${where}第 ${issue.line} 行：${issue.message}`;
+}
+
+/** The bibliography file a paper's blocks cite from, an attachment like the others. */
+export const REFERENCES_FILE = 'references.bib';
+
+export interface ReferencesCompileResult {
+  ok: boolean;
+  pdf?: Uint8Array;
+  width: number;
+  height: number;
+  /** \bibcite entries by key, for the blocks. */
+  citations: Record<string, string>;
+  issues: BlockIssue[];
+  log: string;
+}
+
+/** BibTeX's own complaints, e.g. a .bst it could not find or a broken entry. */
+const bibtexProblem = (log = ''): string | null => {
+  const lines = log.split('\n').filter((line) => /^I couldn't|^I found no|error message|---line \d+/.test(line));
+  return lines.length > 0 ? `BibTeX：${lines.slice(0, 3).join(' ')}` : null;
+};
+
+/**
+ * The paper's "References": the given keys (in the order the page first cites them) typeset from
+ * references.bib with the paper's preamble and bibliography style, like a text block. pdfTeX, BibTeX and
+ * pdfTeX again, as LaTeX does it.
+ */
+export async function compileReferences(
+  engine: TexEngine,
+  input: { preamble: string; keys: string[]; style: string; files: Record<string, Uint8Array> },
+  measure: Measure,
+): Promise<ReferencesCompileResult> {
+  const source = [`\\nocite{${input.keys.join(',')}}`, `\\bibliographystyle{${input.style}}`, `\\bibliography{${REFERENCES_FILE.replace(/\.bib$/, '')}}`].join('\n');
+  const doc = buildBlockDocument({ preamble: input.preamble, source, kind: 'text' });
+  const out = await engine.compile({ main: doc.main, files: { ...input.files, 'main.aux': doc.aux }, bibtex: true });
+  const issues = parseErrors(out.log).map((issue): BlockIssue => (issue.file ? { message: issue.message, area: 'file', file: issue.file, line: issue.line } : { message: issue.message, area: 'wrapper' }));
+  if (!out.ok && issues.length === 0) {
+    issues.push({ message: out.reason ?? bibtexProblem(out.bibtexLog) ?? 'TeX 没有生成参考文献，详情见日志', area: 'wrapper' });
+  }
+  const ok = out.ok && out.pdf !== undefined && issues.length === 0;
+  const size = ok && out.pdf ? await measure(out.pdf) : { width: 0, height: 0 };
+  return { ok, pdf: ok ? out.pdf : undefined, ...size, citations: parseAuxCitations(out.aux ?? ''), issues, log: out.log };
 }

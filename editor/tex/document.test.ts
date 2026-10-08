@@ -4,6 +4,13 @@ import { DEFAULT_PREAMBLE, buildBlockDocument, passOptionsLines, stripComments }
 const TABLE = '\\begin{table}[t]\n\\centering\n\\begin{tabular}{lc}\nA & 1 \\\\\n\\end{tabular}\n\\caption{Demo}\n\\end{table}';
 const FIGURE = '\\begin{figure}[t]\n\\centering\n\\rule{2cm}{1cm}\n\\caption{Demo}\n\\end{figure}';
 
+describe('citations in the aux file', () => {
+  it('lets \\cite read the bibliography numbers like a second LaTeX run', () => {
+    const doc = buildBlockDocument({ preamble: '\\documentclass{article}', source: '\\cite{a}', kind: 'text', citations: { a: '{1}' } });
+    expect(doc.aux).toContain('\\bibcite{a}{{1}}');
+  });
+});
+
 describe('stripComments', () => {
   it('drops comments but keeps escaped percent signs', () => {
     expect(stripComments('a % note\n50\\% b % more\n% whole line')).toBe('a \n50\\% b \n');

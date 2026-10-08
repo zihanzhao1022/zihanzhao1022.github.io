@@ -102,6 +102,13 @@ describe('planPublicSync', () => {
     expect(plan.add).toEqual([]);
   });
 
+  it('publishes the typeset References with the paper, without its citation bookkeeping', () => {
+    const withRefs: ResultPaper = { ...papers[0], references: { pdf: 'results/p1/references-cccc.pdf', width: 400, height: 60, inputHash: 'h', citations: { a: '{1}' } } };
+    const [shown] = buildSnapshot([withRefs]);
+    expect(shown.references).toEqual({ pdf: 'results/p1/references-cccc.pdf', width: 400, height: 60 });
+    expect(planPublicSync([withRefs], '[]\n', []).add).toContain('results/p1/references-cccc.pdf');
+  });
+
   it('empties the site when nothing is published', () => {
     const plan = planPublicSync([papers[1]], snapshotText(papers), ['public/results/p1/b1-aaaa.pdf']);
     expect(plan.json).toBe('[]\n');

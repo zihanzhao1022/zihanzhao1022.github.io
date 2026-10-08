@@ -15,7 +15,7 @@
 
 **本期不做**
 
-- 参考文献：`\cite` 显示为 `(?)`，与没有运行 BibTeX 时相同。以后可以支持上传 .bib。
+- 参考文献：论文有 `references.bib` 时支持 `\cite`，见第 14 节（2026-10-08 实现）。
 - 多人协作、版本历史界面（Git 历史本身可以回滚）。
 - 访客复制 LaTeX 源码：公开快照里不含源码。
 - 按数值自动上色（热力图）等批量格式工具。
@@ -382,6 +382,8 @@ docs/admin-setup.md                   增加私有仓库的配置说明
 **所有者的一次性配置**：见 `docs/admin-setup.md` 第四节（把 GitHub App 改为公开——私有的 App 只有所有者本人能授权登录；生成 App 私钥、`wrangler secret put GITHUB_APP_PRIVATE_KEY`、`wrangler secret put SESSION_SECRET`、`wrangler deploy`）。
 
 ## 14. 上线后待办（2026-10-08 记录）
+
+- **参考文献（已实现）**：论文页"导言区与附件"旁的"参考文献"按钮新建或编辑 `references.bib`（作为附件保存）；块编辑器里"复制 LaTeX"旁的"粘贴 BibTeX"把剪贴板里的条目加进去（重复的引用名跳过），并把引用名放到剪贴板。每次重新编译先排参考文献：把各块引用的、`references.bib` 里有的引用名按首次引用的顺序 `\nocite`，用 pdfTeX、BibTeX、pdfTeX 编译成论文页最后的 References（`\section*{References}` 由 thebibliography 生成），再把它写进 aux 的 `\bibcite` 交给各块，所以编号跨块连续。格式：上传了 .bst 用它，导言区用了 natbib（或 acl、iclr、neurips、icml）用 plainnat，否则 unsrt。References 会随论文公开，但不属于任何块，导出全文 LaTeX 时不带上。
 
 - **小节标题与导出全文**（用户提出，上线后再做）：
   - 在论文页上添加小节标题，按 HTML 显示，但等级只能取 LaTeX 有的四级：`\section`、`\subsection`、`\subsubsection`、`\paragraph`，每级都可选编号或不编号（带星号）。

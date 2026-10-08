@@ -21,7 +21,7 @@
 - TeX 需要文件时的查找顺序：已预载或已下载过的文件，网站自带的 `files/`（同源），最后是 `https://texlive.texlyre.org/`。从远程下载的文件会发给页面，由页面存进浏览器的 Cache Storage。
 - 远程请求的超时是 30 秒。服务器回答"文件不存在"（301 或 404）或请求失败（断网、超时）之后，这个 Worker 在存活期间不再请求同一个文件。
 - 所有者自己的文件名不会发给远程服务器，见"什么会离开浏览器"。
-- 编译后不再自动运行 BibTeX。
+- 编译后不再自动运行 BibTeX，改为由 `bibtex` 命令按需运行（论文有 references.bib 时，编译参考文献用）。
 - 新增消息 `setbundle`、`preload`、`readfile`，下载文件后发出消息 `fetched`。
 
 ## Worker 消息

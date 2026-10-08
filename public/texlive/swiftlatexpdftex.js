@@ -61,7 +61,12 @@ function kpse_find_file_impl(nameptr, format, _mustexist) {
     // attachment would otherwise be sent to the remote server. These are the job's own files
     // (main.aux, main.toc, ...) and file types the owner supplies (images, bibliographies) or TeX
     // writes (auxiliary files). Treat them as missing without asking.
-    if (/^main\.|\.(pdf|png|jpg|jpeg|eps|mps|jbig2|jb2|bmp|gif|svg|tif|tiff|bib|bbl|blg|aux|toc|lof|lot|out|log|nav|snm|vrb|idx|ind|ilg|glo|gls)$/i.test(reqname)) {
+    // TeX Live file names are plain too: anything else (a name TeX built from document text, for
+    // instance) is not sent either.
+    if (
+      !/^[A-Za-z0-9._+-]+$/.test(reqname) ||
+      /^main\.|\.(pdf|png|jpg|jpeg|eps|mps|jbig2|jb2|bmp|gif|svg|tif|tiff|bib|bbl|blg|aux|toc|lof|lot|out|log|nav|snm|vrb|idx|ind|ilg|glo|gls)$/i.test(reqname)
+    ) {
       texlive404_cache[cacheKey] = 1;
       return 0;
     }
@@ -70,7 +75,8 @@ function kpse_find_file_impl(nameptr, format, _mustexist) {
     remote = true;
   }
 
-  if (res.status !== 200 || !fileid) {
+  // The file name comes from the server: accept only a plain name, never a path.
+  if (res.status !== 200 || !fileid || !/^[A-Za-z0-9._+-]+$/.test(fileid)) {
     // 301 and 404 are how the servers say "no such file". Status 0 is a network failure or timeout:
     // remember it too, so an unreachable server cannot stall every compile.
     if (res.status === 0 || res.status === 301 || res.status === 404) {

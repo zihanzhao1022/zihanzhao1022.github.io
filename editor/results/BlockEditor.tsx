@@ -18,6 +18,7 @@ import {
   makeCompileFn,
   newBlockId,
   preambleOf,
+  putFiles,
   withOutputs,
 } from './actions';
 import { FileWrite } from './backend';
@@ -66,6 +67,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', read
   const [tab, setTab] = useState<'code' | 'preview'>('code');
   const editor = useRef<CodeEditorHandle>(null);
   const latest = useRef(0);
+  const busy = useRef(false);
   const upload = useRef<HTMLInputElement>(null);
 
   const preamble = preambleOf(paper);
@@ -138,7 +140,8 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', read
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close();
+      // CodeMirror handles Escape itself when it closes a completion list or the search panel.
+      if (event.key === 'Escape' && !event.defaultPrevented) close();
     };
     window.addEventListener('keydown', onKey);
     return () => {
@@ -149,7 +152,10 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', read
 
   const publicMessage = `content: update result "${paper.title}"`;
 
+  // One save, delete or hide at a time, even when Ctrl/Cmd+S is pressed again before the state updates.
   const run = async (work: () => Promise<void>) => {
+    if (busy.current) return;
+    busy.current = true;
     setSaving(true);
     setProblem(null);
     try {
@@ -157,6 +163,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', read
     } catch (error) {
       setProblem(describeSaveError(error));
     } finally {
+      busy.current = false;
       setSaving(false);
     }
   };
@@ -172,10 +179,11 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', read
         return;
       }
       const nextBlock: ResultBlock = { ...block, source };
-      const fileNames = [...new Set([...(paper.files ?? []), ...Object.keys(added)])];
+      const uploads = await putFiles(paper.id, added);
       const draft: ResultPaper = {
         ...paper,
-        files: fileNames,
+        files: [...new Set([...(paper.files ?? []), ...Object.keys(added)])],
+        fileHashes: { ...paper.fileHashes, ...uploads.hashes },
         blocks: isNew ? [...paper.blocks, nextBlock] : paper.blocks.map((item) => (item.id === block.id ? nextBlock : item)),
       };
       const rebuilt = await rebuild(draft, makeCompileFn(await getTexEngine(), preamble, files));
@@ -184,9 +192,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', read
         setProblem(`第 ${position} 个块编译失败：${rebuilt.failed.message}`);
         return;
       }
-      const ops: ResultsOp[] = [];
-      if (Object.keys(added).length > 0) ops.push({ kind: 'patchPaper', id: paper.id, fields: { files: fileNames } });
-      ops.push({ kind: 'putBlock', paperId: paper.id, block: nextBlock });
+      const ops: ResultsOp[] = [...uploads.ops, { kind: 'putBlock', paperId: paper.id, block: nextBlock }];
       const writes: FileWrite[] = [
         ...Object.entries(added).map(([name, data]) => ({ path: attachmentPath(paper.id, name), data })),
         ...rebuilt.writes,
@@ -202,10 +208,15 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', read
     });
 
   const remove = () => {
-    if (!window.confirm('确定删除这个块吗？')) return;
+    if (!files || !window.confirm('确定删除这个块吗？')) return;
     void run(async () => {
       const draft: ResultPaper = { ...paper, blocks: paper.blocks.filter((item) => item.id !== block.id) };
-      const rebuilt = await rebuild(draft, makeCompileFn(await getTexEngine(), preamble, files ?? {}));
+      const rebuilt = await rebuild(draft, makeCompileFn(await getTexEngine(), preamble, files));
+      if (rebuilt.failed) {
+        const position = draft.blocks.findIndex((item) => item.id === rebuilt.failed!.blockId) + 1;
+        setProblem(`删除后第 ${position} 个块重新编译失败：${rebuilt.failed.message}。先修好那个块再删除。`);
+        return;
+      }
       const deletes = [...(block.output ? [block.output.pdf] : []), ...rebuilt.deletes];
       await onSave(
         withOutputs(paper.id, [{ kind: 'deleteBlock', paperId: paper.id, blockId: block.id }], rebuilt),

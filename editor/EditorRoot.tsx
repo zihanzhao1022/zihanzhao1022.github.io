@@ -123,7 +123,9 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
         setToast({ message: EXPIRING, relogin: true });
         return;
       }
-      if ((next.kind === 'block' || next.kind === 'paperSettings') && access.state !== 'private') {
+      const results =
+        next.kind === 'block' || next.kind === 'paperSettings' || ((next.kind === 'add' || next.kind === 'edit') && next.collection === 'results');
+      if (results && access.state !== 'private') {
         setToast({ message: access.state === 'loading' ? '论文结果还在加载，请稍后再试' : '私有仓库不可用，暂时不能编辑论文结果' });
         return;
       }
@@ -144,7 +146,11 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
           uploads.forEach((upload) => registerLocalImage(publicUrl(upload.path), upload.previewUrl));
           pending.current = pending.current.filter((queued) => queued !== op);
           // Every op is idempotent, so re-applying the still-queued ones keeps the page as the owner left it.
-          setContent(pending.current.reduce((current, queued) => applyOp(current, queued), result.content));
+          // The results list comes from the private repository, not from this save.
+          setContent((current) => ({
+            ...pending.current.reduce((content, queued) => applyOp(content, queued), result.content),
+            results: current.results,
+          }));
           setDeploy({ sha: result.commitSha, status: { state: 'pending' } });
         } catch (error) {
           pending.current = pending.current.filter((queued) => queued !== op);

@@ -52,6 +52,8 @@ interface PreloadFile {
 }
 
 const REMOTE_CACHE = 'texlive-remote-v1';
+/** A compile that runs longer is stuck (e.g. a macro that expands forever); its worker is replaced. */
+const COMPILE_TIMEOUT_MS = 45_000;
 const REMOTE_PREFIX = '/texlive-remote/';
 const LOAD_FAILED = 'TeX 引擎加载失败，请检查网络后重试';
 
@@ -95,6 +97,8 @@ function rememberRemoteFile(key: string, fileid: string, data: ArrayBuffer): voi
 class WorkerEngine implements TexEngine {
   private waiting: { cmd: string; resolve: (reply: WorkerReply) => void } | null = null;
   private queue: Promise<unknown> = Promise.resolve();
+  /** Set once the worker has crashed, timed out or been replaced; every later request fails at once. */
+  private dead = false;
 
   constructor(
     private readonly worker: Worker,
@@ -112,23 +116,37 @@ class WorkerEngine implements TexEngine {
         resolve(reply);
       }
     };
-    worker.onerror = () => {
-      this.onCrash();
-      if (this.waiting) {
-        const { cmd, resolve } = this.waiting;
-        this.waiting = null;
-        resolve({ cmd, result: 'failed', status: -254, log: 'TeX 引擎意外退出' });
-      }
-    };
+    worker.onerror = () => this.retire('TeX 引擎意外退出');
+  }
+
+  /** Stops using this worker: answers the open request with a failure, and lets the next compile start a new one. */
+  private retire(log: string): void {
+    if (this.dead) return;
+    this.dead = true;
+    this.worker.terminate();
+    this.onCrash();
+    if (this.waiting) {
+      const { cmd, resolve } = this.waiting;
+      this.waiting = null;
+      resolve({ cmd, result: 'failed', status: -254, log });
+    }
   }
 
   private post(message: Record<string, unknown>, transfer: Transferable[] = []): void {
-    this.worker.postMessage(message, transfer);
+    if (!this.dead) this.worker.postMessage(message, transfer);
   }
 
-  private request(message: Record<string, unknown>, cmd: string, transfer: Transferable[] = []): Promise<WorkerReply> {
+  private request(message: Record<string, unknown>, cmd: string, transfer: Transferable[] = [], timeoutMs = 0): Promise<WorkerReply> {
+    if (this.dead) return Promise.resolve({ cmd, result: 'failed', status: -254, log: 'TeX 引擎已重启，请重新编译' });
     return new Promise((resolve) => {
-      this.waiting = { cmd, resolve };
+      const timer = timeoutMs > 0 ? setTimeout(() => this.retire('编译超时：可能有无限循环的宏'), timeoutMs) : undefined;
+      this.waiting = {
+        cmd,
+        resolve: (reply) => {
+          clearTimeout(timer);
+          resolve(reply);
+        },
+      };
       this.post(message, transfer);
     });
   }
@@ -159,11 +177,10 @@ class WorkerEngine implements TexEngine {
     this.post({ cmd: 'writefile', url: 'main.tex', src: main });
     this.post({ cmd: 'setmainfile', url: 'main.tex' });
 
-    const reply = await this.request({ cmd: 'compilelatex' }, 'compile');
+    const reply = await this.request({ cmd: 'compilelatex' }, 'compile', [], COMPILE_TIMEOUT_MS);
     if (reply.status === -254) {
-      // The WebAssembly module aborted and cannot be reused; the next compile starts a new worker.
-      this.worker.terminate();
-      this.onCrash();
+      // The WebAssembly module aborted (or never answered) and cannot be reused; the next compile starts a new worker.
+      this.retire(reply.log ?? '');
       return { ok: false, status: -254, log: reply.log ?? '' };
     }
     const pdf = reply.result === 'ok' && reply.pdf ? new Uint8Array(reply.pdf) : undefined;

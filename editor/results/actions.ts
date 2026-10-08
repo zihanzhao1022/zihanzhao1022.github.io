@@ -43,7 +43,9 @@ export async function rebuildPaper(paper: ResultPaper, readFile: ReadFile, files
 /** The edits followed by the rebuilt outputs, as one save. */
 export function withOutputs(paperId: string, ops: ResultsOp[], rebuilt: RebuildResult): ResultsOp {
   const all = [...ops];
-  if (Object.keys(rebuilt.outputs).length > 0) all.push({ kind: 'setOutputs', paperId, outputs: rebuilt.outputs });
+  if (Object.keys(rebuilt.outputs).length > 0) {
+    all.push({ kind: 'setOutputs', paperId, outputs: rebuilt.outputs, sources: rebuilt.sources });
+  }
   return all.length === 1 ? all[0] : { kind: 'batch', ops: all };
 }
 
@@ -77,13 +79,27 @@ export const ATTACHMENT_TYPES = ['.sty', '.cls', '.tex', '.bib', '.bst', '.cfg',
 export const ATTACHMENT_LIMIT = 20 * 1024 * 1024;
 export const IMAGE_TYPES = ['.pdf', '.png', '.jpg', '.jpeg'];
 
-/** A file name TeX can read: no folders, no spaces. */
+/** A file name TeX and URLs both handle: letters, digits, dot, dash and underscore. */
 export const attachmentName = (name: string): string =>
   name
     .split(/[\\/]/)
     .pop()!
     .trim()
-    .replace(/\s+/g, '-');
+    .replace(/[^A-Za-z0-9._-]+/g, '-')
+    .replace(/^[-.]+/, '') || 'file';
+
+/** Short content hash of an attachment (first 16 hex digits of SHA-256). */
+export async function hashBytes(data: Uint8Array): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', data.slice()));
+  return [...digest.slice(0, 8)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+/** putFile operations for newly added attachments, with their content hashes. */
+export async function putFiles(paperId: string, added: Record<string, Uint8Array>): Promise<{ ops: ResultsOp[]; hashes: Record<string, string> }> {
+  const hashes: Record<string, string> = {};
+  for (const [name, data] of Object.entries(added)) hashes[name] = await hashBytes(data);
+  return { ops: Object.entries(hashes).map(([name, hash]): ResultsOp => ({ kind: 'putFile', paperId, name, hash })), hashes };
+}
 
 export const extensionOf = (name: string): string => {
   const dot = name.lastIndexOf('.');

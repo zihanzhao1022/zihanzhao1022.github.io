@@ -63,7 +63,7 @@ export function inputHash(paper: ResultPaper, block: ResultBlock, context: Block
     JSON.stringify({
       wrapper: WRAPPER_VERSION,
       preamble: paper.preamble ?? '',
-      files: usedFiles(paper, block),
+      files: usedFiles(paper, block).map((name) => [name, paper.fileHashes?.[name] ?? null]),
       kind: block.kind,
       source: block.source ?? '',
       counters,
@@ -84,6 +84,8 @@ export type CompileFn = (block: ResultBlock, context: BlockContext) => Promise<C
 export interface RebuildResult {
   /** New outputs of the blocks that were compiled. */
   outputs: Record<string, ResultBlockOutput>;
+  /** The source each new output was compiled from (see the setOutputs operation). */
+  sources: Record<string, string>;
   writes: FileWrite[];
   /** PDFs the new outputs replace. */
   deletes: string[];
@@ -98,11 +100,13 @@ export interface RebuildResult {
 export async function rebuild(paper: ResultPaper, compile: CompileFn, maxPasses = 3): Promise<RebuildResult> {
   const blocks = [...paper.blocks];
   const outputs: Record<string, ResultBlockOutput> = {};
+  const sources: Record<string, string> = {};
   const writes = new Map<string, Uint8Array>();
   const original = new Set(paper.blocks.map((block) => block.output?.pdf).filter((path): path is string => !!path));
   const deletes = new Set<string>();
   const result = (failed?: RebuildResult['failed']): RebuildResult => ({
     outputs,
+    sources,
     writes: [...writes].map(([path, data]) => ({ path, data })),
     deletes: [...deletes],
     ...(failed ? { failed } : {}),
@@ -136,6 +140,7 @@ export async function rebuild(paper: ResultPaper, compile: CompileFn, maxPasses 
       };
       blocks[index] = { ...block, output };
       outputs[block.id] = output;
+      sources[block.id] = block.source;
       changed = true;
     }
     if (!changed) break;

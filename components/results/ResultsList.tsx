@@ -14,15 +14,30 @@ const UNAVAILABLE: Record<string, string> = {
   error: '读取私有仓库失败，请刷新页面重试。',
 };
 
-/** Shown to the owner when the private list cannot be read; the page falls back to the published snapshot. */
+/**
+ * Shown to the owner when the private list cannot be read (the page then shows the published snapshot),
+ * or when the site's copy of the published papers fell behind.
+ */
 export const ResultsUnavailable: React.FC = () => {
   const access = useResultsAccess();
-  if (access?.state !== 'unavailable') return null;
-  return (
-    <div role="alert" className="mb-8 p-4 rounded-lg bg-amber-50 text-sm text-amber-800">
-      {UNAVAILABLE[access.reason ?? 'error']} 现在显示的是网站上已公开的内容，暂时不能编辑。
-    </div>
-  );
+  if (access?.state === 'unavailable') {
+    return (
+      <div role="alert" className="mb-8 p-4 rounded-lg bg-amber-50 text-sm text-amber-800">
+        {UNAVAILABLE[access.reason ?? 'error']} 现在显示的是网站上已公开的内容，暂时不能编辑。
+      </div>
+    );
+  }
+  if (access?.siteBehind) {
+    return (
+      <div role="alert" className="mb-8 p-4 rounded-lg bg-amber-50 text-sm text-amber-800">
+        网站上的公开内容还没有同步成功，访客看到的可能是旧版本（隐藏的论文也可能还在）。
+        <button type="button" onClick={access.syncSite} className="ml-2 font-medium underline hover:text-amber-900">
+          立即同步
+        </button>
+      </div>
+    );
+  }
+  return null;
 };
 
 const PaperCard: React.FC<{ paper: ResultPaper }> = ({ paper }) => (

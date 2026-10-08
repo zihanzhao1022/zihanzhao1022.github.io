@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ResultBlock, ResultPaper } from '../../types';
-import { applyResultsOp, fromContentOp, resultsCommitMessage } from './ops';
+import { applyResultsOp, fromContentOp, referencedPaths, resultsCommitMessage, touchedPapers } from './ops';
 
 const block = (id: string, extra: Partial<ResultBlock> = {}): ResultBlock => ({ id, kind: 'table', source: `% ${id}`, ...extra });
 
@@ -48,15 +48,30 @@ describe('applyResultsOp', () => {
     expect(applyResultsOp(hidden, { kind: 'setPaperHidden', id: 'p1', hidden: false })[0]).not.toHaveProperty('hidden');
   });
 
-  it('patches the preamble and attachments', () => {
-    const [updated] = applyResultsOp([paper('p1')], { kind: 'patchPaper', id: 'p1', fields: { files: ['a.sty', 'fig.pdf'] } });
-    expect(updated.files).toEqual(['a.sty', 'fig.pdf']);
-    expect(updated.preamble).toBe('\\documentclass{article}');
+  it('patches the preamble', () => {
+    const [updated] = applyResultsOp([paper('p1')], { kind: 'patchPaper', id: 'p1', fields: { preamble: '\\documentclass{report}' } });
+    expect(updated.preamble).toBe('\\documentclass{report}');
+    expect(updated.files).toEqual(['style.sty']);
   });
 
-  it('replaces a block by id or inserts it at a position', () => {
-    const replaced = applyResultsOp([paper('p1')], { kind: 'putBlock', paperId: 'p1', block: block('b2', { source: 'new' }) });
+  it('adds, replaces and removes attachments one at a time', () => {
+    let papers = applyResultsOp([paper('p1')], { kind: 'putFile', paperId: 'p1', name: 'fig.pdf', hash: 'h1' });
+    expect(papers[0].files).toEqual(['style.sty', 'fig.pdf']);
+    papers = applyResultsOp(papers, { kind: 'putFile', paperId: 'p1', name: 'fig.pdf', hash: 'h2' });
+    expect(papers[0].files).toEqual(['style.sty', 'fig.pdf']);
+    expect(papers[0].fileHashes).toEqual({ 'fig.pdf': 'h2' });
+    papers = applyResultsOp(papers, { kind: 'removeFile', paperId: 'p1', name: 'fig.pdf' });
+    expect(papers[0].files).toEqual(['style.sty']);
+    expect(papers[0].fileHashes).toEqual({});
+  });
+
+  it('changes only the kind and source of an existing block, or inserts a new one at a position', () => {
+    const output = { pdf: 'results/p1/b2-aaaa.pdf', width: 1, height: 1 };
+    const latest = [paper('p1', { blocks: [block('b1'), block('b2', { hidden: true, output })] })];
+    // The edit was made on a page that still showed b2 as visible and without its output.
+    const replaced = applyResultsOp(latest, { kind: 'putBlock', paperId: 'p1', block: block('b2', { source: 'new' }) });
     expect(replaced[0].blocks.map((item) => item.source)).toEqual(['% b1', 'new']);
+    expect(replaced[0].blocks[1]).toMatchObject({ hidden: true, output });
     const appended = applyResultsOp([paper('p1')], { kind: 'putBlock', paperId: 'p1', block: block('b9') });
     expect(appended[0].blocks.map((item) => item.id)).toEqual(['b1', 'b2', 'b9']);
     const inserted = applyResultsOp([paper('p1')], { kind: 'putBlock', paperId: 'p1', block: block('b0'), at: 0 });
@@ -76,10 +91,17 @@ describe('applyResultsOp', () => {
     expect(hidden[0].blocks[1].hidden).toBe(true);
   });
 
-  it('sets compiled outputs of existing blocks only', () => {
+  it('sets compiled outputs of existing blocks whose source is unchanged', () => {
     const output = { pdf: 'results/p1/b1-aaaa.pdf', width: 300, height: 100, inputHash: 'h' };
-    const [updated] = applyResultsOp([paper('p1')], { kind: 'setOutputs', paperId: 'p1', outputs: { b1: output, gone: output } });
+    const [updated] = applyResultsOp([paper('p1')], {
+      kind: 'setOutputs',
+      paperId: 'p1',
+      outputs: { b1: output, b2: output, gone: output },
+      // b2 was edited elsewhere after this output was compiled from its old text.
+      sources: { b1: '% b1', b2: 'old text', gone: '' },
+    });
     expect(updated.blocks[0].output).toEqual(output);
+    expect(updated.blocks[1].output).toBeUndefined();
     expect(updated.blocks.map((item) => item.id)).toEqual(['b1', 'b2']);
   });
 
@@ -92,6 +114,33 @@ describe('applyResultsOp', () => {
       ],
     });
     expect(papers[0].blocks.map((item) => item.id)).toEqual(['b3', 'b1', 'b2']);
+  });
+});
+
+describe('touchedPapers', () => {
+  it('names the papers an operation changes', () => {
+    expect(touchedPapers({ kind: 'putPaper', paper: paper('p1') })).toEqual(['p1']);
+    expect(touchedPapers({ kind: 'reorderPapers', ids: ['p1', 'p2'] })).toEqual([]);
+    expect(
+      touchedPapers({
+        kind: 'batch',
+        ops: [
+          { kind: 'putBlock', paperId: 'p1', block: block('b1') },
+          { kind: 'setOutputs', paperId: 'p1', outputs: {}, sources: {} },
+          { kind: 'setPaperHidden', id: 'p2', hidden: true },
+        ],
+      }),
+    ).toEqual(['p1', 'p2']);
+  });
+});
+
+describe('referencedPaths', () => {
+  it('lists the PDFs and attachments the papers use', () => {
+    const output = { pdf: 'results/p1/b1-aaaa.pdf', width: 1, height: 1 };
+    expect([...referencedPaths([paper('p1', { blocks: [block('b1', { output })] })])]).toEqual([
+      'results/p1/b1-aaaa.pdf',
+      'results/p1/files/style.sty',
+    ]);
   });
 });
 

@@ -163,6 +163,8 @@ export interface ResultPaper extends Hideable {
   preamble?: string;
   /** Attachment file names under results/<id>/files/ (style files, figures); private only. */
   files?: string[];
+  /** Content hash of each attachment, so replacing a file recompiles the blocks that use it; private only. */
+  fileHashes?: Record<string, string>;
   blocks: ResultBlock[];
 }
 

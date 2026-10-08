@@ -72,5 +72,7 @@ export function createMockResultsBackend(): ResultsBackend {
     },
 
     syncPublic,
+
+    resync: (message) => syncPublic(papers, message),
   };
 }

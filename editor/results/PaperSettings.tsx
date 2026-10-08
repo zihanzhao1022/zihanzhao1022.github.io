@@ -15,13 +15,14 @@ import {
   loadAttachments,
   makeCompileFn,
   preambleOf,
+  putFiles,
   withOutputs,
 } from './actions';
 import { ResultsSave } from './BlockEditor';
 import CodeEditor from './CodeEditor';
 import { BlockCompileResult, compileBlock, describeIssue } from './compile';
 import { rebuild } from './numbering';
-import { resultsCommitMessage } from './ops';
+import { ResultsOp, resultsCommitMessage } from './ops';
 
 const SAMPLE = String.raw`\section*{Preview}
 The quick brown fox jumps over the lazy dog, and $\sum_{i=1}^{n} i = \frac{n(n+1)}{2}$.
@@ -56,6 +57,7 @@ const PaperSettings: React.FC<Props> = ({ paper, readFile, onSave, onClose }) =>
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const upload = React.useRef<HTMLInputElement>(null);
+  const busy = React.useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,7 +92,8 @@ const PaperSettings: React.FC<Props> = ({ paper, readFile, onSave, onClose }) =>
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') close();
+      // CodeMirror handles Escape itself when it closes a completion list or the search panel.
+      if (event.key === 'Escape' && !event.defaultPrevented) close();
     };
     window.addEventListener('keydown', onKey);
     return () => {
@@ -129,12 +132,17 @@ const PaperSettings: React.FC<Props> = ({ paper, readFile, onSave, onClose }) =>
   };
 
   const save = async () => {
-    if (!files) return;
+    if (!files || busy.current) return;
+    busy.current = true;
     setSaving(true);
     setProblem(null);
     try {
       const kept = names.filter((name) => !removed.includes(name));
-      const draft: ResultPaper = { ...paper, preamble, files: kept };
+      const gone = removed.filter((name) => (paper.files ?? []).includes(name));
+      const uploads = await putFiles(paper.id, added);
+      const fileHashes = { ...paper.fileHashes, ...uploads.hashes };
+      gone.forEach((name) => delete fileHashes[name]);
+      const draft: ResultPaper = { ...paper, preamble, files: kept, fileHashes };
       const rebuilt = await rebuild(draft, makeCompileFn(await getTexEngine(), preamble, files));
       if (rebuilt.failed) {
         const position = paper.blocks.findIndex((block) => block.id === rebuilt.failed!.blockId) + 1;
@@ -145,12 +153,15 @@ const PaperSettings: React.FC<Props> = ({ paper, readFile, onSave, onClose }) =>
         ...Object.entries(added).map(([name, data]) => ({ path: attachmentPath(paper.id, name), data })),
         ...rebuilt.writes,
       ];
-      const deletes = [
-        ...removed.filter((name) => (paper.files ?? []).includes(name)).map((name) => attachmentPath(paper.id, name)),
-        ...rebuilt.deletes,
+      const deletes = [...gone.map((name) => attachmentPath(paper.id, name)), ...rebuilt.deletes];
+      // Attachments change one by one, so files added or removed elsewhere meanwhile are kept.
+      const ops: ResultsOp[] = [
+        { kind: 'patchPaper', id: paper.id, fields: { preamble } },
+        ...uploads.ops,
+        ...gone.map((name): ResultsOp => ({ kind: 'removeFile', paperId: paper.id, name })),
       ];
       await onSave(
-        withOutputs(paper.id, [{ kind: 'patchPaper', id: paper.id, fields: { preamble, files: kept } }], rebuilt),
+        withOutputs(paper.id, ops, rebuilt),
         writes,
         deletes,
         resultsCommitMessage('update preamble of', paper.title),
@@ -160,6 +171,7 @@ const PaperSettings: React.FC<Props> = ({ paper, readFile, onSave, onClose }) =>
     } catch (error) {
       setProblem(describeSaveError(error));
     } finally {
+      busy.current = false;
       setSaving(false);
     }
   };

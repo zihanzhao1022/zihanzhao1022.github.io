@@ -11,6 +11,10 @@ export interface ResultsAccess {
   /** Why the private repository is unavailable. */
   reason?: 'missing' | 'empty' | 'error';
   readFile: (path: string) => Promise<Uint8Array>;
+  /** The site's copy of the published papers may be out of date because a sync failed. */
+  siteBehind?: boolean;
+  /** Brings the site's copy up to date from the latest private list. */
+  syncSite?: () => void;
 }
 
 export const ResultsAccessContext = createContext<ResultsAccess | null>(null);

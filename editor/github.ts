@@ -88,8 +88,12 @@ export function createGitHubApi(
     return (await (await send(path, method, body, 'application/vnd.github+json')).json()) as T;
   }
 
+  // Each segment is encoded, so a file name with # ? % or spaces still reaches the right file.
+  const contentsUrl = (path: string, ref: string): string =>
+    `/contents/${path.split('/').map(encodeURIComponent).join('/')}?ref=${encodeURIComponent(ref)}`;
+
   const readText = async (path: string, ref: string): Promise<string> =>
-    decodeBase64Utf8((await request<{ content: string }>(`/contents/${path}?ref=${ref}`)).content);
+    decodeBase64Utf8((await request<{ content: string }>(contentsUrl(path, ref))).content);
 
   return {
     headSha: async () => (await request<{ object: { sha: string } }>(`/git/ref/heads/${repo.branch}`)).object.sha,
@@ -104,12 +108,12 @@ export function createGitHubApi(
       }
     },
     readBytes: async (path, ref) =>
-      new Uint8Array(await (await send(`/contents/${path}?ref=${ref}`, 'GET', undefined, 'application/vnd.github.raw+json')).arrayBuffer()),
+      new Uint8Array(await (await send(contentsUrl(path, ref), 'GET', undefined, 'application/vnd.github.raw+json')).arrayBuffer()),
     listFiles: async (treeSha, prefix) => {
       const tree = await request<{ tree: { path: string; type: string; sha: string }[]; truncated: boolean }>(
         `/git/trees/${treeSha}?recursive=1`,
       );
-      if (tree.truncated) throw new GitHubError('仓库文件太多，无法列出', 0);
+      if (tree.truncated) throw new Error('仓库里的文件太多，GitHub 无法一次列出，请联系维护者');
       return tree.tree
         .filter((entry) => entry.type === 'blob' && entry.path.startsWith(prefix))
         .map((entry) => ({ path: entry.path, sha: entry.sha }));

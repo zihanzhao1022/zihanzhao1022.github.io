@@ -10,13 +10,20 @@ export type ResultsOp =
   | { kind: 'deletePaper'; id: string }
   | { kind: 'reorderPapers'; ids: string[] }
   | { kind: 'setPaperHidden'; id: string; hidden: boolean }
-  | { kind: 'patchPaper'; id: string; fields: Partial<Pick<ResultPaper, 'preamble' | 'files'>> }
-  /** Replaces the block with the same id, or inserts it at `at` (default: the end). */
+  | { kind: 'patchPaper'; id: string; fields: Partial<Pick<ResultPaper, 'preamble'>> }
+  /** Adds an attachment, or records the new content hash of a replaced one. */
+  | { kind: 'putFile'; paperId: string; name: string; hash: string }
+  | { kind: 'removeFile'; paperId: string; name: string }
+  /**
+   * Inserts a new block at `at` (default: the end). For an existing block only its kind and source change:
+   * whether it is hidden and its compiled output always come from the latest version.
+   */
   | { kind: 'putBlock'; paperId: string; block: ResultBlock; at?: number }
   | { kind: 'deleteBlock'; paperId: string; blockId: string }
   | { kind: 'reorderBlocks'; paperId: string; ids: string[] }
   | { kind: 'setBlockHidden'; paperId: string; blockId: string; hidden: boolean }
-  | { kind: 'setOutputs'; paperId: string; outputs: Record<string, ResultBlockOutput> }
+  /** Compiled outputs, each kept only if the block's source is still the one it was compiled from. */
+  | { kind: 'setOutputs'; paperId: string; outputs: Record<string, ResultBlockOutput>; sources: Record<string, string> }
   | { kind: 'batch'; ops: ResultsOp[] };
 
 function updatePaper(papers: ResultPaper[], id: string, change: (paper: ResultPaper) => ResultPaper): ResultPaper[] {
@@ -48,10 +55,27 @@ export function applyResultsOp(papers: ResultPaper[], op: ResultsOp): ResultPape
       return applyListOp(papers, { kind: 'setHidden', collection: 'results', id: op.id, hidden: op.hidden });
     case 'patchPaper':
       return updatePaper(papers, op.id, (paper) => ({ ...paper, ...op.fields }));
+    case 'putFile':
+      return updatePaper(papers, op.paperId, (paper) => ({
+        ...paper,
+        files: (paper.files ?? []).includes(op.name) ? paper.files : [...(paper.files ?? []), op.name],
+        fileHashes: { ...paper.fileHashes, [op.name]: op.hash },
+      }));
+    case 'removeFile':
+      return updatePaper(papers, op.paperId, (paper) => {
+        const fileHashes = { ...paper.fileHashes };
+        delete fileHashes[op.name];
+        return { ...paper, files: (paper.files ?? []).filter((name) => name !== op.name), fileHashes };
+      });
     case 'putBlock':
       return updatePaper(papers, op.paperId, (paper) => {
         if (paper.blocks.some((block) => block.id === op.block.id)) {
-          return { ...paper, blocks: paper.blocks.map((block) => (block.id === op.block.id ? op.block : block)) };
+          return {
+            ...paper,
+            blocks: paper.blocks.map((block) =>
+              block.id === op.block.id ? { ...block, kind: op.block.kind, source: op.block.source } : block,
+            ),
+          };
         }
         const at = op.at === undefined ? paper.blocks.length : Math.max(0, Math.min(op.at, paper.blocks.length));
         return { ...paper, blocks: [...paper.blocks.slice(0, at), op.block, ...paper.blocks.slice(at)] };
@@ -74,11 +98,41 @@ export function applyResultsOp(papers: ResultPaper[], op: ResultsOp): ResultPape
     case 'setOutputs':
       return updatePaper(papers, op.paperId, (paper) => ({
         ...paper,
-        blocks: paper.blocks.map((block) => (op.outputs[block.id] ? { ...block, output: op.outputs[block.id] } : block)),
+        blocks: paper.blocks.map((block) =>
+          op.outputs[block.id] && block.source === op.sources[block.id] ? { ...block, output: op.outputs[block.id] } : block,
+        ),
       }));
     case 'batch':
       return op.ops.reduce(applyResultsOp, papers);
   }
+}
+
+/** Papers an operation changes. */
+export function touchedPapers(op: ResultsOp): string[] {
+  switch (op.kind) {
+    case 'putPaper':
+      return [op.paper.id];
+    case 'deletePaper':
+    case 'setPaperHidden':
+    case 'patchPaper':
+      return [op.id];
+    case 'reorderPapers':
+      return [];
+    case 'batch':
+      return [...new Set(op.ops.flatMap(touchedPapers))];
+    default:
+      return [op.paperId];
+  }
+}
+
+/** Every private file the papers still refer to: compiled PDFs and attachments. */
+export function referencedPaths(papers: ResultPaper[]): Set<string> {
+  const paths = new Set<string>();
+  for (const paper of papers) {
+    for (const block of paper.blocks) if (block.output) paths.add(block.output.pdf);
+    for (const name of paper.files ?? []) paths.add(`results/${paper.id}/files/${name}`);
+  }
+  return paths;
 }
 
 /** The results operation for an edit made through the site's generic dialogs and drag-and-drop. */

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ResultBlock, ResultPaper } from '../../types';
-import { BlockContext, CompileFn, blockContext, hashText, inputHash, outputPath, rebuild, referencedLabels, staleBlocks } from './numbering';
+import { BlockContext, CompileFn, blockContext, hashText, inputHash, outputPath, rebuild, referencedLabels, staleBlocks, usedFiles } from './numbering';
 
 const paper = (blocks: ResultBlock[]): ResultPaper => ({
   id: 'p1',
@@ -39,6 +39,13 @@ describe('blockContext', () => {
   });
 });
 
+describe('usedFiles', () => {
+  it('keeps the attachments the preamble or the block mentions', () => {
+    const withFiles = { ...paper([]), preamble: '\\usepackage{acl}', files: ['acl.sty', 'bars.png', 'other.pdf'] };
+    expect(usedFiles(withFiles, { id: 'f', kind: 'figure', source: '\\includegraphics{bars}' })).toEqual(['acl.sty', 'bars.png']);
+  });
+});
+
 describe('inputHash', () => {
   const block: ResultBlock = { id: 'a', kind: 'text', source: 'See \\ref{tab:x}.' };
   const context: BlockContext = { counters: { section: 1 }, labels: { 'tab:x': '{1}{1}', 'tab:other': '{2}{1}' } };
@@ -50,6 +57,7 @@ describe('inputHash', () => {
     expect(inputHash(paper([block]), block, { ...context, counters: { section: 2 } })).not.toBe(base);
     expect(inputHash(paper([block]), block, { ...context, labels: { ...context.labels, 'tab:x': '{3}{1}' } })).not.toBe(base);
     expect(inputHash(paper([block]), block, { ...context, labels: { ...context.labels, 'tab:other': '{9}{1}' } })).toBe(base);
+    expect(inputHash({ ...paper([block]), files: ['unused.png'] }, block, context)).toBe(base);
   });
 });
 

@@ -47,6 +47,12 @@ export function hashText(text: string): string {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16).padStart(14, '0');
 }
 
+/** Attachments the preamble or the block mentions (by name, with or without extension). */
+export function usedFiles(paper: ResultPaper, block: ResultBlock): string[] {
+  const text = `${paper.preamble ?? ''}\n${block.source ?? ''}`;
+  return (paper.files ?? []).filter((name) => text.includes(name.replace(/\.[^.]+$/, '')));
+}
+
 /** Everything the block's PDF depends on. */
 export function inputHash(paper: ResultPaper, block: ResultBlock, context: BlockContext): string {
   const counters = Object.keys(context.counters)
@@ -56,7 +62,7 @@ export function inputHash(paper: ResultPaper, block: ResultBlock, context: Block
   return hashText(
     JSON.stringify({
       preamble: paper.preamble ?? '',
-      files: paper.files ?? [],
+      files: usedFiles(paper, block),
       kind: block.kind,
       source: block.source ?? '',
       counters,

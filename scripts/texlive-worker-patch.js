@@ -24,10 +24,13 @@ function fetchSync(url) {
   } catch (err) {
     return { status: 0, data: null, fileid: null };
   }
+  // Only successful answers carry a readable fileid header; asking an error response for it makes the
+  // browser log "Refused to get unsafe header".
+  const ok = xhr.status === 200;
   return {
     status: xhr.status,
-    data: xhr.status === 200 ? new Uint8Array(xhr.response) : null,
-    fileid: xhr.getResponseHeader('fileid'),
+    data: ok ? new Uint8Array(xhr.response) : null,
+    fileid: ok ? xhr.getResponseHeader('fileid') : null,
   };
 }
 

@@ -64,12 +64,14 @@ export interface SharedPapers {
  * were published: its visible, compiled blocks, no LaTeX. Editors get the whole paper. Nobody gets the lists
  * of who else it is shared with.
  */
-export function papersFor(papers: ResultPaper[], user: GitHubUser): SharedPapers {
+export function papersFor(papers: ResultPaper[], user: GitHubUser, editing = true): SharedPapers {
   const shared: ResultPaper[] = [];
   const roles: Record<string, PaperRole> = {};
   for (const paper of papers) {
-    const role = roleOf(paper, user);
-    if (!role) continue;
+    const found = roleOf(paper, user);
+    if (!found) continue;
+    // While editing is switched off, editors get what viewers get.
+    const role: PaperRole = editing ? found : 'viewer';
     roles[paper.id] = role;
     if (role === 'editor') {
       const { viewers: _viewers, editors: _editors, collaboratorIds: _ids, pendingReview: _pending, ...rest } = paper;
@@ -82,7 +84,8 @@ export function papersFor(papers: ResultPaper[], user: GitHubUser): SharedPapers
   return { papers: shared, roles };
 }
 
-const PAPER_FILE = /^results\/([A-Za-z0-9_-]+)\/(?:files\/)?[A-Za-z0-9_][A-Za-z0-9._-]*$/;
+// A file name with an extension, so a path can never name a folder (results/<id>/files).
+const PAPER_FILE = /^results\/([A-Za-z0-9_-]+)\/(?:files\/)?[A-Za-z0-9_][A-Za-z0-9._-]*\.[A-Za-z0-9]+$/;
 const OUTPUT_FILE = /^results\/([A-Za-z0-9_-]+)\/[A-Za-z0-9_][A-Za-z0-9._-]*\.pdf$/;
 
 /** The paper a private file belongs to: results/<id>/<name> or results/<id>/files/<name>; null for anything else. */
@@ -100,7 +103,7 @@ export function canReadFile(paper: ResultPaper, role: PaperRole, path: string): 
 
 const KINDS: ResultBlockKind[] = ['text', 'figure', 'table'];
 const BLOCK_ID = /^blk-[a-z0-9]+$/;
-const FILE_NAME = /^[A-Za-z0-9_][A-Za-z0-9._-]*$/;
+const FILE_NAME = /^[A-Za-z0-9_][A-Za-z0-9._-]*\.[A-Za-z0-9]+$/;
 const HASH = /^[A-Za-z0-9]{1,64}$/;
 /** Generous limits; they only stop requests that no editor would send. */
 const MAX_TEXT = 200_000;

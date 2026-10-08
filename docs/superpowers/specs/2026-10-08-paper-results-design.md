@@ -379,7 +379,7 @@ docs/admin-setup.md                   增加私有仓库的配置说明
 
 **网站**：协作者登录后进入"协作者模式"：顶部条显示身份、"共享给你的论文"链接和退出；不出现任何网站编辑按钮；即使 results 在导航里隐藏，`#/results` 和论文页也能打开，列表包括共享的论文（标"你可以编辑"或"仅查看"）和已公开的论文；能编辑的论文页显示块的编辑、复制 LaTeX、拖动排序、添加块和"导言区与附件"，编辑器与所有者相同（编译仍在对方浏览器里进行）。未登录的人打开 results 的链接时，看到"用 GitHub 登录"的提示。
 
-**所有者的一次性配置**：见 `docs/admin-setup.md` 第四节（生成 App 私钥、`wrangler secret put GITHUB_APP_PRIVATE_KEY`、`wrangler secret put SESSION_SECRET`、`wrangler deploy`）。
+**所有者的一次性配置**：见 `docs/admin-setup.md` 第四节（把 GitHub App 改为公开——私有的 App 只有所有者本人能授权登录；生成 App 私钥、`wrangler secret put GITHUB_APP_PRIVATE_KEY`、`wrangler secret put SESSION_SECRET`、`wrangler deploy`）。
 
 ## 14. 上线后待办（2026-10-08 记录）
 

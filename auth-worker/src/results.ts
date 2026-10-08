@@ -26,7 +26,11 @@ import { Headers, json } from './http';
 export interface ResultsEnv extends AppEnv {
   /** Signs collaborator sessions and upload receipts; stored with `wrangler secret put SESSION_SECRET`. */
   SESSION_SECRET?: string;
+  /** "true" lets editors edit; otherwise everyone on a paper's lists can only view it. */
+  COLLABORATOR_EDITING?: string;
 }
+
+const editingEnabled = (env: ResultsEnv): boolean => env.COLLABORATOR_EDITING === 'true';
 
 const BRANCH = 'main';
 /** How long a collaborator stays signed in (as long as the owner's GitHub token). */
@@ -63,9 +67,9 @@ async function privateRepo(env: ResultsEnv): Promise<GitHubApi> {
 
 const loadPapers = async (api: GitHubApi): Promise<ResultPaper[]> => parsePapers(await readTextFile(api, RESULTS_PATH, BRANCH));
 
-const isEditorOf = (papers: ResultPaper[], paperId: string, user: GitHubUser): boolean => {
+const isEditorOf = (papers: ResultPaper[], paperId: string, user: GitHubUser, env: ResultsEnv): boolean => {
   const paper = papers.find((item) => item.id === paperId);
-  return paper !== undefined && roleOf(paper, user) === 'editor';
+  return editingEnabled(env) && paper !== undefined && roleOf(paper, user) === 'editor';
 };
 
 /** Ties an uploaded blob to who uploaded it and where it may go, so a save only commits the worker's own uploads. */
@@ -125,37 +129,39 @@ async function readBody(request: Request, limit: number): Promise<Untrusted | 't
   }
 }
 
-type Handler = (api: GitHubApi, user: GitHubUser, body: Untrusted, secret: string, cors: Headers) => Promise<Response>;
+type Handler = (api: GitHubApi, user: GitHubUser, body: Untrusted, env: ResultsEnv, cors: Headers) => Promise<Response>;
 
 const badRequest = (cors: Headers, message?: string): Response => json({ error: 'bad_request', message }, 400, cors);
 const forbidden = (cors: Headers): Response => json({ error: 'forbidden' }, 403, cors);
 
 const HANDLERS: Record<string, Handler> = {
   /** The papers shared with the collaborator; 403 once no paper is. */
-  async '/results/load'(api, user, _body, _secret, cors) {
-    const shared = papersFor(await loadPapers(api), user);
+  async '/results/load'(api, user, _body, env, cors) {
+    const shared = papersFor(await loadPapers(api), user, editingEnabled(env));
     return shared.papers.length > 0 ? json(shared, 200, cors) : json({ error: 'not_shared' }, 403, cors);
   },
 
   /** One file of a shared paper: { path }. */
-  async '/results/file'(api, user, body, _secret, cors) {
+  async '/results/file'(api, user, body, env, cors) {
     const { path } = body;
     const paperId = typeof path === 'string' ? paperOfPath(path) : null;
     if (typeof path !== 'string' || !paperId) return badRequest(cors);
     const paper = (await loadPapers(api)).find((item) => item.id === paperId);
-    const role = paper ? roleOf(paper, user) : null;
+    const found = paper ? roleOf(paper, user) : null;
+    const role = found === 'editor' && !editingEnabled(env) ? 'viewer' : found;
     if (!paper || !role || !canReadFile(paper, role, path)) return forbidden(cors);
     const bytes = await api.readBytes(path, BRANCH);
     return new Response(bytes, { headers: { ...cors, 'Content-Type': 'application/octet-stream', 'Cache-Control': 'no-store' } });
   },
 
   /** Stores one file for an editor's next save: { paperId, path, base64 } → { path, sha, receipt }. */
-  async '/results/upload'(api, user, body, secret, cors) {
+  async '/results/upload'(api, user, body, env, cors) {
+    const secret = env.SESSION_SECRET ?? '';
     const { paperId, path, base64 } = body;
     if (typeof paperId !== 'string' || typeof path !== 'string' || !isPaperPath(paperId, path)) return badRequest(cors, '文件位置不对');
     if (typeof base64 !== 'string' || !BASE64.test(base64)) return badRequest(cors);
     if (base64.length > UPLOAD_LIMIT_BASE64) return json({ error: 'too_large' }, 413, cors);
-    if (!isEditorOf(await loadPapers(api), paperId, user)) return forbidden(cors);
+    if (!isEditorOf(await loadPapers(api), paperId, user, env)) return forbidden(cors);
     const sha = await api.createBlob(base64);
     return json({ path, sha, receipt: await signText(receiptText(user, path, sha), secret) }, 200, cors);
   },
@@ -165,7 +171,9 @@ const HANDLERS: Record<string, Handler> = {
    * Answers with the papers shared with them after the edit. Edits to a published paper wait for the
    * owner before they reach the site (see the noteEdit operation).
    */
-  async '/results/save'(api, user, body, secret, cors) {
+  async '/results/save'(api, user, body, env, cors) {
+    const secret = env.SESSION_SECRET ?? '';
+    if (!editingEnabled(env)) return forbidden(cors);
     const { paperId, op, blobs, deletes, message } = body;
     if (typeof paperId !== 'string') return badRequest(cors);
     const checked = checkEditorOp(op, paperId);
@@ -188,9 +196,9 @@ const HANDLERS: Record<string, Handler> = {
     const edit: ResultsOp = { kind: 'batch', ops: [checked.op, { kind: 'noteEdit', paperId, login: user.login }] };
     const { papers } = await commitResults(api, edit, entries, deletes, commitMessage(message, user), (latest) => {
       // Checked on the very list the edit is applied to.
-      if (!isEditorOf(latest, paperId, user)) throw new Forbidden();
+      if (!isEditorOf(latest, paperId, user, env)) throw new Forbidden();
     });
-    return json(papersFor(papers, user), 200, cors);
+    return json(papersFor(papers, user, editingEnabled(env)), 200, cors);
   },
 };
 
@@ -205,7 +213,7 @@ export async function handleResults(request: Request, pathname: string, env: Res
   if (body === 'too_large') return json({ error: 'too_large' }, 413, cors);
   if (!body) return badRequest(cors);
   try {
-    return await handler(await privateRepo(env), user, body, secret, cors);
+    return await handler(await privateRepo(env), user, body, env, cors);
   } catch (error) {
     if (error instanceof Forbidden) return forbidden(cors);
     if (error instanceof ConflictError) return json({ error: 'conflict' }, 409, cors);

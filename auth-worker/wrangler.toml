@@ -10,3 +10,5 @@ OWNER_LOGIN = "zihanzhao1022"
 ALLOWED_ORIGINS = "https://zihanzhao1022.github.io,http://localhost:3000"
 # The private repository with the results pages, owned by OWNER_LOGIN.
 PRIVATE_REPO = "homepage-private"
+# "true" lets the people listed as editors edit their paper; for now everyone shared with can only view.
+COLLABORATOR_EDITING = "false"

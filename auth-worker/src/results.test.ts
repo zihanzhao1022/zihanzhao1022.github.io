@@ -28,6 +28,8 @@ beforeAll(async () => {
     PRIVATE_REPO: 'homepage-private',
     GITHUB_APP_PRIVATE_KEY: await appKey(),
     SESSION_SECRET: 'session-secret',
+    // These tests cover editing as it works once switched on; see 'view-only mode' for the switch.
+    COLLABORATOR_EDITING: 'true',
   };
 });
 
@@ -256,6 +258,31 @@ describe('reading', () => {
       String(input).includes('/contents/results.json') ? new Response(JSON.stringify(removed)) : github.fetchMock(input, init),
     );
     expect((await request('/results/load', {}, session)).status).toBe(403);
+  });
+});
+
+describe('view-only mode', () => {
+  it('lets editors only view while editing is switched off', async () => {
+    const session = await signIn(ALICE);
+    const github = fakeGitHub(ALICE);
+    const viewOnly = { ...env, COLLABORATOR_EDITING: 'false' };
+    const call = (path: string, body: unknown) =>
+      worker.fetch(
+        new Request(`https://auth.example${path}`, {
+          method: 'POST',
+          headers: { Origin: SITE, 'Content-Type': 'application/json', Authorization: `Bearer ${session}` },
+          body: JSON.stringify(body),
+        }),
+        viewOnly,
+      );
+    const shared = (await (await call('/results/load', {})).json()) as { papers: ResultPaper[]; roles: Record<string, string> };
+    expect(shared.roles).toEqual({ 'res-a': 'viewer', 'res-b': 'viewer' });
+    expect(JSON.stringify(shared)).not.toContain('Made-up text');
+    expect((await call('/results/file', { path: pdf('res-b', 'blk-3') })).status).toBe(200);
+    expect((await call('/results/upload', { paperId: 'res-b', path: 'results/res-b/x.pdf', base64: 'AAAA' })).status).toBe(403);
+    const op = { kind: 'putBlock', paperId: 'res-b', block: { id: 'blk-3', kind: 'text', source: 'x' } };
+    expect((await call('/results/save', { paperId: 'res-b', op, blobs: [], deletes: [] })).status).toBe(403);
+    expect(github.lastCommit()).toBeUndefined();
   });
 });
 

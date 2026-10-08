@@ -95,6 +95,8 @@ describe('files', () => {
       'results/res-a/files/sub/x.pdf',
       'results/res-a/..',
       'results/res-a/.hidden',
+      'results/res-a/files',
+      'results/res-a/blk-1',
       'results.json',
       '/results/res-a/x.pdf',
       'public/results/res-a/x.pdf',

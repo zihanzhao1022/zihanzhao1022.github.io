@@ -81,18 +81,16 @@ describe('results paper form', () => {
   const paper = { id: 'res-a', slug: 'a', title: 'A', authors: ['**Zihan Zhao**'], hidden: true, blocks: [] };
 
   it('keeps one GitHub user name per line, without "@" or repeats', () => {
-    const state = { ...toFormState(schema, paper), viewers: ' @Alice \n\nbob\nalice\n', editors: 'carol-1' };
+    const state = { ...toFormState(schema, paper), viewers: ' @Alice \n\nbob\nalice\ncarol-1' };
     expect(validateForm(schema, state)).toEqual({});
     const { item } = fromFormState(schema, state, paper, now);
-    expect(item.viewers).toEqual(['Alice', 'bob']);
-    expect(item.editors).toEqual(['carol-1']);
+    expect(item.viewers).toEqual(['Alice', 'bob', 'carol-1']);
   });
 
   it('removes a list that was emptied', () => {
-    const shared = { ...paper, viewers: ['alice'], editors: ['bob'] };
-    const { item } = fromFormState(schema, { ...toFormState(schema, shared), viewers: ' \n', editors: 'bob' }, shared, now);
+    const shared = { ...paper, viewers: ['alice'] };
+    const { item } = fromFormState(schema, { ...toFormState(schema, shared), viewers: ' \n' }, shared, now);
     expect(item).not.toHaveProperty('viewers');
-    expect(item.editors).toEqual(['bob']);
   });
 
   it('rejects anything that is not a user name', () => {

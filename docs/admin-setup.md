@@ -42,10 +42,9 @@ npx wrangler@4 secret put GITHUB_CLIENT_SECRET
 
 ## 四、论文结果页的协作者（白名单）
 
-每篇论文可以在"编辑论文信息"里填两份名单（每行一个 GitHub 用户名）：
+每篇论文可以在"编辑论文信息"里填"可以查看的人"（每行一个 GitHub 用户名）：论文隐藏时他们也能看到，但只看到可见块的编译结果，看不到 LaTeX、导言区和附件。
 
-- **可以查看的人**：论文隐藏时也能看到，但只看到可见块的编译结果，看不到 LaTeX、导言区和附件。
-- **可以编辑的人**：还能编辑这篇论文的块、导言区和附件。公开、隐藏、删除论文和修改名单只有所有者能做；网站的其他地方协作者都不能改。
+> 目前只开放查看。让协作者编辑这一篇论文的功能已经写好（块、导言区和附件；公开、隐藏、删除论文和修改名单仍只有所有者能做），但先关着：`auth-worker/wrangler.toml` 里的 `COLLABORATOR_EDITING = "false"`，论文信息表单里也暂时没有"可以编辑的人"。下面关于编辑和"发布这些修改"的说明，等开放后才适用。
 
 协作者照常点页脚的锁形图标用 GitHub 登录。Worker 确认身份后立即吊销他们的 GitHub 令牌，换成 Worker 自己签发的 8 小时会话；之后他们的每个请求都由 Worker 按最新名单检查，再用 GitHub App 的安装令牌（只能读写 `homepage-private` 的内容）代为读写。名单按 GitHub 账号的数字 ID 核对（保存表单时查询），所以有人改名或抢注旧用户名都不会继承权限；对方改了用户名后，需要所有者在名单里改成新名字。
 
@@ -53,22 +52,23 @@ npx wrangler@4 secret put GITHUB_CLIENT_SECRET
 
 **一次性配置**（在仓库的 `auth-worker` 目录下）：
 
-1. GitHub → Settings → Developer settings → GitHub Apps → `zihanzhao-homepage-editor` → **Private keys** → **Generate a private key**，会下载一个 `.pem` 文件。
-2. 把私钥存进 Worker，然后删掉本地的 `.pem` 文件：
+1. GitHub → Settings → Developer settings → GitHub Apps → `zihanzhao-homepage-editor` → **Advanced** → **Make public**。私有的 GitHub App 只有所有者本人能用来登录，公开后别人才能用它登录；Worker 会拒绝不在名单上的人并立即吊销他们的令牌。别人也能把这个 App 装到自己的账号上，但那和你的仓库无关。协作者第一次登录时，GitHub 会显示一次授权页面。
+2. 同一个设置页 → **General** → **Private keys** → **Generate a private key**，会下载一个 `.pem` 文件。
+3. 把私钥存进 Worker，然后删掉本地的 `.pem` 文件：
 
    ```bash
    npx wrangler@4 secret put GITHUB_APP_PRIVATE_KEY < 下载的文件.pem
    ```
 
-3. 生成一个随机的会话密钥存进 Worker（不需要记住它）：
+4. 生成一个随机的会话密钥存进 Worker（不需要记住它）：
 
    ```bash
    openssl rand -base64 32 | npx wrangler@4 secret put SESSION_SECRET
    ```
 
-4. 部署：`npx wrangler@4 deploy`。
+5. 部署：`npx wrangler@4 deploy`（`secret put` 本身也会让新的 secret 立即生效）。
 
-三项都配好之前，Worker 和以前一样只放行所有者。以后要让所有协作者立即下线，重新运行第 3 步即可。
+私钥和会话密钥都配好之前，Worker 和以前一样只放行所有者。以后要让所有协作者立即下线，重新运行第 4 步即可。
 
 ## 五、日常使用
 
@@ -88,6 +88,7 @@ npx wrangler@4 secret put GITHUB_CLIENT_SECRET
 |---|---|
 | 看不到锁形图标 | `editor/config.ts` 中的 `clientId` 或 `workerUrl` 为空 |
 | 登录后提示"这个 GitHub 账号没有访问权限" | 登录的不是 zihanzhao1022，也不在任何一篇论文的名单里（或者对方改过用户名，见第四节） |
+| 协作者在 GitHub 页面上看到 App 无法授权 | GitHub App 还是私有的，见第四节第 1 步 |
 | 协作者登录后提示"登录失败" | Worker 读不到私有仓库：检查第四节的两个 secret，以及 GitHub App 是否安装到 `homepage-private` |
 | 保存论文信息时提示"找不到 GitHub 用户" | 名单里的用户名拼错了 |
 | 协作者上传时提示"超过 1 MB" | 由所有者上传这个文件，或者先压缩 |
@@ -99,4 +100,4 @@ npx wrangler@4 secret put GITHUB_CLIENT_SECRET
 | 编辑器提示"已保存，但更新网站上的公开内容失败" | 点提示里的"重试"；私有仓库里的内容已经保存好了 |
 | 编译报错找不到某个 .sty | 在"导言区与附件"里上传这个文件 |
 | 怀疑令牌泄露 | 在 GitHub → Settings → Applications → Authorized GitHub Apps 中撤销授权，或在 App 设置页重新生成 client secret 后再运行一次 `secret put` |
-| 怀疑 App 私钥泄露 | 在 App 设置页删除这把私钥，生成新的，再运行一次第四节第 2 步 |
+| 怀疑 App 私钥泄露 | 在 App 设置页删除这把私钥，生成新的，再运行一次第四节第 3 步 |

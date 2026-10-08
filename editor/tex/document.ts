@@ -40,7 +40,7 @@ export interface BlockDocInput {
 
 // Reset by LaTeX itself or meaningless across blocks.
 const SKIPPED_COUNTERS = new Set(['page', 'enumi', 'enumii', 'enumiii', 'enumiv', 'mpfootnote']);
-const COUNTER_NAME = /^[A-Za-z@]+$/;
+const COUNTER_NAME = /^[A-Za-z@0-9]+$/;
 
 // Floats become minipages so they sit inside the cropped box; \caption still numbers them.
 // At the end every counter (the list \include checkpoints) goes to the log for the next block.

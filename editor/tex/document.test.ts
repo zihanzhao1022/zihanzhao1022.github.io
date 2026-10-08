@@ -119,6 +119,19 @@ describe('buildBlockDocument', () => {
     expect(doc.main).not.toContain('bad}name');
   });
 
+  it('restores counters whose names contain digits', () => {
+    const doc = buildBlockDocument({
+      preamble: DEFAULT_PREAMBLE,
+      source: 'Hi',
+      kind: 'text',
+      counters: { theorem2: 3, 'Hy@linkcounter1': 4, footnote: -1, 'bad-name2': 5 },
+    });
+    expect(doc.main).toContain('\\@ifundefined{c@theorem2}{}{\\setcounter{theorem2}{3}}');
+    expect(doc.main).toContain('\\@ifundefined{c@Hy@linkcounter1}{}{\\setcounter{Hy@linkcounter1}{4}}');
+    expect(doc.main).toContain('\\@ifundefined{c@footnote}{}{\\setcounter{footnote}{-1}}');
+    expect(doc.main).not.toContain('bad-name2');
+  });
+
   it('truncates a non-integer counter value', () => {
     const doc = buildBlockDocument({ preamble: DEFAULT_PREAMBLE, source: 'Hi', kind: 'text', counters: { table: 2.7 } });
     expect(doc.main).toContain('\\@ifundefined{c@table}{}{\\setcounter{table}{2}}');

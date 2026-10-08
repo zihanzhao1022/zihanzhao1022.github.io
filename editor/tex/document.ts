@@ -18,7 +18,7 @@ export const DEFAULT_PREAMBLE = String.raw`\documentclass{article}
 export const TEXT_WIDTH = '550pt';
 
 /** Changes whenever the wrapper's output changes, so stored PDFs made by an older wrapper count as stale. */
-export const WRAPPER_VERSION = 3;
+export const WRAPPER_VERSION = 4;
 
 /** Where the preamble and the block sit in main.tex (1-based lines), for mapping TeX's line numbers back. */
 export interface DocLines {
@@ -59,6 +59,13 @@ const SUPPORT = String.raw`\makeatletter
 % BibTeX styles such as plainnat otherwise fall back to texttt for URLs,
 % which cannot typeset literal underscores in bibliography links.
 \usepackage{url}
+% Load after the paper's preamble so natbib and bibliography styles expose PDF links.
+% A paper that already loads hyperref keeps its own link options and colors.
+% Cropped blocks have no document outline, so disable bookmarks for this default.
+\@ifpackageloaded{hyperref}{}{%
+  \usepackage[bookmarks=false,colorlinks]{hyperref}%
+  \hypersetup{allcolors={[rgb]{0.15,0.25,0.50}}}%
+}
 \usepackage[active,tightpage]{preview}
 \setlength\PreviewBorder{2pt}
 \def\results@float#1{\def\@captype{#1}\par\noindent\begin{minipage}{\linewidth}}

@@ -162,7 +162,7 @@ const ResultPage: React.FC = () => {
         {/* "References": the entries the blocks cite from references.bib, typeset after them. */}
         {paper.references && (
           <div className="mt-10">
-            <BlockView paperId={paper.id} block={{ id: 'references', kind: 'text', output: paper.references }} />
+            <BlockView paperId={paper.id} block={{ id: 'references', kind: 'text', output: paper.references }} references />
           </div>
         )}
         {!paper.references && editing && (paper.files ?? []).includes('references.bib') && (

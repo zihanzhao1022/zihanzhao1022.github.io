@@ -60,7 +60,7 @@ describe('createBlockPreview', () => {
 
     const result = await preview(engine, 'New experiment \\cite{new,before}');
 
-    expect(result).toMatchObject({ ok: true, pdf, warnings: [] });
+    expect(result).toMatchObject({ ok: true, pdf, warnings: [], references: { pdf, width: 345, height: 120 } });
     expect(engine.inputs).toHaveLength(2);
     expect(engine.inputs[0].bibtex).toBe(true);
     expect(engine.inputs[0].main).toContain('\\nocite{before,new,after}');

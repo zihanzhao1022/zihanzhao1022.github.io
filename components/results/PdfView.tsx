@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { PDFDocumentLoadingTask, RenderTask } from 'pdfjs-dist';
 import { loadPdfjs } from './pdfjs';
+import { renderPdfLinks } from './pdfLinks';
+import { citationId, destinationPoint, finishCitationNavigation, navigateCitation, referencesId } from './pdfDestinations';
 import './pdfView.css';
 
 /** CSS pixels per PDF point at full size: 10pt text comes out about as large as the site's body text. */
@@ -16,10 +18,14 @@ interface Props {
   height: number;
   className?: string;
   onError?: (message: string) => void;
+  /** Shared by a paper's blocks; editor previews use a separate scope. */
+  citationScope?: string;
+  /** This PDF contains the actual bibliography destinations, rather than body citations. */
+  citationTargets?: boolean;
 }
 
-/** The first page of a PDF, at PDF_SCALE or narrower to fit, with selectable text. */
-const PdfView: React.FC<Props> = ({ data, url, width, height, className = '', onError }) => {
+/** The first page of a PDF, at PDF_SCALE or narrower to fit, with selectable text and links. */
+const PdfView: React.FC<Props> = ({ data, url, width, height, className = '', onError, citationScope, citationTargets = false }) => {
   const frame = useRef<HTMLDivElement>(null);
   const layers = useRef<HTMLDivElement>(null);
   const [available, setAvailable] = useState<number | null>(null);
@@ -69,7 +75,57 @@ const PdfView: React.FC<Props> = ({ data, url, width, height, className = '', on
       text.style.setProperty('--scale-factor', String(scale));
       text.style.setProperty('--total-scale-factor', String(scale));
       await new pdfjs.TextLayer({ textContentSource: page.streamTextContent(), container: text, viewport }).render();
-      if (!cancelled) target.replaceChildren(canvas, text);
+      const destinations = document.createElement('div');
+      destinations.className = 'resultsPdfDestinations';
+      if (citationTargets && citationScope) {
+        for (const [name, destination] of await doc.getDestinations()) {
+          if (!name.startsWith('cite.')) continue;
+          const marker = document.createElement('span');
+          marker.id = citationId(citationScope, name);
+          marker.className = 'resultsPdfDestination';
+          marker.tabIndex = -1;
+          marker.setAttribute('aria-label', `参考文献 ${name.slice(5)}`);
+          marker.style.top = `${destinationPoint(destination, viewport).top}px`;
+          destinations.append(marker);
+        }
+      }
+      const annotations = await page.getAnnotations({ intent: 'display' });
+      const names = [...new Set<string>(annotations.map((annotation) => annotation.dest).filter((name): name is string => typeof name === 'string' && !name.startsWith('cite.')))];
+      const unresolved = new Set((await Promise.all(names.map(async (name) => {
+        const destination = await doc.getDestination(name);
+        // pdfTeX fabricates a page-wide /Fit destination for a cross-block target it
+        // cannot find. Only citations currently have a destination in another PDF.
+        return !destination || destination[1]?.name === 'Fit' ? name : null;
+      }))).filter((name): name is string => name !== null));
+      const links = renderPdfLinks({
+        annotations: annotations.filter((annotation) => !unresolved.has(annotation.dest)),
+        viewport,
+        onDestination: (destination) => {
+          if (typeof destination === 'string' && destination.startsWith('cite.') && citationScope) {
+            navigateCitation(citationScope, destination);
+            return;
+          }
+          void (async () => {
+            const resolved = typeof destination === 'string' ? await doc.getDestination(destination) : destination;
+            if (!resolved || cancelled) return;
+            const pageRef = resolved[0];
+            const samePage = pageRef === 0 || (pageRef && typeof pageRef === 'object' && 'num' in pageRef && 'gen' in pageRef && pageRef.num === page.ref?.num && pageRef.gen === page.ref?.gen);
+            if (!samePage) return;
+            const marker = document.createElement('span');
+            marker.className = 'resultsPdfDestination resultsPdfLocalDestination';
+            marker.tabIndex = -1;
+            marker.style.top = `${destinationPoint(resolved, viewport).top}px`;
+            destinations.querySelector('.resultsPdfLocalDestination')?.remove();
+            destinations.append(marker);
+            marker.scrollIntoView({ block: 'start' });
+            marker.focus({ preventScroll: true });
+          })().catch(() => undefined);
+        },
+      });
+      if (!cancelled) {
+        target.replaceChildren(canvas, text, destinations, links);
+        if (citationTargets && citationScope) finishCitationNavigation(citationScope);
+      }
     })().catch((error: unknown) => {
       if (cancelled || (error instanceof Error && error.name === 'RenderingCancelledException')) return;
       setFailed(true);
@@ -80,10 +136,10 @@ const PdfView: React.FC<Props> = ({ data, url, width, height, className = '', on
       task?.cancel();
       void loading?.destroy();
     };
-  }, [data, url, scale, available]);
+  }, [data, url, scale, available, citationScope, citationTargets]);
 
   return (
-    <div ref={frame} className={`w-full ${className}`}>
+    <div ref={frame} id={citationTargets && citationScope ? referencesId(citationScope) : undefined} className={`w-full ${className}`}>
       <div className="relative mx-auto bg-white" style={{ width: width * scale, height: height * scale }}>
         <div ref={layers} className="absolute inset-0" />
         {failed && (

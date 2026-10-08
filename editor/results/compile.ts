@@ -36,6 +36,8 @@ export interface BlockCompileResult {
   issues: BlockIssue[];
   warnings: string[];
   log: string;
+  /** Current draft bibliography, shown beneath a block's live preview for citation navigation. */
+  references?: { pdf: Uint8Array; width: number; height: number };
 }
 
 export type Measure = (pdf: Uint8Array) => Promise<{ width: number; height: number }>;

@@ -58,6 +58,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', read
   const [block] = useState<ResultBlock>(() => existing ?? { id: newBlockId(), kind: blockKind, source: BLOCK_TEMPLATES[blockKind] });
   const isNew = existing === undefined;
   const original = block.source ?? '';
+  const citationScope = `preview:${paper.id}:${block.id}`;
   const [source, setSource] = useState(original);
   const [stored, setStored] = useState<Record<string, Uint8Array> | null>(null);
   const [added, setAdded] = useState<Record<string, Uint8Array>>({});
@@ -491,7 +492,12 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', read
           )}
           {lastPdf?.pdf ? (
             <div className={shown && !shown.ok ? 'opacity-40' : undefined}>
-              <PdfView data={lastPdf.pdf} width={lastPdf.width} height={lastPdf.height} className="shadow-sm" />
+              <PdfView data={lastPdf.pdf} width={lastPdf.width} height={lastPdf.height} citationScope={citationScope} className="shadow-sm" />
+              {lastPdf.references && (
+                <div className="mt-8 border-t border-gray-200 pt-4">
+                  <PdfView {...lastPdf.references} data={lastPdf.references.pdf} citationScope={citationScope} citationTargets className="shadow-sm" />
+                </div>
+              )}
             </div>
           ) : (
             <div className="py-20 text-center text-sm text-gray-400">{files ? '编译后在这里显示' : '正在读取附件…'}</div>

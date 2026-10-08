@@ -5,7 +5,7 @@ import { readsPrivately, useResultsAccess } from './access';
 import PdfView from './PdfView';
 
 /** A block's compiled PDF: read privately by the signed-in editor, or from the site for visitors. */
-const BlockView: React.FC<{ paperId: string; block: ResultBlock }> = ({ paperId, block }) => {
+const BlockView: React.FC<{ paperId: string; block: ResultBlock; references?: boolean }> = ({ paperId, block, references = false }) => {
   const access = useResultsAccess();
   const output = block.output;
   const isPrivate = readsPrivately(access, paperId);
@@ -42,6 +42,8 @@ const BlockView: React.FC<{ paperId: string; block: ResultBlock }> = ({ paperId,
       url={isPrivate ? undefined : publicFilePath(output.pdf)}
       width={output.width}
       height={output.height}
+      citationScope={paperId}
+      citationTargets={references}
     />
   );
 };

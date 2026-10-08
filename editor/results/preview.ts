@@ -29,6 +29,7 @@ export function createBlockPreview(
     const blocks = existing < 0 ? [...paper.blocks, draft] : paper.blocks.map((item) => (item.id === block.id ? draft : item));
     const context = blockContext(blocks, index);
     const keys = paperCitations(blocks).filter((key) => known.has(key));
+    let referencePdf: BlockCompileResult['references'];
 
     if (keys.length > 0) {
       const key = JSON.stringify(keys);
@@ -60,8 +61,10 @@ export function createBlockPreview(
         };
       }
       context.citations = references.citations;
+      if (references.pdf) referencePdf = { pdf: references.pdf, width: references.width, height: references.height };
     }
 
-    return compileBlock(engine, { preamble, source, kind: block.kind, ...context, files }, measure);
+    const result = await compileBlock(engine, { preamble, source, kind: block.kind, ...context, files }, measure);
+    return { ...result, ...(referencePdf ? { references: referencePdf } : {}) };
   };
 }

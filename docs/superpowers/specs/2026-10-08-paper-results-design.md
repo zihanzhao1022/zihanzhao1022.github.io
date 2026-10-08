@@ -353,3 +353,23 @@ docs/admin-setup.md                   增加私有仓库的配置说明
 
 1. 新建私有仓库 `homepage-private`，勾选 "Add a README file"（Git Data API 不能在空仓库上提交）。
 2. GitHub → Settings → Applications → Installed GitHub Apps → `zihanzhao-homepage-editor` → Configure → Repository access，把 `homepage-private` 加进去。权限不用改，现有的 Contents 读写已经够用。
+
+## 13. 白名单协作者（2026-10-08 追加，用户选择方案 A）
+
+**目标**：所有者可以给每篇论文指定 GitHub 用户：一类只能看，一类还能编辑这一篇。协作者看不到其他论文，也不能编辑网站的任何其他地方。
+
+**数据**：`ResultPaper` 增加 `viewers?: string[]` 和 `editors?: string[]`（GitHub 用户名，不区分大小写）。只存在私有仓库，不进入公开快照，也不发给协作者。所有者在论文信息表单里编辑两份名单。
+
+**把关**：Cloudflare Worker 代替协作者访问私有仓库。
+
+- 协作者照常点锁形图标用 GitHub 登录。Worker 换到对方的令牌、确认身份后立即吊销该令牌；如果对方出现在任何一篇论文的名单里，就签发一个 Worker 自己的会话（HMAC 签名，8 小时有效），否则返回 403。
+- Worker 用 GitHub App 的私钥签 JWT，换取只限 `homepage-private`、只有 Contents 读写权限的安装令牌（缓存到过期前），由它读写私有仓库。协作者手里从来没有能访问仓库的令牌。
+- 接口（都需要协作者会话）：
+  - `POST /results/load`：返回对方能看的论文。只能看的人拿到的形状与公开快照相同（只有可见块的 PDF）；能编辑的人拿到这篇论文的完整数据（含源码、导言区、附件列表、隐藏块），但不含名单。
+  - `POST /results/file`：读取 `results/<论文id>/` 下的文件；只能看的人只能读可见块的 PDF。
+  - `POST /results/save`：只有编辑者可用。只接受针对这一篇论文的 `putBlock`、`deleteBlock`、`reorderBlocks`、`setBlockHidden`、`setOutputs`、`patchPaper`（仅导言区和附件）及其组合；写入和删除的文件必须在 `results/<论文id>/` 下。Worker 在最新的 `results.json` 上应用并提交，提交信息注明 `(by <用户名>)`。
+- 公开、隐藏、删除论文，修改论文信息和名单，只有所有者能做。协作者的修改不写网站仓库；所有者下次登录时，编辑器发现公开论文的快照落后，会自动同步并提示。
+
+**网站**：协作者登录后进入"协作者模式"：顶部条显示身份和退出；不出现任何网站编辑按钮；`#/results` 只列出对方能看的论文；能编辑的论文页显示块的编辑、复制 LaTeX、添加块和"导言区与附件"，编辑器与所有者相同（编译仍在对方浏览器里进行）。
+
+**所有者的一次性配置**：在 GitHub App 设置页生成私钥；在 `auth-worker` 目录运行 `wrangler secret put GITHUB_APP_PRIVATE_KEY`（私钥文件内容）和 `wrangler secret put SESSION_SECRET`（随机字符串），再 `wrangler deploy`。

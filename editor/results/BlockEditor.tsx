@@ -26,7 +26,7 @@ import { FileWrite } from './backend';
 import CodeEditor, { CodeEditorHandle } from './CodeEditor';
 import { BlockCompileResult, REFERENCES_FILE, describeIssue } from './compile';
 import { blockContext, describeFailure } from './numbering';
-import { ResultsOp, resultsCommitMessage } from './ops';
+import { ResultsOp, applyResultsOp, resultsCommitMessage } from './ops';
 import { createBlockPreview } from './preview';
 import { exportTex, preambleNames } from './texNames';
 
@@ -44,16 +44,18 @@ interface Compiled {
 
 interface Props {
   paper: ResultPaper;
-  /** The block to edit; without it a new block of `blockKind` is added at the end. */
+  /** The block to edit; without it a new block of `blockKind` is added. */
   blockId?: string;
   blockKind?: ResultBlockKind;
+  /** Insert a new block below this one; omit to append. */
+  afterBlockId?: string;
   readFile: ReadFile;
   onSave: ResultsSave;
   onClose: () => void;
 }
 
 /** Full-screen LaTeX editor for one block: code on the left, the compiled PDF on the right. */
-const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', readFile, onSave, onClose }) => {
+const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afterBlockId, readFile, onSave, onClose }) => {
   const existing = blockId === undefined ? undefined : paper.blocks.find((item) => item.id === blockId);
   const [block] = useState<ResultBlock>(() => existing ?? { id: newBlockId(), kind: blockKind, source: BLOCK_TEMPLATES[blockKind] });
   const isNew = existing === undefined;
@@ -77,13 +79,19 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', read
   const preamble = preambleOf(paper);
   const names = useMemo(() => preambleNames(preamble), [preamble]);
   const files = useMemo(() => (stored ? { ...stored, ...added } : null), [stored, added]);
-  const index = isNew ? paper.blocks.length : paper.blocks.findIndex((item) => item.id === block.id);
+  const blockOp = useMemo<Extract<ResultsOp, { kind: 'putBlock' }>>(() => {
+    const anchor = afterBlockId === undefined ? -1 : paper.blocks.findIndex((item) => item.id === afterBlockId);
+    return { kind: 'putBlock', paperId: paper.id, block, ...(isNew && anchor >= 0 ? { at: anchor + 1 } : {}) };
+  }, [paper.id, paper.blocks, block, afterBlockId, isNew]);
+  // Use the insertion order for preview, counters and saving, including hidden blocks.
+  const draftPaper = useMemo(() => applyResultsOp([paper], blockOp)[0], [paper, blockOp]);
+  const index = draftPaper.blocks.findIndex((item) => item.id === block.id);
   const context = useMemo(
-    () => blockContext(isNew ? [...paper.blocks, block] : paper.blocks, index, paper.references?.citations),
-    [paper.blocks, paper.references, block, index, isNew],
+    () => blockContext(draftPaper.blocks, index, paper.references?.citations),
+    [draftPaper.blocks, paper.references, index],
   );
   const labels = useMemo(() => Object.keys(context.labels).sort(), [context.labels]);
-  const preview = useMemo(() => (files ? createBlockPreview(paper, block, files, pdfPageSize) : null), [paper, block, files]);
+  const preview = useMemo(() => (files ? createBlockPreview(draftPaper, block, files, pdfPageSize) : null), [draftPaper, block, files]);
   const dirty = source !== original || Object.keys(added).length > 0;
 
   useEffect(() => {
@@ -183,19 +191,19 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', read
         return;
       }
       const nextBlock: ResultBlock = { ...block, source };
+      const putBlock: ResultsOp = { ...blockOp, block: nextBlock };
       const uploads = await putFiles(paper.id, added);
       const draft: ResultPaper = {
-        ...paper,
+        ...applyResultsOp([paper], putBlock)[0],
         files: [...new Set([...(paper.files ?? []), ...Object.keys(added)])],
         fileHashes: { ...paper.fileHashes, ...uploads.hashes },
-        blocks: isNew ? [...paper.blocks, nextBlock] : paper.blocks.map((item) => (item.id === block.id ? nextBlock : item)),
       };
       const rebuilt = await rebuildWith(draft, files);
       if (rebuilt.failed) {
         setProblem(describeFailure(draft.blocks, rebuilt.failed));
         return;
       }
-      const ops: ResultsOp[] = [...uploads.ops, { kind: 'putBlock', paperId: paper.id, block: nextBlock }];
+      const ops: ResultsOp[] = [...uploads.ops, putBlock];
       const writes: FileWrite[] = [
         ...Object.entries(added).map(([name, data]) => ({ path: attachmentPath(paper.id, name), data })),
         ...rebuilt.writes,

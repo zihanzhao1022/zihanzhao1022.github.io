@@ -1,0 +1,58 @@
+/* Keep the frame and insert controls outside the content's layout. */
+.result-block--editable::before {
+  content: '';
+  position: absolute;
+  inset: -12px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  pointer-events: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.result-block--editable:hover::before,
+.result-block--editable:focus-within::before {
+  border-color: #c084fc;
+  box-shadow: 0 0 0 2px rgb(192 132 252 / 12%);
+}
+
+.result-block-insert {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  z-index: 10;
+  display: flex;
+  gap: 8px;
+  width: max-content;
+  padding: 0 8px;
+  border-radius: 9999px;
+  background: white;
+  transform: translateX(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+
+.result-block--editable:hover > .result-block-insert,
+.result-block--editable:focus-within > .result-block-insert {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.result-block-insert button:focus-visible {
+  outline: 2px solid #9333ea;
+  outline-offset: 2px;
+}
+
+@media (hover: none) {
+  .result-block-insert {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .result-block--editable::before,
+  .result-block-insert {
+    transition: none;
+  }
+}

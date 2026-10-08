@@ -236,8 +236,8 @@ export type EditRequest =
   | { kind: 'add'; collection: ListCollection; preset?: Record<string, unknown> }
   | { kind: 'profile'; section: ProfileSection }
   | { kind: 'navigation' }
-  /** Edit a block of a results paper, or add one of the given kind at the end. */
-  | { kind: 'block'; paperId: string; blockId?: string; blockKind?: ResultBlockKind }
+  /** Edit a block, or add one after `afterBlockId` (at the end when omitted). */
+  | { kind: 'block'; paperId: string; blockId?: string; blockKind?: ResultBlockKind; afterBlockId?: string }
   /** A results paper's preamble and attachments. */
   | { kind: 'paperSettings'; paperId: string }
   /** A results paper's references.bib. */

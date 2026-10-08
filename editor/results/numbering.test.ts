@@ -15,6 +15,7 @@ import {
   staleBlocks,
   usedFiles,
 } from './numbering';
+import { applyResultsOp } from './ops';
 
 const paper = (blocks: ResultBlock[]): ResultPaper => ({
   id: 'p1',
@@ -156,6 +157,26 @@ describe('rebuild', () => {
     expect(calls).toEqual(['t2', 't1']);
     expect(second.outputs.t2.counters).toEqual({ table: 1 });
     expect(second.outputs.t1.counters).toEqual({ table: 2 });
+  });
+
+  it('renumbers later tables after inserting in the middle and keeps preceding output', async () => {
+    const first = await rebuild(paper([{ id: 't1', kind: 'table', source: 'a' }, { id: 't2', kind: 'table', source: 'b' }]), fakeCompiler().compile);
+    const current = paper([
+      { id: 't1', kind: 'table', source: 'a', output: first.outputs.t1 },
+      { id: 't2', kind: 'table', source: 'b', output: first.outputs.t2 },
+    ]);
+    const [draft] = applyResultsOp([current], {
+      kind: 'putBlock', paperId: current.id, block: { id: 'inserted', kind: 'table', source: 'new' }, at: 1,
+    });
+    const { compile, calls } = fakeCompiler();
+    const result = await rebuild(draft, compile);
+
+    expect(draft.blocks.map((item) => item.id)).toEqual(['t1', 'inserted', 't2']);
+    expect(calls).toEqual(['inserted', 't2']);
+    expect(result.outputs.inserted.counters).toEqual({ table: 2 });
+    expect(result.outputs.t2.counters).toEqual({ table: 3 });
+    expect(draft.blocks[0].output).toBe(first.outputs.t1);
+    expect(result.deletes).toEqual([first.outputs.t2.pdf]);
   });
 
   it('stops at a block that fails and keeps what was compiled before it', async () => {

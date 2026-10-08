@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ResultBlock, ResultPaper } from '../../types';
 import { CompileInput, CompileOutput, TexEngine } from '../tex/engine';
 import { REFERENCES_FILE } from './compile';
+import { applyResultsOp } from './ops';
 import { createBlockPreview } from './preview';
 
 const pdf = new Uint8Array([37, 80, 68, 70]);
@@ -80,6 +81,28 @@ describe('createBlockPreview', () => {
 
     expect((await preview(engine, '\\cite{added,first}')).ok).toBe(true);
     expect(engine.inputs[0].main).toContain('\\nocite{first,added}');
+    expect(engine.inputs[1].files?.['main.aux']).toContain('\\bibcite{added}{{2}}');
+  });
+
+  it('previews an inserted block using its preceding counters and citation order', async () => {
+    const before = {
+      ...block('before', '\\cite{before}'),
+      output: { pdf: 'before.pdf', width: 1, height: 1, counters: { table: 1 } },
+    };
+    const after = {
+      ...block('after', '\\cite{after}'),
+      output: { pdf: 'after.pdf', width: 1, height: 1, counters: { table: 2 } },
+    };
+    const editing: ResultBlock = { ...block('inserted', ''), kind: 'table' };
+    const [draft] = applyResultsOp([paper([before, after])], { kind: 'putBlock', paperId: 'p1', block: editing, at: 1 });
+    const engine = scriptedEngine(success(citations({ before: '{1}', added: '{2}', after: '{3}' })), success());
+    const preview = createBlockPreview(draft, editing, { [REFERENCES_FILE]: bib('before', 'added', 'after') }, measure);
+
+    expect((await preview(engine, '\\caption{Inserted table \\cite{added}}')).ok).toBe(true);
+    expect(draft.blocks.map((item) => item.id)).toEqual(['before', 'inserted', 'after']);
+    expect(engine.inputs[0].main).toContain('\\nocite{before,added,after}');
+    expect(engine.inputs[1].main).toContain('\\setcounter{table}{1}');
+    expect(engine.inputs[1].main).not.toContain('\\setcounter{table}{2}');
     expect(engine.inputs[1].files?.['main.aux']).toContain('\\bibcite{added}{{2}}');
   });
 

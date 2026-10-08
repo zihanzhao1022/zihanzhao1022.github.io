@@ -249,6 +249,7 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
               paper={paper}
               blockId={request.blockId}
               blockKind={request.blockKind}
+              afterBlockId={request.afterBlockId}
               readFile={access.readFile}
               onSave={saveResults}
               onClose={closeDialog}

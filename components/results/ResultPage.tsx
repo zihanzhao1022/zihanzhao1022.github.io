@@ -12,8 +12,17 @@ import Authors from './Authors';
 import BlockView from './BlockView';
 import LoginPrompt from './LoginPrompt';
 import { ResultsUnavailable } from './ResultsList';
+import './resultPage.css';
 
 const KIND_LABEL = { text: '文字', figure: '图', table: '表格' } as const;
+
+const InsertButtons: React.FC<{ paperId: string; afterBlockId?: string }> = ({ paperId, afterBlockId }) => (
+  <>
+    <AddButton request={{ kind: 'block', paperId, blockKind: 'text', afterBlockId }} text="文字" />
+    <AddButton request={{ kind: 'block', paperId, blockKind: 'figure', afterBlockId }} text="图" />
+    <AddButton request={{ kind: 'block', paperId, blockKind: 'table', afterBlockId }} text="表格" />
+  </>
+);
 
 /** Copies the block's LaTeX, headed by the packages it needs, without opening the editor. */
 const CopyLatex: React.FC<{ source: string }> = ({ source }) => {
@@ -46,7 +55,10 @@ const CopyLatex: React.FC<{ source: string }> = ({ source }) => {
 const BlockItem: React.FC<{ paperId: string; block: ResultBlock }> = ({ paperId, block }) => {
   const { editing } = useEditMode();
   return (
-    <div className={`relative${block.hidden ? ' opacity-50' : ''}`}>
+    <div
+      data-result-block-id={block.id}
+      className={`relative${editing ? ' result-block--editable' : ''}${block.hidden ? ' opacity-50' : ''}`}
+    >
       {editing && (
         <div className="flex items-center justify-end gap-2 mb-1 text-xs text-gray-400">
           {KIND_LABEL[block.kind]}
@@ -56,6 +68,11 @@ const BlockItem: React.FC<{ paperId: string; block: ResultBlock }> = ({ paperId,
         </div>
       )}
       <BlockView paperId={paperId} block={block} />
+      {editing && (
+        <div className="result-block-insert" role="group" aria-label="在当前块下方插入内容">
+          <InsertButtons paperId={paperId} afterBlockId={block.id} />
+        </div>
+      )}
     </div>
   );
 };
@@ -173,9 +190,7 @@ const ResultPage: React.FC = () => {
         )}
         {editing && (
           <div className="mt-10 flex flex-wrap items-center gap-2">
-            <AddButton request={{ kind: 'block', paperId: paper.id, blockKind: 'text' }} text="文字" />
-            <AddButton request={{ kind: 'block', paperId: paper.id, blockKind: 'figure' }} text="图" />
-            <AddButton request={{ kind: 'block', paperId: paper.id, blockKind: 'table' }} text="表格" />
+            <InsertButtons paperId={paper.id} />
           </div>
         )}
       </div>

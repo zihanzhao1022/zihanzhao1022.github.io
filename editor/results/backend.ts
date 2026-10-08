@@ -26,7 +26,7 @@ export interface ResultsSaveResult {
   papers: ResultPaper[];
   /** Commit on the site's repository when published content changed; it starts a deployment. */
   publicCommit: string | null;
-  /** Set when the private save worked but updating the site failed; retry with syncPublic. */
+  /** Set when the private save worked but updating the site failed; retry with resync. */
   publicError?: unknown;
 }
 
@@ -187,7 +187,7 @@ export function createResultsBackend(privateApi: GitHubApi, publicApi: GitHubApi
         if (!publicBehind && !hasPublished(before) && !hasPublished(papers)) return { papers, publicCommit: null };
         // The site's history is public: name a paper only when it is (or just was) published.
         const touched = touchedPapers(op);
-        const named = touched.length === 0 || touched.some((id) => isPublishedIn(before, id) || isPublishedIn(papers, id));
+        const named = touched.length === 0 || touched.every((id) => isPublishedIn(before, id) || isPublishedIn(papers, id));
         try {
           return { papers, publicCommit: await syncPublic(papers, named ? publicMessage : GENERIC_PUBLIC_MESSAGE) };
         } catch (publicError) {
@@ -199,6 +199,8 @@ export function createResultsBackend(privateApi: GitHubApi, publicApi: GitHubApi
     syncPublic,
 
     async resync(message) {
+      // Behind until this succeeds, even if reading the private list fails first.
+      publicBehind = true;
       const head = await privateApi.headSha();
       const text = await readTextFile(privateApi, RESULTS_PATH, head);
       return syncPublic(text === null ? [] : (JSON.parse(text) as ResultPaper[]), message);

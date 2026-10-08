@@ -373,3 +373,10 @@ docs/admin-setup.md                   增加私有仓库的配置说明
 **网站**：协作者登录后进入"协作者模式"：顶部条显示身份和退出；不出现任何网站编辑按钮；`#/results` 只列出对方能看的论文；能编辑的论文页显示块的编辑、复制 LaTeX、添加块和"导言区与附件"，编辑器与所有者相同（编译仍在对方浏览器里进行）。
 
 **所有者的一次性配置**：在 GitHub App 设置页生成私钥；在 `auth-worker` 目录运行 `wrangler secret put GITHUB_APP_PRIVATE_KEY`（私钥文件内容）和 `wrangler secret put SESSION_SECRET`（随机字符串），再 `wrangler deploy`。
+
+## 14. 上线后待办（2026-10-08 记录）
+
+- **小节标题与导出全文**（用户提出，上线后再做）：
+  - 在论文页上添加小节标题，按 HTML 显示，但等级只能取 LaTeX 有的四级：`\section`、`\subsection`、`\subsubsection`、`\paragraph`，每级都可选编号或不编号（带星号）。
+  - 增加"导出全文 LaTeX"按钮：从上到下依次复制所有块的源码，小节标题转成对应的 LaTeX 命令一起导出。
+- **白名单协作者**（第 13 节）：在分支 `feat/results-collaborators` 上继续，完成后需要所有者做第 13 节末尾的一次性配置。

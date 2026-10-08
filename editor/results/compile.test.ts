@@ -98,4 +98,10 @@ describe('compileBlock', () => {
     expect(result.ok).toBe(false);
     expect(result.issues).toEqual([{ message: 'TeX 没有生成 PDF，详情见日志', area: 'wrapper' }]);
   });
+
+  it("explains failures of the engine itself, e.g. a compile that never ended", async () => {
+    const reason = '编译超时：可能有无限循环的宏';
+    const result = await compileBlock(scriptedEngine({ ok: false, status: -254, log: reason, reason }), input('x'), measure);
+    expect(result.issues).toEqual([{ message: reason, area: 'wrapper' }]);
+  });
 });

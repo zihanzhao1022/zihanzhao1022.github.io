@@ -79,19 +79,26 @@ export const ATTACHMENT_TYPES = ['.sty', '.cls', '.tex', '.bib', '.bst', '.cfg',
 export const ATTACHMENT_LIMIT = 20 * 1024 * 1024;
 export const IMAGE_TYPES = ['.pdf', '.png', '.jpg', '.jpeg'];
 
-/** A file name TeX and URLs both handle: letters, digits, dot, dash and underscore. */
-export const attachmentName = (name: string): string =>
-  name
-    .split(/[\\/]/)
-    .pop()!
-    .trim()
-    .replace(/[^A-Za-z0-9._-]+/g, '-')
-    .replace(/^[-.]+/, '') || 'file';
-
 /** Short content hash of an attachment (first 16 hex digits of SHA-256). */
 export async function hashBytes(data: Uint8Array): Promise<string> {
   const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', data.slice()));
   return [...digest.slice(0, 8)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * The name an uploaded file is stored under: letters, digits, dot, dash and underscore, which TeX and URLs
+ * both handle. A name that has to change (e.g. "实验结果.png") also gets a short hash of the content, so two
+ * such files never replace each other, while the same file uploaded again keeps its name.
+ */
+export async function attachmentName(name: string, data: Uint8Array): Promise<string> {
+  const base = name.split(/[\\/]/).pop()!.trim();
+  const dot = base.lastIndexOf('.');
+  const stem = dot > 0 ? base.slice(0, dot) : base;
+  const extension = dot > 0 ? base.slice(dot) : '';
+  const cleanStem = stem.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^[-.]+|-+$/g, '');
+  const cleanExtension = extension.replace(/[^A-Za-z0-9.]/g, '');
+  if (cleanStem === stem && cleanExtension === extension) return base;
+  return `${cleanStem || 'file'}-${(await hashBytes(data)).slice(0, 8)}${cleanExtension}`;
 }
 
 /** putFile operations for newly added attachments, with their content hashes. */

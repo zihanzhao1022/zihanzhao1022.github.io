@@ -107,15 +107,9 @@ describe('saving an unpublished paper', () => {
     // A stale caller asks to delete the PDF that block b1 still shows.
     await backend.save({ kind: 'setBlockHidden', paperId: 'p1', blockId: 'b1', hidden: true }, [], ['results/p1/b1-old.pdf'], 'm', 'pm');
     expect(privateRepo.createTree.mock.calls[0][1]).toHaveLength(1);
-    privateRepo.createCommit.mockClear();
-    await createResultsBackend(fakeRepo({ [RESULTS_PATH]: `${JSON.stringify([draft], null, 2)}\n` }), fakeRepo()).save(
-      { kind: 'reorderBlocks', paperId: 'p1', ids: ['b1'] },
-      [],
-      [],
-      'm',
-      'pm',
-    );
-    expect(privateRepo.createCommit).not.toHaveBeenCalled();
+    const unchanged = fakeRepo({ [RESULTS_PATH]: `${JSON.stringify([draft], null, 2)}\n` });
+    await createResultsBackend(unchanged, fakeRepo()).save({ kind: 'reorderBlocks', paperId: 'p1', ids: ['b1'] }, [], [], 'm', 'pm');
+    expect(unchanged.createCommit).not.toHaveBeenCalled();
   });
 
   it('serves files it just wrote from memory', async () => {
@@ -227,6 +221,19 @@ describe('publishing', () => {
     privateRepo.readBytes.mockClear();
     await backend.resync('content: update results');
     expect(privateRepo.readBytes).toHaveBeenCalledWith(RESULTS_PATH, 'head1');
+  });
+
+  it('counts the site as behind when a resync fails before reaching it', async () => {
+    const privateRepo = fakeRepo({ [RESULTS_PATH]: JSON.stringify([draft]) }, privateFiles);
+    // The site still shows p1, which is hidden now.
+    const publicRepo = fakeRepo({ 'content/results.json': snapshotText([{ ...draft, hidden: undefined }]) });
+    const backend = createResultsBackend(privateRepo, publicRepo);
+    privateRepo.headSha.mockRejectedValueOnce(new GitHubError('网络连接失败', 0));
+    await expect(backend.resync(GENERIC_PUBLIC_MESSAGE)).rejects.toThrow();
+    // So a later save of the hidden paper still brings the site up to date.
+    const result = await backend.save({ kind: 'putBlock', paperId: 'p1', block: { id: 'b1', kind: 'table', source: '% new' } }, [], [], 'm', 'pm');
+    expect(result.publicCommit).toBe('commit1');
+    expect(publicRepo.createCommit).toHaveBeenCalledWith(GENERIC_PUBLIC_MESSAGE, 'tree2', 'head1');
   });
 
   it('keeps the private save when updating the site fails', async () => {

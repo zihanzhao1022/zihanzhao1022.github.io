@@ -46,7 +46,7 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
   // Saves run one at a time. `pending` holds ops already shown on the page but not committed yet.
   const queue = useRef<Promise<unknown>>(Promise.resolve());
   const pending = useRef<ContentOp[]>([]);
-  const { access, privateLoaded, saveResults, saveContentOp, reorderBlocks, reload } = useResultsEditor({
+  const { access, privateLoaded, saveResults, saveContentOp, reorderBlocks, reload, isReordering } = useResultsEditor({
     session,
     setContent,
     contentRef,
@@ -129,9 +129,13 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
         setToast({ message: access.state === 'loading' ? '论文结果还在加载，请稍后再试' : '私有仓库不可用，暂时不能编辑论文结果' });
         return;
       }
+      if ((next.kind === 'block' || next.kind === 'paperSettings') && isReordering(next.paperId)) {
+        setToast({ message: '正在保存新的顺序并更新编号，请几秒后再编辑' });
+        return;
+      }
       setRequest(next);
     },
-    [session, access.state],
+    [session, access.state, isReordering],
   );
 
   const save = useCallback(

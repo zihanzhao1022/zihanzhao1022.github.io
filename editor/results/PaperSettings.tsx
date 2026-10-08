@@ -125,7 +125,8 @@ const PaperSettings: React.FC<Props> = ({ paper, readFile, onSave, onClose }) =>
         setProblem(`${file.name}：${reason}`);
         continue;
       }
-      next[attachmentName(file.name)] = new Uint8Array(await file.arrayBuffer());
+      const data = new Uint8Array(await file.arrayBuffer());
+      next[await attachmentName(file.name, data)] = data;
     }
     setAdded((current) => ({ ...current, ...next }));
     setRemoved((current) => current.filter((name) => !(name in next)));
@@ -139,7 +140,9 @@ const PaperSettings: React.FC<Props> = ({ paper, readFile, onSave, onClose }) =>
     try {
       const kept = names.filter((name) => !removed.includes(name));
       const gone = removed.filter((name) => (paper.files ?? []).includes(name));
-      const uploads = await putFiles(paper.id, added);
+      // A file uploaded here and then removed again is not uploaded at all.
+      const uploaded = Object.fromEntries(Object.entries(added).filter(([name]) => !removed.includes(name)));
+      const uploads = await putFiles(paper.id, uploaded);
       const fileHashes = { ...paper.fileHashes, ...uploads.hashes };
       gone.forEach((name) => delete fileHashes[name]);
       const draft: ResultPaper = { ...paper, preamble, files: kept, fileHashes };
@@ -150,7 +153,7 @@ const PaperSettings: React.FC<Props> = ({ paper, readFile, onSave, onClose }) =>
         return;
       }
       const writes = [
-        ...Object.entries(added).map(([name, data]) => ({ path: attachmentPath(paper.id, name), data })),
+        ...Object.entries(uploaded).map(([name, data]) => ({ path: attachmentPath(paper.id, name), data })),
         ...rebuilt.writes,
       ];
       const deletes = [...gone.map((name) => attachmentPath(paper.id, name)), ...rebuilt.deletes];

@@ -8,7 +8,6 @@ import { attachmentPath, rebuildPaper, withOutputs } from './actions';
 import { GENERIC_PUBLIC_MESSAGE, ResultsBackend, ResultsSaveResult, createResults } from './backend';
 import type { ResultsSave } from './BlockEditor';
 import { ResultsOp, applyResultsOp, fromContentOp, resultsCommitMessage } from './ops';
-import { hasPublished } from './snapshot';
 
 export interface EditorToast {
   message: string;
@@ -78,19 +77,23 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
         latest.current = loaded.papers;
         show(loaded.papers);
         setLoadState({ state: 'private' });
-        // Catch up with collaborators' edits and with syncs that failed in an earlier session.
-        if (hasPublished(loaded.papers) || snapshotShown) {
-          const run = queue.current.then(() => created.resync(GENERIC_PUBLIC_MESSAGE));
-          queue.current = run.catch(() => undefined);
-          run.then(
-            (sha) => {
-              if (!sha) return;
-              callbacks.current.onDeploy(sha);
-              callbacks.current.onToast({ message: '已更新网站上的公开论文结果' });
-            },
-            () => setSiteBehind(true),
-          );
+        if (loaded.papers.length === 0) {
+          // An empty private list next to published papers looks like a lost results.json: never wipe the
+          // site on its own, let the owner decide through the banner.
+          if (snapshotShown) setSiteBehind(true);
+          return;
         }
+        // Catch up with syncs that failed in an earlier session (a no-op when the site is up to date).
+        const run = queue.current.then(() => created.resync(GENERIC_PUBLIC_MESSAGE));
+        queue.current = run.catch(() => undefined);
+        run.then(
+          (sha) => {
+            if (!sha) return;
+            callbacks.current.onDeploy(sha);
+            callbacks.current.onToast({ message: '已更新网站上的公开论文结果' });
+          },
+          () => setSiteBehind(true),
+        );
       })
       .catch(() => {
         if (!cancelled) setLoadState({ state: 'unavailable', reason: 'error' });
@@ -101,15 +104,16 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
   }, [session, contentRef, queue, show]);
 
   const reload = useCallback(() => {
-    backend
-      ?.load()
+    if (!backend) return;
+    // In the queue, so a slow reload never rolls the list back past a save queued after it.
+    enqueue(() => backend.load())
       .then((loaded) => {
         if (loaded.state !== 'ready') return;
         latest.current = loaded.papers;
         show(loaded.papers);
       })
       .catch(() => undefined);
-  }, [backend, show]);
+  }, [backend, enqueue, show]);
 
   const syncSite = useCallback(() => {
     if (!backend) return;
@@ -202,7 +206,11 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
       };
       enqueue(async () => {
         const paper = applyResultsOp(latest.current, op).find((item) => item.id === paperId);
-        if (!paper) return;
+        if (!paper) {
+          done();
+          show(latest.current);
+          return;
+        }
         const rebuilt = await rebuildPaper(paper, backend.readFile);
         if (rebuilt.failed) throw new Error(`重新编译失败：${rebuilt.failed.message}`);
         const result = await backend.save(
@@ -224,6 +232,16 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
     [backend, loadState.state, setContent, enqueue, settle, show],
   );
 
+  /**
+   * Whether a dragged order of this paper's blocks is still being renumbered and saved. The block and
+   * preamble dialogs rebuild from the page, which has the new order but not yet the new numbers, so they
+   * must not open until then.
+   */
+  const isReordering = useCallback(
+    (paperId: string) => pending.current.some((op) => op.kind === 'reorderBlocks' && op.paperId === paperId),
+    [],
+  );
+
   const access = useMemo<ResultsAccess>(
     () => ({
       ...loadState,
@@ -234,5 +252,5 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
     [loadState, backend, siteBehind, syncSite],
   );
 
-  return { access, privateLoaded, saveResults, saveContentOp, reorderBlocks, reload };
+  return { access, privateLoaded, saveResults, saveContentOp, reorderBlocks, reload, isReordering };
 }

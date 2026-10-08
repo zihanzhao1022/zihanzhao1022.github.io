@@ -271,7 +271,8 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', read
         setProblem(`${file.name}：${reason}`);
         continue;
       }
-      next[attachmentName(file.name)] = new Uint8Array(await file.arrayBuffer());
+      const data = new Uint8Array(await file.arrayBuffer());
+      next[await attachmentName(file.name, data)] = data;
     }
     setAdded((current) => ({ ...current, ...next }));
   };

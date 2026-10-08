@@ -19,6 +19,8 @@ export interface CompileOutput {
   pdf?: Uint8Array;
   /** main.aux after the run: the labels this document defined. */
   aux?: string;
+  /** Why the engine itself gave up (a compile that never ended, a crash), in words for the owner. */
+  reason?: string;
 }
 
 export interface TexEngine {
@@ -39,6 +41,8 @@ interface WorkerReply {
   result?: string;
   status?: number;
   log?: string;
+  /** Set on failures this class reports itself (see CompileOutput.reason). */
+  reason?: string;
   pdf?: ArrayBuffer;
   data?: unknown;
   key?: string;
@@ -54,6 +58,8 @@ interface PreloadFile {
 const REMOTE_CACHE = 'texlive-remote-v1';
 /** A compile that runs longer is stuck (e.g. a macro that expands forever); its worker is replaced. */
 const COMPILE_TIMEOUT_MS = 45_000;
+/** Starting takes a few MB of downloads the first time; a start that takes longer has stalled. */
+const STARTUP_TIMEOUT_MS = 120_000;
 const REMOTE_PREFIX = '/texlive-remote/';
 const LOAD_FAILED = 'TeX 引擎加载失败，请检查网络后重试';
 
@@ -128,7 +134,7 @@ class WorkerEngine implements TexEngine {
     if (this.waiting) {
       const { cmd, resolve } = this.waiting;
       this.waiting = null;
-      resolve({ cmd, result: 'failed', status: -254, log });
+      resolve({ cmd, result: 'failed', status: -254, log, reason: log });
     }
   }
 
@@ -137,7 +143,10 @@ class WorkerEngine implements TexEngine {
   }
 
   private request(message: Record<string, unknown>, cmd: string, transfer: Transferable[] = [], timeoutMs = 0): Promise<WorkerReply> {
-    if (this.dead) return Promise.resolve({ cmd, result: 'failed', status: -254, log: 'TeX 引擎已重启，请重新编译' });
+    if (this.dead) {
+      const reason = 'TeX 引擎已重启，请重新编译';
+      return Promise.resolve({ cmd, result: 'failed', status: -254, log: reason, reason });
+    }
     return new Promise((resolve) => {
       const timer = timeoutMs > 0 ? setTimeout(() => this.retire('编译超时：可能有无限循环的宏'), timeoutMs) : undefined;
       this.waiting = {
@@ -181,7 +190,7 @@ class WorkerEngine implements TexEngine {
     if (reply.status === -254) {
       // The WebAssembly module aborted (or never answered) and cannot be reused; the next compile starts a new worker.
       this.retire(reply.log ?? '');
-      return { ok: false, status: -254, log: reply.log ?? '' };
+      return { ok: false, status: -254, log: reply.log ?? '', reason: reply.reason };
     }
     const pdf = reply.result === 'ok' && reply.pdf ? new Uint8Array(reply.pdf) : undefined;
     const aux = await this.request({ cmd: 'readfile', url: 'main.aux' }, 'readfile');
@@ -197,32 +206,43 @@ class WorkerEngine implements TexEngine {
 
 async function startEngine(onCrash: () => void): Promise<TexEngine> {
   const worker = new Worker(assetUrl('swiftlatexpdftex.js'));
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const stalled = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(LOAD_FAILED)), STARTUP_TIMEOUT_MS);
+  });
   try {
-    await new Promise<void>((resolve, reject) => {
-      worker.onmessage = (event: MessageEvent<WorkerReply>) => {
-        if (event.data.result === 'ok' && !event.data.cmd) resolve();
-        else reject(new Error(LOAD_FAILED));
-      };
-      worker.onerror = () => reject(new Error(LOAD_FAILED));
-    });
-    const res = await fetch(assetUrl('manifest.json'));
-    if (!res.ok) throw new Error(LOAD_FAILED);
-    const manifest = (await res.json()) as Manifest;
-    worker.postMessage({ cmd: 'setbundle', base: assetUrl('files/'), files: manifest.files, missing: manifest.missing ?? [] });
-    const bundled = await Promise.all(
-      Object.entries(manifest.preload).map(async ([key, fileid]) => ({
-        key,
-        fileid,
-        data: await gunzip(await fetch(assetUrl(`files/${fileid}.gz`))),
-      })),
-    );
-    const engine = new WorkerEngine(worker, onCrash);
-    await engine.preload([...bundled, ...(await cachedRemoteFiles())]);
-    return engine;
+    // Saves wait for compiles in one queue, so a stalled start must fail rather than hold it forever.
+    return await Promise.race([setUp(worker, onCrash), stalled]);
   } catch (error) {
     worker.terminate();
     throw error instanceof Error ? error : new Error(LOAD_FAILED);
+  } finally {
+    clearTimeout(timer);
   }
+}
+
+async function setUp(worker: Worker, onCrash: () => void): Promise<TexEngine> {
+  await new Promise<void>((resolve, reject) => {
+    worker.onmessage = (event: MessageEvent<WorkerReply>) => {
+      if (event.data.result === 'ok' && !event.data.cmd) resolve();
+      else reject(new Error(LOAD_FAILED));
+    };
+    worker.onerror = () => reject(new Error(LOAD_FAILED));
+  });
+  const res = await fetch(assetUrl('manifest.json'));
+  if (!res.ok) throw new Error(LOAD_FAILED);
+  const manifest = (await res.json()) as Manifest;
+  worker.postMessage({ cmd: 'setbundle', base: assetUrl('files/'), files: manifest.files, missing: manifest.missing ?? [] });
+  const bundled = await Promise.all(
+    Object.entries(manifest.preload).map(async ([key, fileid]) => ({
+      key,
+      fileid,
+      data: await gunzip(await fetch(assetUrl(`files/${fileid}.gz`))),
+    })),
+  );
+  const engine = new WorkerEngine(worker, onCrash);
+  await engine.preload([...bundled, ...(await cachedRemoteFiles())]);
+  return engine;
 }
 
 let started: Promise<TexEngine> | null = null;

@@ -50,7 +50,7 @@ async function runOnce(engine: TexEngine, input: BlockCompileInput, labels: Reco
     const where = locateLine(issue.line, doc);
     return { message: issue.message, area: where.area, line: where.line };
   });
-  if (!out.ok && issues.length === 0) issues.push({ message: 'TeX 没有生成 PDF，详情见日志', area: 'wrapper' });
+  if (!out.ok && issues.length === 0) issues.push({ message: out.reason ?? 'TeX 没有生成 PDF，详情见日志', area: 'wrapper' });
   return { out, issues, labels: parseAuxLabels(out.aux ?? '') };
 }
 

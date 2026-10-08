@@ -181,12 +181,14 @@ describe('collaborators', () => {
 });
 
 describe('results routes', () => {
-  const site = (path: string, hiddenNav: boolean, mode?: EditModeValue): string => {
+  const site = (path: string, hiddenNav: boolean, mode?: EditModeValue, access?: ResultsAccess, navigation?: NavItem[]): string => {
     const tree = (
-      <ContentContext.Provider value={content(hiddenNav)}>
-        <MemoryRouter initialEntries={[path]}>
-          <SiteLayout />
-        </MemoryRouter>
+      <ContentContext.Provider value={{ ...content(hiddenNav), ...(navigation ? { navigation } : {}) }}>
+        <ResultsAccessContext.Provider value={access ?? null}>
+          <MemoryRouter initialEntries={[path]}>
+            <SiteLayout />
+          </MemoryRouter>
+        </ResultsAccessContext.Provider>
       </ContentContext.Provider>
     );
     return renderToStaticMarkup(mode ? <EditModeContext.Provider value={mode}>{tree}</EditModeContext.Provider> : tree);
@@ -195,6 +197,16 @@ describe('results routes', () => {
   it('lists the results page in the navigation only when it is not hidden', () => {
     expect(site('/', false)).toContain('href="/results"');
     expect(site('/', true)).not.toContain('href="/results"');
+  });
+
+  it('shows the hidden results page in the navigation to whoever signs in, and to nobody else', () => {
+    const signedIn: EditModeValue = { ...owner, editing: false };
+    expect(site('/', true, signedIn, privateAccess)).toContain('href="/results"');
+    // Collaborators' navigation (the public build) has no hidden entry at all.
+    const publicNavigation = navigation(false).filter((item) => item.id !== 'results');
+    const collaborator: ResultsAccess = { ...privateAccess, role: 'collaborator', shared: {} };
+    expect(site('/', true, signedIn, collaborator, publicNavigation)).toContain('href="/results"');
+    expect(site('/', true, undefined, undefined, publicNavigation)).not.toContain('href="/results"');
   });
 
   it('asks visitors to sign in at a hidden results address instead of sending them home', () => {

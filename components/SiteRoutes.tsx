@@ -6,6 +6,9 @@ import CustomPage from './CustomPage';
 import { useEditMode } from './EditMode';
 import { BUILTIN_ROUTES } from './pages';
 
+// Development only: a page for trying the TeX engine. Production builds drop it and the engine.
+const TexLab = import.meta.env.DEV ? React.lazy(() => import('../editor/tex/TexLab')) : null;
+
 // Unknown addresses go home, but not while a signed-in owner's content (with hidden pages) is still loading.
 const NotFound: React.FC = () => {
   const { ready } = useEditMode();
@@ -31,6 +34,16 @@ const SiteRoutes: React.FC = () => {
           }
           return null;
         })}
+      {TexLab && (
+        <Route
+          path="/__tex"
+          element={
+            <React.Suspense fallback={null}>
+              <TexLab />
+            </React.Suspense>
+          }
+        />
+      )}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

@@ -2,16 +2,17 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { isContentListFile, stripHiddenItems } from './lib/hiddenContent';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     {
       // Hidden items stay in content/*.json (the edit mode reads them from GitHub)
       // but are dropped before bundling, so visitors never download them.
+      // `npm run dev:mock` keeps them: its fake owner reads the bundled content instead of GitHub.
       name: 'strip-hidden-content',
-      enforce: 'pre',
-      transform(code, id) {
-        return isContentListFile(id) ? stripHiddenItems(code) : null;
+      enforce: 'pre' as const,
+      transform(code: string, id: string) {
+        return mode !== 'mock' && isContentListFile(id) ? stripHiddenItems(code) : null;
       },
     },
   ],
@@ -24,5 +25,5 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-  }
-});
+  },
+}));

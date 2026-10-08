@@ -1,42 +1,58 @@
 #!/usr/bin/env node
 /**
  * Vendors the in-browser TeX engine into public/texlive/:
- * - pdfTeX from the SwiftLaTeX release, with the worker patched (see patchWorker);
- * - the TeX Live files listed in public/texlive/files.txt, from TeXlyre's SwiftLaTeX-compatible server.
+ * - pdfTeX and its worker from the SwiftLaTeX release; the worker is patched with
+ *   scripts/texlive-worker-patch.js (see patchWorker);
+ * - SwiftLaTeX's licence text (AGPL-3.0), taken from its repository at the release tag;
+ * - the TeX Live files listed in public/texlive/files.txt, from TeXlyre's SwiftLaTeX-compatible server,
+ *   and public/texlive/manifest.json that describes them.
  *
- * Run from the repository root: node scripts/fetch-texlive.mjs
- * Needs network access and the `unzip` command. The output is committed.
+ * Run: node scripts/fetch-texlive.mjs (from any directory; paths are resolved from this file).
+ * Needs Node 18+ (global fetch), the `unzip` command and network access. The output is committed.
+ *
+ * files.txt has one line per file: "<format>/<requested name>", a TAB, and the file name the server
+ * answers with. A file name of "-" marks a key that is known NOT to exist on the server (TeX probes for
+ * it on every run): the script checks that the server really answers 301 or 404, and lists the key under
+ * "missing" in manifest.json so the worker never asks for it.
  */
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { Script } from 'node:vm';
 import { gzipSync } from 'node:zlib';
 
-const RELEASE = 'https://github.com/SwiftLaTeX/SwiftLaTeX/releases/download/v20022022/20-02-2022.zip';
+const TAG = 'v20022022';
+const RELEASE = `https://github.com/SwiftLaTeX/SwiftLaTeX/releases/download/${TAG}/20-02-2022.zip`;
+const LICENSE = `https://raw.githubusercontent.com/SwiftLaTeX/SwiftLaTeX/${TAG}/LICENSE`;
 const TEXLIVE = 'https://texlive.texlyre.org/pdftex/';
-const OUT = 'public/texlive';
+const HERE = fileURLToPath(new URL('.', import.meta.url));
+const OUT = join(HERE, '..', 'public', 'texlive');
+const WORKER_PATCH = join(HERE, 'texlive-worker-patch.js');
 /** Needed by every run and large: stored gzipped and handed to the worker before the first compile. */
 const PRELOAD = new Set(['10/swiftlatexpdftex.fmt', '11/pdftex.map']);
 
-// Replaces SwiftLaTeX's lookup: the site's bundle first, then the remote server.
-// Remote downloads are sent to the page so it can keep them in Cache Storage.
-const FIND_FILE = `function fetchSync(url){const xhr=new XMLHttpRequest;xhr.open("GET",url,false);xhr.timeout=15e4;xhr.responseType="arraybuffer";try{xhr.send()}catch(err){return{status:0,data:null,fileid:null}}return{status:xhr.status,data:xhr.status===200?new Uint8Array(xhr.response):null,fileid:xhr.getResponseHeader("fileid")}}
-function kpse_find_file_impl(nameptr,format,_mustexist){const reqname=UTF8ToString(nameptr);if(reqname.includes("/")){return 0}const cacheKey=format+"/"+reqname;if(cacheKey in texlive404_cache){return 0}if(cacheKey in texlive200_cache){return allocate(intArrayFromString(texlive200_cache[cacheKey]),"i8",ALLOC_NORMAL)}let fileid=self.bundle[cacheKey];let res=fileid?fetchSync(self.bundleBase+fileid):null;let remote=false;if(!res||res.status!==200){res=fetchSync(self.texlive_endpoint+"pdftex/"+cacheKey);fileid=res.fileid;remote=true}if(res.status!==200||!fileid){if(res.status===301||res.status===404){texlive404_cache[cacheKey]=1}return 0}const savepath=TEXCACHEROOT+"/"+fileid;FS.writeFile(savepath,res.data);texlive200_cache[cacheKey]=savepath;if(remote){self.postMessage({"cmd":"fetched","key":cacheKey,"fileid":fileid,"data":res.data.buffer},[res.data.buffer])}return allocate(intArrayFromString(savepath),"i8",ALLOC_NORMAL)}
-`;
+function countOf(source, needle) {
+  return source.split(needle).length - 1;
+}
 
-const EXTRA_COMMANDS =
-  'else if(cmd==="setbundle"){self.bundleBase=data["base"];self.bundle=data["files"]}' +
-  'else if(cmd==="preload"){for(const f of data["files"]){const savepath=TEXCACHEROOT+"/"+f["fileid"];FS.writeFile(savepath,new Uint8Array(f["data"]));texlive200_cache[f["key"]]=savepath}self.postMessage({"result":"ok","cmd":"preload"})}' +
-  'else if(cmd==="readfile"){try{self.postMessage({"result":"ok","cmd":"readfile","data":FS.readFile(WORKROOT+"/"+data["url"],{encoding:"utf8"})})}catch(err){self.postMessage({"result":"failed","cmd":"readfile"})}}';
+function indexOfOnce(source, needle) {
+  const at = source.indexOf(needle);
+  if (at === -1 || source.indexOf(needle, at + 1) !== -1) throw new Error(`Patch anchor not found exactly once: ${needle.slice(0, 60)}`);
+  return at;
+}
 
 function replaceOnce(source, from, to) {
-  const at = source.indexOf(from);
-  if (at === -1 || source.indexOf(from, at + 1) !== -1) throw new Error(`Patch anchor not found exactly once: ${from.slice(0, 60)}`);
+  const at = indexOfOnce(source, from);
   return source.slice(0, at) + to + source.slice(at + from.length);
 }
 
 function patchWorker(js) {
+  const patch = readFileSync(WORKER_PATCH, 'utf8');
+  new Script(patch, { filename: WORKER_PATCH }); // parse only: a syntax error shows up here, not in the browser
+  if (/fetchSync|handleExtraCommand/.test(js)) throw new Error('The worker already uses a name the patch defines');
+
   // SwiftLaTeX's own TeX Live servers are gone; TeXlyre runs a compatible one.
   let out = replaceOnce(
     js,
@@ -45,11 +61,21 @@ function patchWorker(js) {
   );
   // Every compile used to run BibTeX as well; nothing here needs it yet.
   out = replaceOnce(out, '_compileBibtex();', '');
-  const start = out.indexOf('function kpse_find_file_impl(');
-  const end = out.indexOf('let pk404_cache={};');
-  if (start === -1 || end === -1 || end < start) throw new Error('kpse_find_file_impl not found');
-  out = out.slice(0, start) + FIND_FILE + out.slice(end);
-  return replaceOnce(out, 'else if(cmd==="flushcache"){cleanDir(WORKROOT)}', `else if(cmd==="flushcache"){cleanDir(WORKROOT)}${EXTRA_COMMANDS}`);
+  // SwiftLaTeX's kpse_find_file_impl is everything between these two anchors; the patch replaces it.
+  // The PK font lookup after it stays as it is. The original function is about 1,000 characters long:
+  // a much longer stretch means the release changed and something else would be cut out.
+  const start = indexOfOnce(out, 'function kpse_find_file_impl(');
+  const end = indexOfOnce(out, 'let pk404_cache={};');
+  if (end < start || end - start > 2000) throw new Error('Unexpected code between the kpse_find_file_impl anchors');
+  out = `${out.slice(0, start)}\n${patch.trim()}\n${out.slice(end)}`;
+  // Commands the worker does not know go to the patch before they are reported as unknown.
+  out = replaceOnce(out, 'else{console.error("Unknown command "+cmd)}', 'else if(!handleExtraCommand(cmd,data)){console.error("Unknown command "+cmd)}');
+
+  for (const name of ['fetchSync', 'kpse_find_file_impl', 'handleExtraCommand', 'kpse_find_pk_impl']) {
+    if (countOf(out, `function ${name}(`) !== 1) throw new Error(`The patched worker should define ${name} exactly once`);
+  }
+  new Script(out, { filename: 'swiftlatexpdftex.js' }); // parse only: the result must still be a valid classic script
+  return out;
 }
 
 async function download(url) {
@@ -58,7 +84,37 @@ async function download(url) {
   return { data: Buffer.from(await res.arrayBuffer()), fileid: res.headers.get('fileid') };
 }
 
-mkdirSync(join(OUT, 'files'), { recursive: true });
+/** SwiftLaTeX's servers answer 301 for a file they do not have; 404 is accepted as well. Redirects are not followed. */
+async function assertMissing(key) {
+  const res = await fetch(TEXLIVE + key, { redirect: 'manual' });
+  await res.arrayBuffer();
+  if (res.status !== 301 && res.status !== 404) throw new Error(`${key} is marked missing in files.txt but the server answered ${res.status}`);
+}
+
+/** Reads files.txt into [{ key, name }]; name is "-" for a key known not to exist on the server. */
+function readFileList() {
+  const entries = [];
+  const keys = new Set();
+  const names = new Set();
+  for (const line of readFileSync(join(OUT, 'files.txt'), 'utf8').split('\n')) {
+    if (!line.trim()) continue;
+    const [key, name, ...extra] = line.trim().split('\t');
+    if (!key || !name || extra.length) throw new Error(`Bad line in files.txt: ${line}`);
+    if (!/^\d+\/[^\s/]+$/.test(key)) throw new Error(`Bad key in files.txt: ${key}`);
+    if (keys.has(key)) throw new Error(`Duplicate key: ${key}`);
+    keys.add(key);
+    if (name !== '-') {
+      if (names.has(name)) throw new Error(`Duplicate file name: ${name}`);
+      names.add(name);
+    }
+    entries.push({ key, name });
+  }
+  return entries;
+}
+
+// Everything that can be wrong with the inputs is checked before anything in public/texlive is replaced.
+const entries = readFileList();
+mkdirSync(OUT, { recursive: true });
 
 const tmp = mkdtempSync(join(tmpdir(), 'swiftlatex-'));
 try {
@@ -70,25 +126,30 @@ try {
 } finally {
   rmSync(tmp, { recursive: true, force: true });
 }
+writeFileSync(join(OUT, 'LICENSE-SwiftLaTeX.txt'), (await download(LICENSE)).data);
 
-const manifest = { preload: {}, files: {} };
-const names = new Set();
-const lines = readFileSync(join(OUT, 'files.txt'), 'utf8').split('\n').map((line) => line.trim()).filter(Boolean);
-for (const line of lines) {
-  const [key, fileid] = line.split('\t');
-  if (!key || !fileid) throw new Error(`Bad line in files.txt: ${line}`);
-  if (names.has(fileid)) throw new Error(`Duplicate file name: ${fileid}`);
-  names.add(fileid);
-  const { data, fileid: served } = await download(TEXLIVE + key);
-  if (served !== fileid) throw new Error(`${key}: server sent ${served}, files.txt says ${fileid}`);
-  if (PRELOAD.has(key)) {
-    writeFileSync(join(OUT, 'files', `${fileid}.gz`), gzipSync(data, { level: 9 }));
-    manifest.preload[key] = fileid;
+// Start from an empty directory so that files removed from files.txt do not linger.
+rmSync(join(OUT, 'files'), { recursive: true, force: true });
+mkdirSync(join(OUT, 'files'), { recursive: true });
+
+const manifest = { preload: {}, files: {}, missing: [] };
+for (const { key, name } of entries) {
+  if (name === '-') {
+    await assertMissing(key);
+    manifest.missing.push(key);
   } else {
-    writeFileSync(join(OUT, 'files', fileid), data);
-    manifest.files[key] = fileid;
+    const { data, fileid } = await download(TEXLIVE + key);
+    if (fileid !== name) throw new Error(`${key}: server sent ${fileid}, files.txt says ${name}`);
+    if (PRELOAD.has(key)) {
+      writeFileSync(join(OUT, 'files', `${name}.gz`), gzipSync(data, { level: 9 }));
+      manifest.preload[key] = name;
+    } else {
+      writeFileSync(join(OUT, 'files', name), data);
+      manifest.files[key] = name;
+    }
   }
   process.stdout.write('.');
 }
+if (Object.keys(manifest.preload).length !== PRELOAD.size) throw new Error('A preload file is not listed in files.txt');
 writeFileSync(join(OUT, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
-console.log(`\n${lines.length} files`);
+console.log(`\n${entries.length - manifest.missing.length} files, ${manifest.missing.length} known-missing keys`);

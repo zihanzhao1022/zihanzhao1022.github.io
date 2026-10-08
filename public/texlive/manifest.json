@@ -213,5 +213,10 @@
     "32/cmr7.pfb": "cmr7.pfb",
     "3/ptmrc8t": "ptmrc8t.tfm",
     "33/ptmrc8t.vf": "ptmrc8t.vf"
-  }
+  },
+  "missing": [
+    "26/prdefault.cfg",
+    "33/ptmr8r.vf",
+    "33/ptmb8r.vf"
+  ]
 }

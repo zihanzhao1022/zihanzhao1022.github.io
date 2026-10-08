@@ -157,7 +157,7 @@ interface ResultBlock {
   - 引擎；
   - 格式文件和字体映射表，gzip 压缩后共约 2.4 MB，启动时解压预载；
   - 技术验证中默认导言区、ACL 和 ICLR 导言区用到的约 210 个宏包和字体文件，约 3.6 MB。
-- 其他文件按"格式编号/文件名"从 `https://texlive.texlyre.org/`（SwiftLaTeX 兼容的 TeX Live 文件服务器，支持跨域）下载，存进 IndexedDB，下次直接预载。只有文件名离开浏览器，论文内容不会。
+- 其他文件按"格式编号/文件名"从 `https://texlive.texlyre.org/`（SwiftLaTeX 兼容的 TeX Live 文件服务器，支持跨域）下载，存进浏览器的 Cache Storage，下次直接预载。只有文件名离开浏览器，论文内容不会。
 - 许可证：SwiftLaTeX 为 AGPL-3.0，pdfTeX 为 GPL。在 `public/texlive/` 附上许可证、源码地址和修改说明。
 - 技术验证结果（2026-10-08）：
   - 默认导言区和 ACL、ICLR 真实导言区下的 20 个表格和一段正文全部编译成功，效果与论文 PDF 一致；

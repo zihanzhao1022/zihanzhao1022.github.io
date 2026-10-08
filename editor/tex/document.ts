@@ -9,7 +9,7 @@ export const DEFAULT_PREAMBLE = String.raw`\documentclass{article}
 \usepackage{amsmath,amssymb}
 \usepackage{graphicx}
 \usepackage[table]{xcolor}
-\usepackage{booktabs,multirow,makecell,array,tabularx}`;
+\usepackage{booktabs,multirow,makecell,array,tabularx,hhline}`;
 
 /**
  * Text blocks are set as wide as the site's column (about 920 px at the page's PDF scale), not at the paper's
@@ -18,7 +18,7 @@ export const DEFAULT_PREAMBLE = String.raw`\documentclass{article}
 export const TEXT_WIDTH = '550pt';
 
 /** Changes whenever the wrapper's output changes, so stored PDFs made by an older wrapper count as stale. */
-export const WRAPPER_VERSION = 4;
+export const WRAPPER_VERSION = 5;
 
 /** Where the preamble and the block sit in main.tex (1-based lines), for mapping TeX's line numbers back. */
 export interface DocLines {
@@ -80,6 +80,13 @@ const SUPPORT = String.raw`\makeatletter
 \def\results@restorepar{\setlength\parindent{\results@parindent}\setlength\parskip{\results@parskip}}
 \def\results@counter#1{\typeout{RESULTS-COUNTER:#1=\the\value{#1}}}
 \AtEndDocument{\begingroup\let\@elt\results@counter\cl@@ckpt\endgroup}
+\makeatother`;
+
+// Visual tables also work with a pasted paper preamble that does not load these packages.
+// Loading colortbl explicitly avoids adding the `table` option to an already-loaded xcolor.
+const TABLE_SUPPORT = String.raw`\makeatletter
+\@ifpackageloaded{xcolor}{}{\usepackage{xcolor}}
+\usepackage{colortbl,array,multirow,hhline}
 \makeatother`;
 
 /**
@@ -155,6 +162,7 @@ export function buildBlockDocument({ preamble, source, kind, counters = {}, labe
   const before = [
     ...head,
     ownPreamble,
+    ...(kind === 'table' ? [TABLE_SUPPORT] : []),
     SUPPORT,
     '\\begin{document}',
     '\\makeatletter',

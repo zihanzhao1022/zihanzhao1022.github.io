@@ -15,6 +15,8 @@ export function preambleNames(preamble: string): { macros: string[]; colors: str
 const PACKAGES: { name: string; test: RegExp }[] = [
   { name: 'booktabs', test: /\\(?:toprule|midrule|bottomrule|cmidrule|addlinespace|specialrule)\b/ },
   { name: 'multirow', test: /\\multirow\b/ },
+  { name: 'hhline', test: /\\hhline\b/ },
+  { name: 'array', test: /\\(?:arraybackslash|newcolumntype)\b/ },
   { name: 'makecell', test: /\\(?:makecell|thead)\b/ },
   { name: 'tabularx', test: /\\begin\{tabularx\}/ },
   { name: 'graphicx', test: /\\(?:includegraphics|resizebox|rotatebox|scalebox)\b/ },
@@ -26,14 +28,16 @@ const PACKAGES: { name: string; test: RegExp }[] = [
 export function requiredPackages(source: string): string[] {
   const text = stripComments(source);
   const lines = PACKAGES.filter((item) => item.test.test(text)).map((item) => `\\usepackage{${item.name}}`);
-  if (/\\(?:cellcolor|rowcolor|rowcolors)\b/.test(text)) lines.push('\\usepackage[table]{xcolor}');
-  else if (/\\(?:textcolor|color|colorbox)\b/.test(text)) lines.push('\\usepackage{xcolor}');
+  if (/\\(?:cellcolor|rowcolor|rowcolors|arrayrulecolor)\b/.test(text)) lines.push('\\usepackage[table]{xcolor}');
+  else if (/\\(?:textcolor|color|colorbox|definecolor|colorlet)\b/.test(text)) lines.push('\\usepackage{xcolor}');
   return lines;
 }
 
 /** The block's source for pasting into a paper, headed by the packages it needs as comments. */
 export function exportTex(source: string): string {
-  const packages = requiredPackages(source);
+  // This cache belongs to the visual editor, not the user's manuscript.
+  const clean = source.replace(/^% portfolio-table:v1 [^\r\n]*(?:\r?\n|$)/gm, '').replace(/\s+$/, '');
+  const packages = requiredPackages(clean);
   const head = packages.length > 0 ? `% Requires:\n${packages.map((line) => `% ${line}`).join('\n')}\n` : '';
-  return `${head}${source.replace(/\s+$/, '')}\n`;
+  return `${head}${clean}\n`;
 }

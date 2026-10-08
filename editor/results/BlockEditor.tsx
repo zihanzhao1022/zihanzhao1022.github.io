@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ClipboardPaste, Copy, Download, Eye, EyeOff, Loader2, Paperclip, Play, Trash2, Upload, X } from 'lucide-react';
+import { ClipboardPaste, Copy, Download, Eye, EyeOff, Loader2, Paperclip, Play, Redo2, Trash2, Undo2, Upload, X } from 'lucide-react';
 import PdfView from '../../components/results/PdfView';
 import { pdfPageSize } from '../../components/results/pdfjs';
 import { ResultBlock, ResultBlockKind, ResultPaper } from '../../types';
@@ -29,6 +29,9 @@ import { blockContext, describeFailure } from './numbering';
 import { ResultsOp, applyResultsOp, resultsCommitMessage } from './ops';
 import { createBlockPreview } from './preview';
 import { exportTex, preambleNames } from './texNames';
+import TableVisualEditor from './table/TableVisualEditor';
+import { createTable } from './table/model';
+import { parseTable, serializeTable } from './table/latex';
 
 export type ResultsSave = (op: ResultsOp, writes: FileWrite[], deletes: string[], message: string, publicMessage: string) => Promise<void>;
 
@@ -57,7 +60,10 @@ interface Props {
 /** Full-screen LaTeX editor for one block: code on the left, the compiled PDF on the right. */
 const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afterBlockId, readFile, onSave, onClose }) => {
   const existing = blockId === undefined ? undefined : paper.blocks.find((item) => item.id === blockId);
-  const [block] = useState<ResultBlock>(() => existing ?? { id: newBlockId(), kind: blockKind, source: BLOCK_TEMPLATES[blockKind] });
+  const [block] = useState<ResultBlock>(() => existing ?? {
+    id: newBlockId(), kind: blockKind,
+    source: blockKind === 'table' ? serializeTable(createTable()) : BLOCK_TEMPLATES[blockKind],
+  });
   const isNew = existing === undefined;
   const original = block.source ?? '';
   const citationScope = `preview:${paper.id}:${block.id}`;
@@ -71,12 +77,19 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [tab, setTab] = useState<'code' | 'preview'>('code');
+  const [tableMode, setTableMode] = useState<'visual' | 'latex'>(() =>
+    block.kind === 'table' && parseTable(original, preambleOf(paper)).ok ? 'visual' : 'latex',
+  );
+  const [targetLine, setTargetLine] = useState<number | null>(null);
+  const tableUndo = useRef<string[]>([]);
+  const tableRedo = useRef<string[]>([]);
   const editor = useRef<CodeEditorHandle>(null);
   const latest = useRef(0);
   const busy = useRef(false);
   const upload = useRef<HTMLInputElement>(null);
 
   const preamble = preambleOf(paper);
+  const table = useMemo(() => block.kind === 'table' ? parseTable(source, preamble) : null, [block.kind, source, preamble]);
   const names = useMemo(() => preambleNames(preamble), [preamble]);
   const files = useMemo(() => (stored ? { ...stored, ...added } : null), [stored, added]);
   const blockOp = useMemo<Extract<ResultsOp, { kind: 'putBlock' }>>(() => {
@@ -93,6 +106,30 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
   const labels = useMemo(() => Object.keys(context.labels).sort(), [context.labels]);
   const preview = useMemo(() => (files ? createBlockPreview(draftPaper, block, files, pdfPageSize) : null), [draftPaper, block, files]);
   const dirty = source !== original || Object.keys(added).length > 0;
+
+  const changeSource = (text: string) => {
+    if (text === source) return;
+    if (block.kind === 'table') {
+      tableUndo.current = [...tableUndo.current.slice(-199), source];
+      tableRedo.current = [];
+    }
+    setSource(text);
+  };
+  const restoreTable = (redo = false) => {
+    if (saving) return;
+    const from = redo ? tableRedo : tableUndo;
+    const to = redo ? tableUndo : tableRedo;
+    const previous = from.current.pop();
+    if (previous === undefined) return;
+    to.current.push(source);
+    setSource(previous);
+  };
+
+  useEffect(() => {
+    if (targetLine === null || (block.kind === 'table' && tableMode !== 'latex')) return;
+    editor.current?.goToLine(targetLine);
+    setTargetLine(null);
+  }, [targetLine, tableMode, block.kind]);
 
   useEffect(() => {
     let cancelled = false;
@@ -351,7 +388,14 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
   else if (shown) status = <span className="text-red-600">{shown.issues.length} 个错误</span>;
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={`${KIND_LABEL[block.kind]}编辑器`} className="fixed inset-0 z-[100] flex flex-col bg-white">
+    <div role="dialog" aria-modal="true" aria-label={`${KIND_LABEL[block.kind]}编辑器`} className="fixed inset-0 z-[100] flex flex-col bg-white"
+      onKeyDown={(event) => {
+        if (block.kind !== 'table' || tableMode !== 'visual' || !(event.metaKey || event.ctrlKey)) return;
+        if (event.key.toLowerCase() === 's') { event.preventDefault(); if (files) void save(); }
+        if (event.key === 'Enter') { event.preventDefault(); void compile(source); }
+        if (event.key.toLowerCase() === 'z') { event.preventDefault(); restoreTable(event.shiftKey); }
+      }}
+    >
       <header className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 border-b border-gray-200">
         <span className="font-semibold text-gray-900">
           {isNew ? '添加' : '编辑'}
@@ -423,12 +467,31 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
             onClick={() => setTab(name)}
             className={`flex-1 py-2 ${tab === name ? 'text-purple-700 border-b-2 border-purple-600' : 'text-gray-500'}`}
           >
-            {name === 'code' ? '代码' : '预览'}
+            {name === 'code' ? (block.kind === 'table' ? '编辑' : '代码') : '预览'}
           </button>
         ))}
       </div>
-      <div className="flex-1 min-h-0 grid lg:grid-cols-2">
-        <section className={`min-h-0 flex-col border-r border-gray-200 ${tab === 'code' ? 'flex' : 'hidden lg:flex'}`}>
+      <div className={`flex-1 min-h-0 grid ${block.kind === 'table' && tableMode === 'visual' ? 'lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]' : 'lg:grid-cols-2'}`}>
+        <section className={`min-h-0 min-w-0 flex-col border-r border-gray-200 ${tab === 'code' ? 'flex' : 'hidden lg:flex'}`}>
+          {block.kind === 'table' && (
+            <div className="flex items-center gap-3 px-3 py-2 border-b border-gray-200 bg-white">
+              <div className="inline-flex rounded-lg bg-purple-50 p-1 gap-1" role="group" aria-label="表格编辑方式">
+                {(['visual', 'latex'] as const).map((mode) => (
+                  <button key={mode} type="button" aria-pressed={tableMode === mode} onClick={() => setTableMode(mode)}
+                    className={`rounded-md px-3 py-1.5 text-sm ${tableMode === mode ? 'bg-white text-purple-700 shadow-sm font-medium' : 'text-gray-500 hover:text-purple-700'}`}>
+                    {mode === 'visual' ? '可视化' : 'LaTeX'}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-1">
+                <button type="button" aria-label="撤销表格修改" title="撤销" disabled={saving || !tableUndo.current.length} onClick={() => restoreTable()}
+                  className="p-1.5 rounded text-gray-500 hover:bg-purple-50 hover:text-purple-700 disabled:opacity-30"><Undo2 size={16} /></button>
+                <button type="button" aria-label="重做表格修改" title="重做" disabled={saving || !tableRedo.current.length} onClick={() => restoreTable(true)}
+                  className="p-1.5 rounded text-gray-500 hover:bg-purple-50 hover:text-purple-700 disabled:opacity-30"><Redo2 size={16} /></button>
+              </div>
+              <span className="text-xs text-gray-400 ml-auto hidden sm:inline">自动更新预览</span>
+            </div>
+          )}
           {block.kind === 'figure' && (
             <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-gray-100 bg-gray-50 text-xs">
               <Paperclip size={14} className="text-gray-400" />
@@ -465,10 +528,19 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
               />
             </div>
           )}
-          <CodeEditor
+          {block.kind === 'table' && tableMode === 'visual' ? (
+            table?.ok ? <TableVisualEditor value={table.table} onChange={(next) => changeSource(serializeTable(next))} disabled={saving} /> : (
+              <div className="m-5 rounded-xl border border-purple-100 bg-purple-50/50 p-5 text-sm text-gray-600 space-y-3">
+                <p className="font-medium text-gray-900">这张表格需要使用 LaTeX 编辑</p>
+                <p>{table && !table.ok ? table.reason : '暂时无法读取表格结构。'}</p>
+                <p>原代码已保留，不会自动替换或丢失内容。</p>
+                <button type="button" className={BUTTON_SECONDARY} onClick={() => setTableMode('latex')}>返回 LaTeX 编辑</button>
+              </div>
+            )
+          ) : <CodeEditor
             ref={editor}
             value={source}
-            onChange={setSource}
+            onChange={changeSource}
             problems={sourceProblems}
             macros={names.macros}
             colors={names.colors}
@@ -476,7 +548,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
             onRun={() => void compile(source)}
             onSave={() => void save()}
             className="flex-1"
-          />
+          />}
         </section>
         <section className={`min-h-0 overflow-auto bg-gray-50 p-4 space-y-3 ${tab === 'preview' ? 'block' : 'hidden lg:block'}`}>
           {shown && shown.issues.length > 0 && (
@@ -488,7 +560,8 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
                     disabled={issue.area !== 'source' || issue.line === undefined}
                     onClick={() => {
                       setTab('code');
-                      editor.current?.goToLine(issue.line!);
+                      setTableMode('latex');
+                      setTargetLine(issue.line!);
                     }}
                     className="text-left text-red-700 hover:underline disabled:no-underline disabled:cursor-default"
                   >

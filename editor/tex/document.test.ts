@@ -59,6 +59,49 @@ describe('passOptionsLines', () => {
 });
 
 describe('buildBlockDocument', () => {
+  it('supports visual cell fills, merged cells and partial rules with a minimal paper preamble', () => {
+    const source = String.raw`\begin{table}
+\arrayrulecolor[HTML]{663399}
+\setlength{\arrayrulewidth}{1pt}
+\begin{tabular}{|c|c|}
+\hhline{|--|}
+\multirow{2}{*}{Merged} & \cellcolor[HTML]{F2963C}42 \\
+\hhline{|~-|}
+& 51 \\
+\hhline{|--|}
+\end{tabular}
+\end{table}`;
+    const doc = buildBlockDocument({ preamble: '\\documentclass{article}', source, kind: 'table' });
+    const preamble = doc.main.slice(0, doc.main.indexOf('\\begin{document}'));
+    expect(preamble).toContain('\\@ifpackageloaded{xcolor}{}{\\usepackage{xcolor}}');
+    expect(preamble).toContain('\\usepackage{colortbl,array,multirow,hhline}');
+    const sourceLines = doc.main.split('\n').slice(doc.sourceStartLine - 1, doc.sourceStartLine - 1 + doc.sourceLineCount);
+    expect(sourceLines.join('\n')).toBe(source);
+    expect(doc.preambleStartLine).toBe(1);
+    expect(doc.preambleLineCount).toBe(1);
+  });
+
+  it('does not add an xcolor option after an existing paper preamble has loaded the package', () => {
+    const preamble = String.raw`\documentclass{article}
+\usepackage[dvipsnames]{xcolor}
+\usepackage[longtable]{multirow}
+\definecolor{heatredmid}{RGB}{242,150,60}`;
+    const doc = buildBlockDocument({ preamble, source: TABLE, kind: 'table' });
+    expect(doc.main).toContain('\\PassOptionsToPackage{dvipsnames}{xcolor}');
+    expect(doc.main).toContain('\\PassOptionsToPackage{longtable}{multirow}');
+    expect(doc.main).not.toContain('\\usepackage[table]{xcolor}');
+    expect(doc.main).not.toContain('\\PassOptionsToPackage{table}{xcolor}');
+    const lines = doc.main.split('\n');
+    expect(lines.slice(doc.preambleStartLine - 1, doc.preambleStartLine - 1 + doc.preambleLineCount).join('\n')).toBe(preamble);
+    expect(lines.slice(doc.sourceStartLine - 1, doc.sourceStartLine - 1 + doc.sourceLineCount).join('\n')).toBe(TABLE);
+  });
+
+  it.each(['text', 'figure'] as const)('does not inject table packages into a %s block with a custom preamble', kind => {
+    const doc = buildBlockDocument({ preamble: '\\documentclass{article}', source: kind === 'text' ? 'Text' : FIGURE, kind });
+    expect(doc.main).not.toContain('\\usepackage{colortbl,array,multirow,hhline}');
+    expect(doc.main).not.toContain('\\usepackage{xcolor}');
+  });
+
   it('puts the options first, then the preamble, then the block in a cropped minipage', () => {
     const doc = buildBlockDocument({ preamble: DEFAULT_PREAMBLE, source: TABLE, kind: 'table' });
     const lines = doc.main.split('\n');

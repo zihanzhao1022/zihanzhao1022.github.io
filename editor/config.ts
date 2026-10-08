@@ -6,6 +6,8 @@ export const EDITOR_CONFIG = {
   owner: 'zihanzhao1022',
   repo: 'zihanzhao1022.github.io',
   branch: 'main',
+  /** Private repository with the unpublished results pages (same owner and branch, same GitHub App). */
+  privateRepo: 'homepage-private',
   /** GitHub App client ID. */
   clientId: 'Iv23liGqrkAjs9Kn7RKo',
   /** Cloudflare Worker URL without a trailing slash, e.g. https://homepage-auth.<subdomain>.workers.dev */

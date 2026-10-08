@@ -11,6 +11,15 @@ export const DEFAULT_PREAMBLE = String.raw`\documentclass{article}
 \usepackage[table]{xcolor}
 \usepackage{booktabs,multirow,makecell,array,tabularx}`;
 
+/**
+ * Text blocks are set as wide as the site's column (about 920 px at the page's PDF scale), not at the paper's
+ * column width: they are notes for the web page. Tables and figures keep the paper's widths.
+ */
+export const TEXT_WIDTH = '550pt';
+
+/** Changes whenever the wrapper's output changes, so stored PDFs made by an older wrapper count as stale. */
+export const WRAPPER_VERSION = 2;
+
 /** Where the preamble and the block sit in main.tex (1-based lines), for mapping TeX's line numbers back. */
 export interface DocLines {
   preambleStartLine: number;
@@ -122,7 +131,8 @@ export function buildBlockDocument({ preamble, source, kind, counters = {}, labe
   const restore = Object.entries(counters)
     .filter(([name, value]) => COUNTER_NAME.test(name) && !SKIPPED_COUNTERS.has(name) && Number.isFinite(value))
     .map(([name, value]) => `\\@ifundefined{c@${name}}{}{\\setcounter{${name}}{${Math.trunc(value)}}}`);
-  const width = /\\begin\{(?:table|figure)\*\}/.test(stripComments(source)) ? '\\textwidth' : '\\columnwidth';
+  const wide = /\\begin\{(?:table|figure)\*\}/.test(stripComments(source));
+  const width = kind === 'text' ? TEXT_WIDTH : wide ? '\\textwidth' : '\\columnwidth';
   const body = source.replace(/\s+$/, '');
   // \makeatother comes first so the owner's block is read with normal catcodes. @ is then not a letter, so
   // `\results@restorepar` would read as `\results` followed by text; \csname builds the name from characters.

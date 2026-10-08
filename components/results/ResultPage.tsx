@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { Check, Copy } from 'lucide-react';
 import { Link, Navigate, useParams } from 'react-router-dom';
+import { exportTex } from '../../editor/results/texNames';
 import { findPaper, shownBlocks } from '../../lib/results';
 import { ResultBlock } from '../../types';
 import { useContent } from '../ContentContext';
@@ -12,6 +14,34 @@ import { ResultsUnavailable } from './ResultsList';
 
 const KIND_LABEL = { text: '文字', figure: '图', table: '表格' } as const;
 
+/** Copies the block's LaTeX, headed by the packages it needs, without opening the editor. */
+const CopyLatex: React.FC<{ source: string }> = ({ source }) => {
+  const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle');
+  useEffect(() => {
+    if (state === 'idle') return undefined;
+    const timer = setTimeout(() => setState('idle'), 2000);
+    return () => clearTimeout(timer);
+  }, [state]);
+  const copy = () => {
+    navigator.clipboard.writeText(exportTex(source)).then(
+      () => setState('copied'),
+      () => setState('failed'),
+    );
+  };
+  const label = { idle: '复制 LaTeX', copied: '已复制', failed: '复制失败' }[state];
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      title="复制 LaTeX 代码（开头注明需要的宏包）"
+      className="inline-flex items-center gap-1 h-8 px-2.5 rounded-full border border-gray-300 bg-white text-xs text-gray-600 shadow-sm hover:border-purple-300 hover:text-purple-700"
+    >
+      {state === 'copied' ? <Check size={14} /> : <Copy size={14} />}
+      {label}
+    </button>
+  );
+};
+
 const BlockItem: React.FC<{ paperId: string; block: ResultBlock }> = ({ paperId, block }) => {
   const { editing } = useEditMode();
   return (
@@ -20,6 +50,7 @@ const BlockItem: React.FC<{ paperId: string; block: ResultBlock }> = ({ paperId,
         <div className="flex items-center justify-end gap-2 mb-1 text-xs text-gray-400">
           {KIND_LABEL[block.kind]}
           {block.hidden && <HiddenBadge />}
+          {block.source && <CopyLatex source={block.source} />}
           <EditButton request={{ kind: 'block', paperId, blockId: block.id }} label={`编辑${KIND_LABEL[block.kind]}`} />
         </div>
       )}

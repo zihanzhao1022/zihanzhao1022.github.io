@@ -1,5 +1,5 @@
 import { ResultBlock, ResultBlockOutput, ResultPaper } from '../../types';
-import { stripComments } from '../tex/document';
+import { WRAPPER_VERSION, stripComments } from '../tex/document';
 import { FileWrite } from './backend';
 
 /** What a block's compile starts from: the counters where the page left off, and the page's labels. */
@@ -61,6 +61,7 @@ export function inputHash(paper: ResultPaper, block: ResultBlock, context: Block
   const references = referencedLabels(block.source ?? '').map((name) => [name, context.labels[name] ?? null]);
   return hashText(
     JSON.stringify({
+      wrapper: WRAPPER_VERSION,
       preamble: paper.preamble ?? '',
       files: usedFiles(paper, block),
       kind: block.kind,

@@ -141,7 +141,7 @@ describe('buildBlockDocument', () => {
   it('restores paragraph settings only for text blocks', () => {
     const text = buildBlockDocument({ preamble: DEFAULT_PREAMBLE, source: 'Hi', kind: 'text' });
     const table = buildBlockDocument({ preamble: DEFAULT_PREAMBLE, source: TABLE, kind: 'table' });
-    expect(text.main).toContain('\\begin{minipage}{\\columnwidth}\\csname results@restorepar\\endcsname');
+    expect(text.main).toContain('\\begin{minipage}{550pt}\\csname results@restorepar\\endcsname');
     expect(table.main).not.toContain('\\csname results@restorepar');
   });
 

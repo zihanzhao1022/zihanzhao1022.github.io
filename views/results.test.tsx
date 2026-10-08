@@ -23,7 +23,7 @@ const results: ResultPaper[] = [
     year: 2027,
     summary: 'Main tables.',
     blocks: [
-      { id: 'b1', kind: 'table', output: output('results/res-pub/b1-aaaa.pdf') },
+      { id: 'b1', kind: 'table', source: '\\toprule', output: output('results/res-pub/b1-aaaa.pdf') },
       { id: 'b2', kind: 'text', hidden: true, output: output('results/res-pub/b2-bbbb.pdf') },
     ],
   },
@@ -97,6 +97,7 @@ describe('paper page', () => {
     expect(html.match(/relative mx-auto bg-white/g)).toHaveLength(1);
     expect(html).not.toContain('导言区与附件');
     expect(html).not.toContain('编辑');
+    expect(html).not.toContain('复制 LaTeX');
   });
 
   it('gives the owner every block with editing controls', () => {
@@ -104,6 +105,7 @@ describe('paper page', () => {
     expect(html.match(/relative mx-auto bg-white/g)).toHaveLength(2);
     expect(html).toContain('导言区与附件');
     expect(html).toContain('编辑表格');
+    expect(html.match(/复制 LaTeX<\/button>/g)).toHaveLength(1);
     expect(html).toContain('已隐藏');
     for (const label of ['文字', '图', '表格']) expect(html).toContain(label);
   });

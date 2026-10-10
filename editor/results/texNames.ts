@@ -1,3 +1,5 @@
+import { headingTex } from '../../lib/headings';
+import { ResultBlock } from '../../types';
 import { stripComments } from '../tex/document';
 
 /** Commands and colors a preamble defines, for completion in the code editor. */
@@ -33,11 +35,29 @@ export function requiredPackages(source: string): string[] {
   return lines;
 }
 
+// The visual table editor's cache line belongs to the editor, not the user's manuscript.
+const withoutCache = (source: string): string => source.replace(/^% portfolio-table:v1 [^\r\n]*(?:\r?\n|$)/gm, '').replace(/\s+$/, '');
+
+const requiresHead = (packages: string[]): string =>
+  packages.length > 0 ? `% Requires:\n${packages.map((line) => `% ${line}`).join('\n')}\n` : '';
+
 /** The block's source for pasting into a paper, headed by the packages it needs as comments. */
 export function exportTex(source: string): string {
-  // This cache belongs to the visual editor, not the user's manuscript.
-  const clean = source.replace(/^% portfolio-table:v1 [^\r\n]*(?:\r?\n|$)/gm, '').replace(/\s+$/, '');
-  const packages = requiredPackages(clean);
-  const head = packages.length > 0 ? `% Requires:\n${packages.map((line) => `% ${line}`).join('\n')}\n` : '';
-  return `${head}${clean}\n`;
+  const clean = withoutCache(source);
+  return `${requiresHead(requiredPackages(clean))}${clean}\n`;
+}
+
+/**
+ * The whole page for pasting into the paper, top to bottom: headings as sectioning commands, every block's
+ * code (hidden ones too), and the packages they all need at the top. The bibliography is not a block.
+ */
+export function exportPaperTex(blocks: ResultBlock[]): string {
+  const parts = blocks
+    .map((block) => (block.kind === 'heading' ? (block.heading ? headingTex(block.heading) : '') : withoutCache(block.source ?? '')))
+    .filter(Boolean);
+  const packages = [...new Set(blocks.flatMap((block) => (block.kind === 'heading' ? [] : requiredPackages(withoutCache(block.source ?? '')))))];
+  // xcolor with the table option covers plain xcolor.
+  const needed = packages.includes('\\usepackage[table]{xcolor}') ? packages.filter((line) => line !== '\\usepackage{xcolor}') : packages;
+  const head = requiresHead(needed);
+  return `${head}${head ? '\n' : ''}${parts.join('\n\n')}\n`;
 }

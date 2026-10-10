@@ -270,3 +270,115 @@ describe('citations', () => {
     expect(result.failed).toEqual({ blockId: 'references', message: 'I found no \\bibstyle command' });
   });
 });
+
+/**
+ * A fake compiler that knows sections: \section and \subsection step their counters (lettered after
+ * \appendix), and each \label records the current number and hyperref's anchor.
+ */
+function sectionCompiler(): { compile: CompileFn; calls: string[]; contexts: Record<string, BlockContext> } {
+  const calls: string[] = [];
+  const contexts: Record<string, BlockContext> = {};
+  const compile: CompileFn = async (block, context) => {
+    calls.push(block.id);
+    contexts[block.id] = context;
+    const source = block.source ?? '';
+    const counters = { ...context.counters };
+    const appendix = context.appendix === true || source.includes('\\appendix');
+    if (source.includes('\\appendix')) counters.section = 0;
+    let current = '';
+    let anchor = 'Doc-Start';
+    const step = /\\(section|subsection)(\*?)\{/.exec(source);
+    if (step && !step[2]) {
+      counters[step[1]] = (counters[step[1]] ?? 0) + 1;
+      if (step[1] === 'section') counters.subsection = 0;
+      const section = appendix ? String.fromCharCode(64 + counters.section) : String(counters.section);
+      current = step[1] === 'section' ? section : `${section}.${counters.subsection}`;
+      anchor = `${appendix ? 'appendix' : step[1]}.${current}`;
+    }
+    if (block.kind === 'table') counters.table = (counters.table ?? 0) + 1;
+    const labels: Record<string, string> = {};
+    for (const match of source.matchAll(/\\label\{([^}]*)\}/g)) labels[match[1]] = `{${current}}{1}{}{${anchor}}{}`;
+    return { ok: true, pdf: new TextEncoder().encode(block.id), width: 1, height: 1, counters, labels };
+  };
+  return { compile, calls, contexts };
+}
+
+describe('rebuild with headings', () => {
+  it('numbers headings like LaTeX, keeps no PDF for them, and lets blocks refer to them', async () => {
+    const { compile, contexts } = sectionCompiler();
+    const result = await rebuild(
+      paper([
+        { id: 'h1', kind: 'heading', heading: { level: 'section', title: 'Intro', label: 'sec:intro' } },
+        { id: 't1', kind: 'table', source: 'A table' },
+        { id: 'h2', kind: 'heading', heading: { level: 'subsection', title: 'Setup' } },
+        { id: 'x', kind: 'text', source: 'See Section~\\ref{sec:intro}.' },
+      ]),
+      compile,
+    );
+    expect(result.numberings.h1).toMatchObject({ number: '1', anchor: 'section.1', labels: { 'sec:intro': '{1}{1}{}{section.1}{}' } });
+    expect(result.numberings.h2).toMatchObject({ number: '1.1', anchor: 'subsection.1.1', labels: {} });
+    expect(result.outputs).not.toHaveProperty('h1');
+    expect(result.writes.map((write) => write.path)).toEqual([result.outputs.t1.pdf, result.outputs.x.pdf]);
+    expect(contexts.x.labels).toEqual({ 'sec:intro': '{1}{1}{}{section.1}{}' });
+    expect(contexts.x.counters).toMatchObject({ section: 1, subsection: 1, table: 1 });
+    // A setOutputs operation keeps them only for the heading they were compiled from.
+    expect(result.sources.h1).toBe(JSON.stringify(['section', false, 'Intro', 'sec:intro', false]));
+  });
+
+  it('leaves unnumbered headings without a number', async () => {
+    const { compile } = sectionCompiler();
+    const result = await rebuild(paper([{ id: 'h', kind: 'heading', heading: { level: 'section', starred: true, title: 'Notes' } }]), compile);
+    expect(result.numberings.h.number).toBeUndefined();
+    expect(result.numberings.h.counters).toEqual({});
+  });
+
+  it('letters the sections once the appendix starts, in every block after it', async () => {
+    const { compile, contexts } = sectionCompiler();
+    const result = await rebuild(
+      paper([
+        { id: 'h1', kind: 'heading', heading: { level: 'section', title: 'Intro' } },
+        { id: 'hA', kind: 'heading', heading: { level: 'section', title: 'Proofs', appendix: true } },
+        { id: 'x', kind: 'text', source: 'Lemma.' },
+        { id: 'hB', kind: 'heading', heading: { level: 'subsection', title: 'Lemma' } },
+      ]),
+      compile,
+    );
+    expect(result.numberings.h1.number).toBe('1');
+    expect(result.numberings.hA.number).toBe('A');
+    expect(result.numberings.hB.number).toBe('A.1');
+    expect(contexts.hA.appendix).toBeUndefined();
+    expect(contexts.x.appendix).toBe(true);
+    expect(contexts.hB.appendix).toBe(true);
+  });
+
+  it('recompiles what follows a heading that was added', async () => {
+    const { compile, calls } = sectionCompiler();
+    const blocks: ResultBlock[] = [
+      { id: 'x', kind: 'text', source: 'Hello' },
+      { id: 't', kind: 'table', source: 'A table' },
+    ];
+    const first = await rebuild(paper(blocks), compile);
+    const built = applyResultsOp([paper(blocks)], { kind: 'setOutputs', paperId: 'p1', outputs: first.outputs, sources: first.sources })[0];
+    expect(staleBlocks(built)).toEqual([]);
+    const withHeading = applyResultsOp([built], {
+      kind: 'putBlock',
+      paperId: 'p1',
+      block: { id: 'h', kind: 'heading', heading: { level: 'section', title: 'Intro' } },
+      at: 1,
+    })[0];
+    // A first-pass view: the table only turns out stale once the heading's counters are known.
+    expect(staleBlocks(withHeading)).toEqual(['h']);
+    calls.length = 0;
+    const second = await rebuild(withHeading, compile);
+    expect(calls).toEqual(['h', 't']);
+    const done = applyResultsOp([withHeading], {
+      kind: 'setOutputs',
+      paperId: 'p1',
+      outputs: second.outputs,
+      sources: second.sources,
+      numberings: second.numberings,
+    })[0];
+    expect(staleBlocks(done)).toEqual([]);
+    expect(done.blocks[1].numbering?.number).toBe('1');
+  });
+});

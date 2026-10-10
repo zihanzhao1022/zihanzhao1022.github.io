@@ -182,6 +182,15 @@ describe('buildBlockDocument', () => {
     expect(doc.main).not.toContain('bad-name2');
   });
 
+  it('starts the appendix before restoring the counters, only when asked', () => {
+    const doc = buildBlockDocument({ preamble: DEFAULT_PREAMBLE, source: 'Hi', kind: 'text', counters: { section: 2 }, appendix: true });
+    const appendix = doc.main.indexOf('\\appendix');
+    expect(appendix).toBeGreaterThan(doc.main.indexOf('\\begin{document}'));
+    // \appendix resets the section counter; the restore then continues the lettered sections.
+    expect(appendix).toBeLessThan(doc.main.indexOf('\\setcounter{section}{2}'));
+    expect(buildBlockDocument({ preamble: DEFAULT_PREAMBLE, source: 'Hi', kind: 'text' }).main).not.toContain('\\appendix');
+  });
+
   it('truncates a non-integer counter value', () => {
     const doc = buildBlockDocument({ preamble: DEFAULT_PREAMBLE, source: 'Hi', kind: 'text', counters: { table: 2.7 } });
     expect(doc.main).toContain('\\@ifundefined{c@table}{}{\\setcounter{table}{2}}');

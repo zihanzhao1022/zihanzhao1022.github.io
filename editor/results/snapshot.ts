@@ -1,4 +1,5 @@
-import { ResultPaper } from '../../types';
+import { blockNumber } from '../../lib/headings';
+import { ResultBlock, ResultPaper } from '../../types';
 
 /** Where the site keeps the published snapshot. */
 export const SNAPSHOT_PATH = 'content/results.json';
@@ -35,13 +36,27 @@ export function publicView(paper: ResultPaper): ResultPaper {
     ...(paper.venue === undefined ? {} : { venue: paper.venue }),
     ...(paper.year === undefined ? {} : { year: paper.year }),
     ...(paper.summary === undefined ? {} : { summary: paper.summary }),
-    blocks: paper.blocks
-      .filter((block) => !block.hidden && block.output)
-      .map((block) => ({
-        id: block.id,
-        kind: block.kind,
-        output: { pdf: block.output!.pdf, width: block.output!.width, height: block.output!.height },
-      })),
+    blocks: paper.blocks.flatMap((block, index): ResultBlock[] => {
+      if (block.hidden) return [];
+      if (block.kind === 'heading') {
+        if (!block.heading) return [];
+        const { level, starred, title } = block.heading;
+        const { number, anchor } = block.numbering ?? {};
+        return [
+          {
+            id: block.id,
+            kind: block.kind,
+            heading: { level, title, ...(starred ? { starred: true } : {}) },
+            numbering: { ...(number ? { number } : {}), ...(anchor ? { anchor } : {}) },
+          },
+        ];
+      }
+      if (!block.output) return [];
+      // Counted over every block, hidden ones too, like the compile counted them.
+      const number = blockNumber(paper.blocks, index);
+      const { pdf, width, height } = block.output;
+      return [{ id: block.id, kind: block.kind, output: { pdf, width, height, ...(number ? { number } : {}) } }];
+    }),
     ...(paper.references
       ? { references: { pdf: paper.references.pdf, width: paper.references.width, height: paper.references.height } }
       : {}),
@@ -61,9 +76,12 @@ export function parseSnapshot(text: string | null): ResultPaper[] {
   }
 }
 
-/** Private paths (results/...) of every file the snapshot shows. */
+/** Private paths (results/...) of every file the snapshot shows; headings have none. */
 export const snapshotFiles = (snapshot: ResultPaper[]): string[] =>
-  snapshot.flatMap((paper) => [...paper.blocks.map((block) => block.output!.pdf), ...(paper.references ? [paper.references.pdf] : [])]);
+  snapshot.flatMap((paper) => [
+    ...paper.blocks.flatMap((block) => (block.output ? [block.output.pdf] : [])),
+    ...(paper.references ? [paper.references.pdf] : []),
+  ]);
 
 export interface PublicSyncPlan {
   /** New text of the snapshot file, or null when it is unchanged. */

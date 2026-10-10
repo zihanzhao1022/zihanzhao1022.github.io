@@ -123,7 +123,36 @@ export interface Profile {
   languages: Language[];
 }
 
-export type ResultBlockKind = 'text' | 'figure' | 'table';
+/** Blocks of LaTeX, each compiled to a PDF. */
+export type PdfBlockKind = 'text' | 'figure' | 'table';
+export type ResultBlockKind = PdfBlockKind | 'heading';
+
+export type HeadingLevel = 'section' | 'subsection' | 'subsubsection' | 'paragraph';
+
+/** A section heading on a results page, shown as HTML rather than a PDF. */
+export interface ResultHeading {
+  level: HeadingLevel;
+  /** Unnumbered, like \section*. */
+  starred?: boolean;
+  /** One line, exported to LaTeX as is. */
+  title: string;
+  /** For \ref from the blocks, e.g. "sec:method"; numbered headings only. Private only. */
+  label?: string;
+  /** The appendix starts here (\appendix): sections from here on are lettered. Sections only; private only. */
+  appendix?: boolean;
+}
+
+/** What compiling a heading gives; no PDF is kept. */
+export interface HeadingNumbering {
+  /** Private only, like the counters and labels. */
+  inputHash?: string;
+  counters?: Record<string, number>;
+  labels?: Record<string, string>;
+  /** The number LaTeX prints, e.g. "2.1" or "A"; absent when the heading has none. */
+  number?: string;
+  /** hyperref's anchor, e.g. "subsection.2.1", so \ref links can jump to the heading. */
+  anchor?: string;
+}
 
 /** A block's compiled PDF. The bookkeeping fields stay in the private repository only. */
 export interface ResultBlockOutput {
@@ -138,6 +167,8 @@ export interface ResultBlockOutput {
   counters?: Record<string, number>;
   /** Labels this block defined: name → contents of \newlabel's second argument. */
   labels?: Record<string, string>;
+  /** The figure or table number for the outline, e.g. "3"; only in what publicView gives. */
+  number?: string;
 }
 
 /**
@@ -159,9 +190,12 @@ export interface ResultReferences extends ResultBlockOutput {
 export interface ResultBlock extends Hideable {
   id: string;
   kind: ResultBlockKind;
-  /** LaTeX source; left out of the public snapshot. */
+  /** LaTeX source; left out of the public snapshot. Headings have none. */
   source?: string;
   output?: ResultBlockOutput;
+  /** Kind 'heading' only. */
+  heading?: ResultHeading;
+  numbering?: HeadingNumbering;
 }
 
 /** A paper on the results pages. Unpublished papers exist only in the private repository. */
@@ -247,8 +281,10 @@ export type EditRequest =
   | { kind: 'profile'; section: ProfileSection }
   | { kind: 'navigation' }
   /** Edit a block, or add one after `afterBlockId` (at the end when omitted). */
-  | { kind: 'block'; paperId: string; blockId?: string; blockKind?: ResultBlockKind; afterBlockId?: string }
+  | { kind: 'block'; paperId: string; blockId?: string; blockKind?: PdfBlockKind; afterBlockId?: string }
   /** A results paper's preamble and attachments. */
   | { kind: 'paperSettings'; paperId: string }
   /** A results paper's references.bib. */
-  | { kind: 'references'; paperId: string };
+  | { kind: 'references'; paperId: string }
+  /** Edit a section heading, or add one after `afterBlockId` (at the end when omitted). */
+  | { kind: 'heading'; paperId: string; blockId?: string; afterBlockId?: string };

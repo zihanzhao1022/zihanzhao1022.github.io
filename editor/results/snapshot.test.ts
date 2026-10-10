@@ -40,9 +40,32 @@ describe('buildSnapshot', () => {
         authors: ['**Me**', 'You'],
         venue: 'Made-up Conf 2027',
         year: 2027,
-        blocks: [{ id: 'b1', kind: 'table', output: { pdf: 'results/p1/b1-aaaa.pdf', width: 400, height: 120 } }],
+        // The table number is for the outline: collaborators and visitors get no counters or labels.
+        blocks: [{ id: 'b1', kind: 'table', output: { pdf: 'results/p1/b1-aaaa.pdf', width: 400, height: 120, number: '1' } }],
       },
     ]);
+  });
+
+  it('keeps visible headings with their numbers, without labels or bookkeeping', () => {
+    const withHeadings: ResultPaper = {
+      ...papers[0],
+      blocks: [
+        {
+          id: 'h1',
+          kind: 'heading',
+          heading: { level: 'section', title: 'Proofs', label: 'sec:secret-proofs', appendix: true },
+          numbering: { inputHash: 'secret-hash', counters: { section: 1 }, labels: { 'sec:secret-proofs': '{A}{1}{}{appendix.A}{}' }, number: 'A', anchor: 'appendix.A' },
+        },
+        { id: 'h2', kind: 'heading', heading: { level: 'paragraph', starred: true, title: 'Notes' }, numbering: {} },
+        { id: 'h3', kind: 'heading', heading: { level: 'section', title: 'Hidden secret section' }, hidden: true },
+      ],
+    };
+    const [view] = buildSnapshot([withHeadings]);
+    expect(view.blocks).toEqual([
+      { id: 'h1', kind: 'heading', heading: { level: 'section', title: 'Proofs' }, numbering: { number: 'A', anchor: 'appendix.A' } },
+      { id: 'h2', kind: 'heading', heading: { level: 'paragraph', starred: true, title: 'Notes' }, numbering: {} },
+    ]);
+    expect(JSON.stringify(view)).not.toMatch(/secret/);
   });
 
   it('never mentions private text', () => {
@@ -50,6 +73,16 @@ describe('buildSnapshot', () => {
     for (const secret of ['unpublished', 'secret', 'private macros', 'style.sty', 'An unpublished paper', 'secret-hash', 'tab:a']) {
       expect(text).not.toContain(secret);
     }
+  });
+});
+
+describe('planPublicSync with headings', () => {
+  it('publishes the block files of a paper with headings, which have none', () => {
+    const withHeading: ResultPaper = {
+      ...papers[0],
+      blocks: [{ id: 'h', kind: 'heading', heading: { level: 'section', title: 'Results' }, numbering: { number: '1' } }, papers[0].blocks[0]],
+    };
+    expect(planPublicSync([withHeading], null, []).add).toEqual(['results/p1/b1-aaaa.pdf']);
   });
 });
 

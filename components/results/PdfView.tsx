@@ -2,7 +2,16 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { PDFDocumentLoadingTask, RenderTask } from 'pdfjs-dist';
 import { loadPdfjs } from './pdfjs';
 import { renderPdfLinks } from './pdfLinks';
-import { citationId, destinationPoint, finishCitationNavigation, navigateCitation, referencesId } from './pdfDestinations';
+import {
+  citationId,
+  destinationId,
+  destinationPoint,
+  finishCitationNavigation,
+  isPageDestination,
+  navigateCitation,
+  navigateDestination,
+  referencesId,
+} from './pdfDestinations';
 import './pdfView.css';
 
 /** CSS pixels per PDF point at full size: 10pt text comes out about as large as the site's body text. */
@@ -77,14 +86,24 @@ const PdfView: React.FC<Props> = ({ data, url, width, height, className = '', on
       await new pdfjs.TextLayer({ textContentSource: page.streamTextContent(), container: text, viewport }).render();
       const destinations = document.createElement('div');
       destinations.className = 'resultsPdfDestinations';
-      if (citationTargets && citationScope) {
+      if (citationScope) {
         for (const [name, destination] of await doc.getDestinations()) {
-          if (!name.startsWith('cite.')) continue;
+          let id: string;
+          if (citationTargets && name.startsWith('cite.')) {
+            id = citationId(citationScope, name);
+          } else {
+            // What \ref in other blocks can jump to; the first block to hold a name keeps it, while a block
+            // drawn again replaces its own markers.
+            if (!isPageDestination(name)) continue;
+            id = destinationId(citationScope, name);
+            const existing = document.getElementById(id);
+            if (existing && !target.contains(existing)) continue;
+          }
           const marker = document.createElement('span');
-          marker.id = citationId(citationScope, name);
+          marker.id = id;
           marker.className = 'resultsPdfDestination';
           marker.tabIndex = -1;
-          marker.setAttribute('aria-label', `参考文献 ${name.slice(5)}`);
+          if (name.startsWith('cite.')) marker.setAttribute('aria-label', `参考文献 ${name.slice(5)}`);
           marker.style.top = `${destinationPoint(destination, viewport).top}px`;
           destinations.append(marker);
         }
@@ -93,16 +112,21 @@ const PdfView: React.FC<Props> = ({ data, url, width, height, className = '', on
       const names = [...new Set<string>(annotations.map((annotation) => annotation.dest).filter((name): name is string => typeof name === 'string' && !name.startsWith('cite.')))];
       const unresolved = new Set((await Promise.all(names.map(async (name) => {
         const destination = await doc.getDestination(name);
-        // pdfTeX fabricates a page-wide /Fit destination for a cross-block target it
-        // cannot find. Only citations currently have a destination in another PDF.
+        // pdfTeX fabricates a page-wide /Fit destination for a target it cannot find: one in
+        // another block's PDF (citations are handled above).
         return !destination || destination[1]?.name === 'Fit' ? name : null;
       }))).filter((name): name is string => name !== null));
       const links = renderPdfLinks({
-        annotations: annotations.filter((annotation) => !unresolved.has(annotation.dest)),
+        annotations,
         viewport,
         onDestination: (destination) => {
           if (typeof destination === 'string' && destination.startsWith('cite.') && citationScope) {
             navigateCitation(citationScope, destination);
+            return;
+          }
+          // A \ref to a figure, table, equation or heading in another block of the page.
+          if (typeof destination === 'string' && unresolved.has(destination)) {
+            if (citationScope) navigateDestination(citationScope, destination);
             return;
           }
           void (async () => {

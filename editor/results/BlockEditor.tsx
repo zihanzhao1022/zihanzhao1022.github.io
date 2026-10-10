@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ClipboardPaste, Copy, Download, Eye, EyeOff, Loader2, Paperclip, Play, Redo2, Trash2, Undo2, Upload, X } from 'lucide-react';
 import PdfView from '../../components/results/PdfView';
 import { pdfPageSize } from '../../components/results/pdfjs';
-import { ResultBlock, ResultBlockKind, ResultPaper } from '../../types';
+import { PdfBlockKind, ResultBlock, ResultBlockKind, ResultPaper } from '../../types';
 import { describeSaveError } from '../backend';
 import { BUTTON_PRIMARY, BUTTON_SECONDARY } from '../components/Modal';
 import { getTexEngine } from '../tex/engine';
@@ -35,7 +35,7 @@ import { parseTable, serializeTable } from './table/latex';
 
 export type ResultsSave = (op: ResultsOp, writes: FileWrite[], deletes: string[], message: string, publicMessage: string) => Promise<void>;
 
-const KIND_LABEL: Record<ResultBlockKind, string> = { text: '文字', figure: '图', table: '表格' };
+const KIND_LABEL: Record<ResultBlockKind, string> = { text: '文字', figure: '图', table: '表格', heading: '小节标题' };
 const COMPILE_DELAY_MS = 1000;
 
 interface Compiled {
@@ -49,7 +49,7 @@ interface Props {
   paper: ResultPaper;
   /** The block to edit; without it a new block of `blockKind` is added. */
   blockId?: string;
-  blockKind?: ResultBlockKind;
+  blockKind?: PdfBlockKind;
   /** Insert a new block below this one; omit to append. */
   afterBlockId?: string;
   readFile: ReadFile;

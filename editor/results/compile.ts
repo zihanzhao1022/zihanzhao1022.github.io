@@ -1,5 +1,4 @@
-import { ResultBlockKind } from '../../types';
-import { buildBlockDocument } from '../tex/document';
+import { BlockKind, buildBlockDocument } from '../tex/document';
 import { TexEngine } from '../tex/engine';
 import { locateLine, parseAuxCitations, parseAuxLabels, parseCounters, parseErrors, parseWarnings } from '../tex/log';
 import { referencedLabels } from './numbering';
@@ -16,11 +15,13 @@ export interface BlockIssue {
 export interface BlockCompileInput {
   preamble: string;
   source: string;
-  kind: ResultBlockKind;
+  kind: BlockKind;
   counters: Record<string, number>;
   labels: Record<string, string>;
   /** The paper's bibliography entries the block's \cite can show (see buildBlockDocument). */
   citations?: Record<string, string>;
+  /** The page's appendix started in an earlier block. */
+  appendix?: boolean;
   /** Attachments by file name, placed next to main.tex. */
   files: Record<string, Uint8Array>;
 }

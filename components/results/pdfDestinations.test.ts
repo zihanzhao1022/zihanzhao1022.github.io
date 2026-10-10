@@ -1,5 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { citationId, destinationPoint, finishCitationNavigation, navigateCitation, referencesId } from './pdfDestinations';
+import {
+  citationId,
+  destinationId,
+  destinationPoint,
+  finishCitationNavigation,
+  isPageDestination,
+  navigateCitation,
+  navigateDestination,
+  referencesId,
+} from './pdfDestinations';
 
 // Cropped PDF origin differs from (0, 0); this must use the PDF's viewport conversion.
 const viewport = {
@@ -131,3 +140,25 @@ describe('citation navigation across separately loaded PDFs', () => {
     expect(references.scrollIntoView).toHaveBeenCalledOnce();
   });
 });
+
+describe('jumps between blocks', () => {
+  it('registers what \\ref can point at, not what every block has or the citations', () => {
+    for (const name of ['figure.3', 'table.caption.2', 'equation.4', 'subsection.2.1', 'appendix.A', 'Item.1']) expect(isPageDestination(name)).toBe(true);
+    for (const name of ['Doc-Start', 'page.1', 'page.12', 'cite.smith2024']) expect(isPageDestination(name)).toBe(false);
+  });
+
+  it('keeps the places of different papers apart', () => {
+    expect(destinationId('paper', 'figure.1')).not.toBe(destinationId('other', 'figure.1'));
+    expect(destinationId('paper', 'figure.1')).not.toBe(citationId('paper', 'figure.1'));
+  });
+
+  it('goes to the place another block registered, and nowhere when there is none', () => {
+    const target = element();
+    mockDocument(new Map([[destinationId('paper', 'figure.3'), target]]));
+    navigateDestination('paper', 'figure.3');
+    expect(target.scrollIntoView).toHaveBeenCalledExactlyOnceWith({ block: 'start', behavior: 'auto' });
+    expect(target.focus).toHaveBeenCalledExactlyOnceWith({ preventScroll: true });
+    expect(() => navigateDestination('paper', 'figure.9')).not.toThrow();
+  });
+});
+

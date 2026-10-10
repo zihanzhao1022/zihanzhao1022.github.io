@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, Copy } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Check, Copy, ListTree, X } from 'lucide-react';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import { exportTex } from '../../editor/results/texNames';
+import { exportPaperTex, exportTex } from '../../editor/results/texNames';
 import { findPaper, shownBlocks } from '../../lib/results';
 import { ResultBlock, ResultPaper } from '../../types';
 import { useContent } from '../ContentContext';
@@ -10,24 +10,28 @@ import { SortableGroup } from '../SortableGroup';
 import { ResultsAccess, canEditShared, isCollaborator, useResultsAccess } from './access';
 import Authors from './Authors';
 import BlockView from './BlockView';
+import HeadingView from './HeadingView';
 import LoginPrompt from './LoginPrompt';
+import Outline from './Outline';
+import { itemAt, outlineItems } from './outlineItems';
 import { ResultsUnavailable } from './ResultsList';
 import './resultPage.css';
-import { avatarUrl, usePresence } from '../presence';
+import { Reader, avatarUrl, usePresence } from '../presence';
 import { useReportBlockInView } from './readingPosition';
 
-const KIND_LABEL = { text: '文字', figure: '图', table: '表格' } as const;
+const KIND_LABEL = { text: '文字', figure: '图', table: '表格', heading: '小节标题' } as const;
 
 const InsertButtons: React.FC<{ paperId: string; afterBlockId?: string }> = ({ paperId, afterBlockId }) => (
   <>
     <AddButton request={{ kind: 'block', paperId, blockKind: 'text', afterBlockId }} text="文字" />
     <AddButton request={{ kind: 'block', paperId, blockKind: 'figure', afterBlockId }} text="图" />
     <AddButton request={{ kind: 'block', paperId, blockKind: 'table', afterBlockId }} text="表格" />
+    <AddButton request={{ kind: 'heading', paperId, afterBlockId }} text="小节标题" />
   </>
 );
 
-/** Copies the block's LaTeX, headed by the packages it needs, without opening the editor. */
-const CopyLatex: React.FC<{ source: string }> = ({ source }) => {
+/** Copies LaTeX to the clipboard without opening an editor. */
+const CopyButton: React.FC<{ text: () => string; label: string; title: string; className?: string }> = ({ text, label, title, className = '' }) => {
   const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle');
   useEffect(() => {
     if (state === 'idle') return undefined;
@@ -35,21 +39,20 @@ const CopyLatex: React.FC<{ source: string }> = ({ source }) => {
     return () => clearTimeout(timer);
   }, [state]);
   const copy = () => {
-    navigator.clipboard.writeText(exportTex(source)).then(
+    navigator.clipboard.writeText(text()).then(
       () => setState('copied'),
       () => setState('failed'),
     );
   };
-  const label = { idle: '复制 LaTeX', copied: '已复制', failed: '复制失败' }[state];
   return (
     <button
       type="button"
       onClick={copy}
-      title="复制 LaTeX 代码（开头注明需要的宏包）"
-      className="inline-flex items-center gap-1 h-8 px-2.5 rounded-full border border-gray-300 bg-white text-xs text-gray-600 shadow-sm hover:border-purple-300 hover:text-purple-700"
+      title={title}
+      className={`inline-flex items-center gap-1 h-8 px-2.5 rounded-full border border-gray-300 bg-white text-xs text-gray-600 shadow-sm hover:border-purple-300 hover:text-purple-700 ${className}`}
     >
       {state === 'copied' ? <Check size={14} /> : <Copy size={14} />}
-      {label}
+      {{ idle: label, copied: '已复制', failed: '复制失败' }[state]}
     </button>
   );
 };
@@ -77,6 +80,7 @@ const BlockReaders: React.FC<{ blockId: string }> = ({ blockId }) => {
 
 const BlockItem: React.FC<{ paperId: string; block: ResultBlock }> = ({ paperId, block }) => {
   const { editing } = useEditMode();
+  const heading = block.kind === 'heading';
   return (
     <div
       data-result-block-id={block.id}
@@ -87,11 +91,14 @@ const BlockItem: React.FC<{ paperId: string; block: ResultBlock }> = ({ paperId,
         <div className="flex items-center justify-end gap-2 mb-1 text-xs text-gray-400">
           {KIND_LABEL[block.kind]}
           {block.hidden && <HiddenBadge />}
-          {block.source && <CopyLatex source={block.source} />}
-          <EditButton request={{ kind: 'block', paperId, blockId: block.id }} label={`编辑${KIND_LABEL[block.kind]}`} />
+          {block.source && <CopyButton text={() => exportTex(block.source ?? '')} label="复制 LaTeX" title="复制 LaTeX 代码（开头注明需要的宏包）" />}
+          <EditButton
+            request={heading ? { kind: 'heading', paperId, blockId: block.id } : { kind: 'block', paperId, blockId: block.id }}
+            label={`编辑${KIND_LABEL[block.kind]}`}
+          />
         </div>
       )}
-      <BlockView paperId={paperId} block={block} />
+      {heading ? <HeadingView paperId={paperId} block={block} /> : <BlockView paperId={paperId} block={block} />}
       {editing && (
         <div className="result-block-insert" role="group" aria-label="在当前块下方插入内容">
           <InsertButtons paperId={paperId} afterBlockId={block.id} />
@@ -188,17 +195,36 @@ const ResultPage: React.FC = () => {
   const editing = paper ? (collaborator ? canEditShared(access, paper.id) : editMode.editing) : false;
   const pageMode = useMemo(() => ({ ...editMode, editing }), [editMode, editing]);
   // Tell the presence room which paper this page shows and which block is on screen, so others on it see
-  // this reader there.
+  // this reader there; the outline marks the same place.
   const presence = usePresence();
   const setPaper = presence?.setPaper;
+  const setBlock = presence?.setBlock;
   const paperId = paper?.id;
   useEffect(() => {
     if (!setPaper || !paperId) return undefined;
     setPaper(paperId);
     return () => setPaper(null);
   }, [setPaper, paperId]);
+  const [reading, setReading] = useState<string | null>(null);
+  const onBlockInView = useCallback(
+    (blockId: string | null) => {
+      setReading(blockId);
+      setBlock?.(blockId);
+    },
+    [setBlock],
+  );
   const readingArea = useRef<HTMLDivElement>(null);
-  useReportBlockInView(readingArea, presence?.setBlock, paperId);
+  useReportBlockInView(readingArea, onBlockInView, paperId);
+  // Below the width where the outline sits beside the text, it opens as a drawer.
+  const [drawer, setDrawer] = useState(false);
+  useEffect(() => {
+    if (!drawer) return undefined;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setDrawer(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [drawer]);
 
   if (!paper) {
     // The private list may still be loading; only then is a missing paper really missing.
@@ -210,76 +236,134 @@ const ResultPage: React.FC = () => {
   if (paper.hidden && !loggedIn) return <Navigate to="/results" replace />;
 
   const blocks = shownBlocks(paper.blocks, editing);
+  const items = outlineItems(paper.blocks, (block) => editing || !block.hidden, paper.references !== undefined);
+  const order = [...blocks.map((block) => block.id), ...(paper.references ? ['references'] : [])];
+  const readers: Record<string, Reader[]> = {};
+  for (const viewer of presence?.viewers ?? []) {
+    const item = viewer.login === presence?.me?.login ? null : itemAt(items, order, viewer.block);
+    if (item) readers[item] = [...(readers[item] ?? []), viewer];
+  }
+  const go = (blockId: string) => {
+    setDrawer(false);
+    goTo(blockId);
+  };
+  const outline =
+    items.length > 0 ? (
+      <Outline items={items} active={itemAt(items, order, reading)} readers={readers} onGo={go} />
+    ) : editing && !collaborator ? (
+      <p className="px-2 text-xs text-gray-400">添加小节标题后，这里会出现目录。</p>
+    ) : null;
 
   return (
     <EditModeContext.Provider value={pageMode}>
-      <div className="animate-fade-in pb-20">
-        <div className="flex items-center justify-between gap-4">
-          <Link to="/results" className="text-sm text-gray-500 hover:text-purple-600">
-            ← results
-          </Link>
-          <Viewers blocks={blocks} />
-        </div>
-        <div className="mt-4 mb-10">
-          <h1 className="text-3xl font-light text-gray-900 mb-3">
-            {paper.title}
-            {/* The paper's information and who it is shared with stay with the owner. */}
-            {!collaborator && (
-              <EditButton
-                request={{ kind: 'edit', collection: 'results', id: paper.id }}
-                label="编辑论文信息"
-                className="ml-3 align-middle"
+      {/* On wide screens the outline sits beside the text; the site widens a paper's page for it (SiteLayout). */}
+      <div className={`animate-fade-in pb-20 ${outline ? 'xl:grid xl:grid-cols-[14rem_minmax(0,1fr)] xl:gap-10' : 'xl:mx-auto xl:max-w-[58rem]'}`}>
+        {outline && (
+          <aside className="hidden xl:block">
+            <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto pb-6">{outline}</div>
+          </aside>
+        )}
+        <div className="min-w-0">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <Link to="/results" className="text-sm text-gray-500 hover:text-purple-600">
+                ← results
+              </Link>
+              {items.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setDrawer(true)}
+                  className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-purple-600 xl:hidden"
+                >
+                  <ListTree size={16} />
+                  目录
+                </button>
+              )}
+            </div>
+            <Viewers blocks={blocks} />
+          </div>
+          <div className="mt-4 mb-10">
+            <h1 className="text-3xl font-light text-gray-900 mb-3">
+              {paper.title}
+              {/* The paper's information and who it is shared with stay with the owner. */}
+              {!collaborator && (
+                <EditButton
+                  request={{ kind: 'edit', collection: 'results', id: paper.id }}
+                  label="编辑论文信息"
+                  className="ml-3 align-middle"
+                />
+              )}
+              {paper.hidden && <HiddenBadge />}
+            </h1>
+            {paper.authors.length > 0 && (
+              <div className="text-gray-700 text-sm mb-1 font-light">
+                <Authors authors={paper.authors} />
+              </div>
+            )}
+            {(paper.venue || paper.year) && (
+              <div className="text-sm italic text-gray-500 mb-2">{[paper.venue, paper.year].filter(Boolean).join(' · ')}</div>
+            )}
+            {paper.summary && <p className="text-sm text-gray-600">{paper.summary}</p>}
+            <EditButton
+              request={{ kind: 'paperSettings', paperId: paper.id }}
+              label="导言区与附件"
+              text="导言区与附件"
+              className="mt-3"
+            />
+            <EditButton request={{ kind: 'references', paperId: paper.id }} label="参考文献" text="参考文献" className="mt-3 ml-2" />
+            {editing && !collaborator && (
+              <CopyButton
+                text={() => exportPaperTex(paper.blocks)}
+                label="导出全文 LaTeX"
+                title="按顺序复制所有块（包括隐藏的）和小节标题，开头注明需要的宏包，不含 References"
+                className="mt-3 ml-2 align-top"
               />
             )}
-            {paper.hidden && <HiddenBadge />}
-          </h1>
-          {paper.authors.length > 0 && (
-            <div className="text-gray-700 text-sm mb-1 font-light">
-              <Authors authors={paper.authors} />
-            </div>
-          )}
-          {(paper.venue || paper.year) && (
-            <div className="text-sm italic text-gray-500 mb-2">{[paper.venue, paper.year].filter(Boolean).join(' · ')}</div>
-          )}
-          {paper.summary && <p className="text-sm text-gray-600">{paper.summary}</p>}
-          <EditButton
-            request={{ kind: 'paperSettings', paperId: paper.id }}
-            label="导言区与附件"
-            text="导言区与附件"
-            className="mt-3"
-          />
-          <EditButton request={{ kind: 'references', paperId: paper.id }} label="参考文献" text="参考文献" className="mt-3 ml-2" />
-        </div>
-        <ResultsUnavailable />
-        <Notices paper={paper} access={access} editing={editing} />
-        <div ref={readingArea}>
-          <SortableGroup
-            collection="results"
-            items={blocks}
-            className="space-y-10"
-            onReorder={(ids) => reorderBlocks(paper.id, ids)}
-            renderItem={(block) => <BlockItem paperId={paper.id} block={block} />}
-          />
-          {/* "References": the entries the blocks cite from references.bib, typeset after them. */}
-          {paper.references && (
-            <div data-result-block-id="references" className="relative mt-10 scroll-mt-24">
-              <BlockReaders blockId="references" />
-              <BlockView paperId={paper.id} block={{ id: 'references', kind: 'text', output: paper.references }} references />
-            </div>
-          )}
-        </div>
-        {!paper.references && editing && (paper.files ?? []).includes('references.bib') && (
-          <p className="mt-10 text-sm italic text-gray-400">References：正文里还没有用 \cite 引用 references.bib 里的文献。</p>
-        )}
-        {blocks.length === 0 && (
-          <div className="text-center text-gray-500 py-12 italic">{editing ? '用下面的按钮添加文字、图或表格。' : 'Nothing here yet.'}</div>
-        )}
-        {editing && (
-          <div className="mt-10 flex flex-wrap items-center gap-2">
-            <InsertButtons paperId={paper.id} />
           </div>
-        )}
+          <ResultsUnavailable />
+          <Notices paper={paper} access={access} editing={editing} />
+          <div ref={readingArea}>
+            <SortableGroup
+              collection="results"
+              items={blocks}
+              className="space-y-10"
+              onReorder={(ids) => reorderBlocks(paper.id, ids)}
+              renderItem={(block) => <BlockItem paperId={paper.id} block={block} />}
+            />
+            {/* "References": the entries the blocks cite from references.bib, typeset after them. */}
+            {paper.references && (
+              <div data-result-block-id="references" className="relative mt-10 scroll-mt-24">
+                <BlockReaders blockId="references" />
+                <BlockView paperId={paper.id} block={{ id: 'references', kind: 'text', output: paper.references }} references />
+              </div>
+            )}
+          </div>
+          {!paper.references && editing && (paper.files ?? []).includes('references.bib') && (
+            <p className="mt-10 text-sm italic text-gray-400">References：正文里还没有用 \cite 引用 references.bib 里的文献。</p>
+          )}
+          {blocks.length === 0 && (
+            <div className="text-center text-gray-500 py-12 italic">{editing ? '用下面的按钮添加文字、图、表格或小节标题。' : 'Nothing here yet.'}</div>
+          )}
+          {editing && (
+            <div className="mt-10 flex flex-wrap items-center gap-2">
+              <InsertButtons paperId={paper.id} />
+            </div>
+          )}
+        </div>
       </div>
+      {drawer && items.length > 0 && (
+        <div role="dialog" aria-modal="true" aria-label="目录" className="fixed inset-0 z-[90] xl:hidden">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setDrawer(false)} />
+          <div className="absolute inset-y-0 left-0 w-72 max-w-[85vw] overflow-y-auto bg-white p-4 shadow-xl">
+            <div className="mb-1 flex justify-end">
+              <button type="button" onClick={() => setDrawer(false)} aria-label="关闭目录" className="p-1 text-gray-400 hover:text-gray-700">
+                <X size={18} />
+              </button>
+            </div>
+            {outline}
+          </div>
+        </div>
+      )}
     </EditModeContext.Provider>
   );
 };

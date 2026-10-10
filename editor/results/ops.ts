@@ -1,4 +1,5 @@
-import { ResultBlock, ResultBlockOutput, ResultPaper, ResultReferences } from '../../types';
+import { headingKey } from '../../lib/headings';
+import { HeadingNumbering, ResultBlock, ResultBlockOutput, ResultPaper, ResultReferences } from '../../types';
 import { ContentOp, applyListOp } from '../ops';
 
 /** What the paper form edits. Blocks, preamble, attachments and visibility change through their own operations. */
@@ -27,8 +28,17 @@ export type ResultsOp =
   | { kind: 'deleteBlock'; paperId: string; blockId: string }
   | { kind: 'reorderBlocks'; paperId: string; ids: string[] }
   | { kind: 'setBlockHidden'; paperId: string; blockId: string; hidden: boolean }
-  /** Compiled outputs, each kept only if the block's source is still the one it was compiled from. */
-  | { kind: 'setOutputs'; paperId: string; outputs: Record<string, ResultBlockOutput>; sources: Record<string, string> }
+  /**
+   * Compiled outputs and heading numbers, each kept only if the block's source (a heading's headingKey) is still
+   * the one it was compiled from.
+   */
+  | {
+      kind: 'setOutputs';
+      paperId: string;
+      outputs: Record<string, ResultBlockOutput>;
+      sources: Record<string, string>;
+      numberings?: Record<string, HeadingNumbering>;
+    }
   /** The paper's typeset bibliography, or null to drop it (no references.bib, or nothing cited). */
   | { kind: 'setReferences'; paperId: string; references: ResultReferences | null }
   | { kind: 'batch'; ops: ResultsOp[] };
@@ -97,9 +107,16 @@ export function applyResultsOp(papers: ResultPaper[], op: ResultsOp): ResultPape
         if (paper.blocks.some((block) => block.id === op.block.id)) {
           return {
             ...paper,
-            blocks: paper.blocks.map((block) =>
-              block.id === op.block.id ? { ...block, kind: op.block.kind, source: op.block.source } : block,
-            ),
+            blocks: paper.blocks.map((block) => {
+              if (block.id !== op.block.id) return block;
+              const { source: _source, heading: _heading, ...rest } = block;
+              return {
+                ...rest,
+                kind: op.block.kind,
+                ...(op.block.source === undefined ? {} : { source: op.block.source }),
+                ...(op.block.heading === undefined ? {} : { heading: op.block.heading }),
+              };
+            }),
           };
         }
         const at = op.at === undefined ? paper.blocks.length : Math.max(0, Math.min(op.at, paper.blocks.length));
@@ -123,9 +140,13 @@ export function applyResultsOp(papers: ResultPaper[], op: ResultsOp): ResultPape
     case 'setOutputs':
       return updatePaper(papers, op.paperId, (paper) => ({
         ...paper,
-        blocks: paper.blocks.map((block) =>
-          op.outputs[block.id] && block.source === op.sources[block.id] ? { ...block, output: op.outputs[block.id] } : block,
-        ),
+        blocks: paper.blocks.map((block) => {
+          if (block.kind === 'heading') {
+            const numbering = op.numberings?.[block.id];
+            return numbering && headingKey(block.heading) === op.sources[block.id] ? { ...block, numbering } : block;
+          }
+          return op.outputs[block.id] && block.source === op.sources[block.id] ? { ...block, output: op.outputs[block.id] } : block;
+        }),
       }));
     case 'setReferences':
       return updatePaper(papers, op.paperId, (paper) => {

@@ -1,26 +1,24 @@
-import { ResultBlock, ResultBlockOutput, ResultPaper, ResultReferences } from '../../types';
+import { countersBefore, headingKey, headingTex, readHeadingNumber, startsAppendix } from '../../lib/headings';
+import { HeadingNumbering, ResultBlock, ResultBlockOutput, ResultPaper, ResultReferences } from '../../types';
 import { WRAPPER_VERSION, stripComments } from '../tex/document';
 import { FileWrite } from './backend';
 
-/** What a block's compile starts from: the counters where the page left off, the page's labels and citations. */
+/**
+ * What a block's compile starts from: the counters where the page left off, the page's labels and citations,
+ * and whether the appendix has started.
+ */
 export interface BlockContext {
   counters: Record<string, number>;
   labels: Record<string, string>;
   citations: Record<string, string>;
+  appendix?: boolean;
 }
 
 export function blockContext(blocks: ResultBlock[], index: number, citations: Record<string, string> = {}): BlockContext {
-  let counters: Record<string, number> = {};
-  for (let previous = index - 1; previous >= 0; previous -= 1) {
-    const found = blocks[previous].output?.counters;
-    if (found) {
-      counters = found;
-      break;
-    }
-  }
   const labels: Record<string, string> = {};
-  for (const block of blocks) Object.assign(labels, block.output?.labels ?? {});
-  return { counters, labels, citations };
+  for (const block of blocks) Object.assign(labels, block.output?.labels ?? {}, block.numbering?.labels ?? {});
+  const appendix = blocks.slice(0, index).some(startsAppendix);
+  return { counters: countersBefore(blocks, index), labels, citations, ...(appendix ? { appendix: true } : {}) };
 }
 
 const REFERENCE = /\\(?:ref|eqref|autoref|cref|Cref|pageref|nameref|vref|subref)\*?\{([^}]*)\}/g;
@@ -72,11 +70,26 @@ export function usedFiles(paper: ResultPaper, block: ResultBlock): string[] {
   return (paper.files ?? []).filter((name) => text.includes(name.replace(/\.[^.]+$/, '')));
 }
 
-/** Everything the block's PDF depends on. */
+/** Everything the block's PDF (or a heading's number) depends on. */
 export function inputHash(paper: ResultPaper, block: ResultBlock, context: BlockContext): string {
   const counters = Object.keys(context.counters)
     .sort()
     .map((name) => [name, context.counters[name]]);
+  // Only blocks in the appendix get this, so the others keep their hashes.
+  const appendix = context.appendix ? { appendix: true } : {};
+  if (block.kind === 'heading') {
+    return hashText(
+      JSON.stringify({
+        wrapper: WRAPPER_VERSION,
+        preamble: paper.preamble ?? '',
+        files: usedFiles(paper, block).map((name) => [name, paper.fileHashes?.[name] ?? null]),
+        kind: block.kind,
+        heading: headingKey(block.heading),
+        counters,
+        ...appendix,
+      }),
+    );
+  }
   const references = referencedLabels(block.source ?? '').map((name) => [name, context.labels[name] ?? null]);
   const cited = citedKeys(block.source ?? '');
   return hashText(
@@ -90,6 +103,7 @@ export function inputHash(paper: ResultPaper, block: ResultBlock, context: Block
       references,
       // Only blocks that cite get this, so the others keep their hashes.
       ...(cited.length > 0 ? { citations: cited.map((key) => [key, context.citations[key] ?? null]) } : {}),
+      ...appendix,
     }),
   );
 }
@@ -135,7 +149,9 @@ export type CompileFn = (block: ResultBlock, context: BlockContext) => Promise<C
 export interface RebuildResult {
   /** New outputs of the blocks that were compiled. */
   outputs: Record<string, ResultBlockOutput>;
-  /** The source each new output was compiled from (see the setOutputs operation). */
+  /** New numbers of the headings that were compiled. */
+  numberings: Record<string, HeadingNumbering>;
+  /** The source each new output was compiled from, or the headingKey of a heading (see the setOutputs operation). */
   sources: Record<string, string>;
   writes: FileWrite[];
   /** PDFs the new outputs replace. */
@@ -163,6 +179,7 @@ export async function rebuild(
 ): Promise<RebuildResult> {
   const blocks = [...paper.blocks];
   const outputs: Record<string, ResultBlockOutput> = {};
+  const numberings: Record<string, HeadingNumbering> = {};
   const sources: Record<string, string> = {};
   const writes = new Map<string, Uint8Array>();
   const original = new Set(paper.blocks.map((block) => block.output?.pdf).filter((path): path is string => !!path));
@@ -171,6 +188,7 @@ export async function rebuild(
   let references: ResultReferences | null | undefined;
   const result = (failed?: RebuildResult['failed']): RebuildResult => ({
     outputs,
+    numberings,
     sources,
     writes: [...writes].map(([path, data]) => ({ path, data })),
     deletes: [...deletes],
@@ -207,6 +225,22 @@ export async function rebuild(
     let changed = false;
     for (let index = 0; index < blocks.length; index += 1) {
       const block = blocks[index];
+      if (block.kind === 'heading') {
+        if (!block.heading) continue;
+        const context = blockContext(blocks, index, citations);
+        const hash = inputHash(paper, block, context);
+        if (block.numbering?.inputHash === hash) continue;
+        // Compiled like a text block for its number, counters and labels; the PDF is not kept.
+        const compiled = await compile({ id: block.id, kind: 'text', source: headingTex(block.heading, { numbering: true }) }, context);
+        if (!compiled.ok) return result({ blockId: block.id, message: compiled.message });
+        const { labels, ...shown } = readHeadingNumber(compiled.labels);
+        const numbering: HeadingNumbering = { inputHash: hash, counters: compiled.counters, labels, ...shown };
+        blocks[index] = { ...block, numbering };
+        numberings[block.id] = numbering;
+        sources[block.id] = headingKey(block.heading);
+        changed = true;
+        continue;
+      }
       if (!block.source?.trim()) continue;
       const context = blockContext(blocks, index, citations);
       const hash = inputHash(paper, block, context);
@@ -239,10 +273,13 @@ export async function rebuild(
   return result();
 }
 
-/** Blocks whose PDF no longer matches their inputs (a first-pass view, without recompiling anything). */
+/** Blocks whose PDF (or heading number) no longer matches their inputs (a first-pass view, without recompiling anything). */
 export function staleBlocks(paper: ResultPaper): string[] {
   const citations = paper.references?.citations ?? {};
   return paper.blocks
-    .filter((block, index) => block.source?.trim() && block.output?.inputHash !== inputHash(paper, block, blockContext(paper.blocks, index, citations)))
+    .filter((block, index) => {
+      if (block.kind === 'heading') return block.heading !== undefined && block.numbering?.inputHash !== inputHash(paper, block, blockContext(paper.blocks, index, citations));
+      return block.source?.trim() && block.output?.inputHash !== inputHash(paper, block, blockContext(paper.blocks, index, citations));
+    })
     .map((block) => block.id);
 }

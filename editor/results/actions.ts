@@ -1,5 +1,5 @@
 import { pdfPageSize } from '../../components/results/pdfjs';
-import { ResultBlockKind, ResultPaper } from '../../types';
+import { PdfBlockKind, ResultPaper } from '../../types';
 import { DEFAULT_PREAMBLE } from '../tex/document';
 import { TexEngine, getTexEngine } from '../tex/engine';
 import { bibKeysOf, bibliographyStyle } from './bibtex';
@@ -28,7 +28,9 @@ export function makeCompileFn(engine: TexEngine, preamble: string, files: Record
       {
         preamble,
         source: block.source ?? '',
-        kind: block.kind,
+        // A heading is compiled as text for its number (see rebuild).
+        kind: block.kind === 'heading' ? 'text' : block.kind,
+        appendix: context.appendix,
         counters: context.counters,
         labels: context.labels,
         citations: context.citations,
@@ -73,15 +75,16 @@ export async function rebuildPaper(paper: ResultPaper, readFile: ReadFile, files
 export function withOutputs(paperId: string, ops: ResultsOp[], rebuilt: RebuildResult): ResultsOp {
   const all = [...ops];
   if (rebuilt.references !== undefined) all.push({ kind: 'setReferences', paperId, references: rebuilt.references });
-  if (Object.keys(rebuilt.outputs).length > 0) {
-    all.push({ kind: 'setOutputs', paperId, outputs: rebuilt.outputs, sources: rebuilt.sources });
+  if (Object.keys(rebuilt.outputs).length > 0 || Object.keys(rebuilt.numberings).length > 0) {
+    const numberings = Object.keys(rebuilt.numberings).length > 0 ? { numberings: rebuilt.numberings } : {};
+    all.push({ kind: 'setOutputs', paperId, outputs: rebuilt.outputs, sources: rebuilt.sources, ...numberings });
   }
   return all.length === 1 ? all[0] : { kind: 'batch', ops: all };
 }
 
 export const newBlockId = (): string => `blk-${Date.now().toString(36)}`;
 
-export const BLOCK_TEMPLATES: Record<ResultBlockKind, string> = {
+export const BLOCK_TEMPLATES: Record<PdfBlockKind, string> = {
   text: String.raw`Write the text here; math works as usual: $E = mc^2$.`,
   figure: String.raw`\begin{figure}[t]
 \centering

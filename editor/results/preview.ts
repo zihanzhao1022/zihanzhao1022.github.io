@@ -64,7 +64,7 @@ export function createBlockPreview(
       if (references.pdf) referencePdf = { pdf: references.pdf, width: references.width, height: references.height };
     }
 
-    const result = await compileBlock(engine, { preamble, source, kind: block.kind, ...context, files }, measure);
+    const result = await compileBlock(engine, { preamble, source, kind: block.kind === 'heading' ? 'text' : block.kind, ...context, files }, measure);
     return { ...result, ...(referencePdf ? { references: referencePdf } : {}) };
   };
 }

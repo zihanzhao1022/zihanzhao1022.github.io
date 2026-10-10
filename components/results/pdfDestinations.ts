@@ -25,6 +25,14 @@ export function destinationPoint(destination: unknown[], viewport: Viewport): { 
 }
 
 export const referencesId = (scope: string): string => `results-references-${encodeURIComponent(scope)}`;
+/** A place on the page that \ref links from any block can jump to: a PDF destination or a heading's anchor. */
+export const destinationId = (scope: string, name: string): string => `results-destination-${encodeURIComponent(JSON.stringify([scope, name]))}`;
+
+/**
+ * Whether a PDF's named destination becomes a jump target on the page: not the ones every block has (the
+ * document start and its page), and not citations, which go to the bibliography (navigateCitation).
+ */
+export const isPageDestination = (name: string): boolean => name !== 'Doc-Start' && !/^page\.\d+$/.test(name) && !name.startsWith('cite.');
 export const citationId = (scope: string, destination: string): string => `results-citation-${encodeURIComponent(JSON.stringify([scope, destination]))}`;
 
 function reveal(target: HTMLElement): void {
@@ -46,6 +54,15 @@ export function navigateCitation(scope: string, destination: string): void {
     references.dataset.pendingCitation = destination;
     references.scrollIntoView({ block: 'start' });
   }
+}
+
+/**
+ * Jumps to a destination another block or a heading of the page holds: a \ref to a figure in another block
+ * leads nowhere inside its own PDF. Does nothing when the page has no such place (e.g. a hidden block).
+ */
+export function navigateDestination(scope: string, name: string): void {
+  const target = document.getElementById(destinationId(scope, name));
+  if (target) reveal(target);
 }
 
 export function finishCitationNavigation(scope: string): void {

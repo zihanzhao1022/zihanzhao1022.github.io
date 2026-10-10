@@ -47,6 +47,8 @@ export interface BlockDocInput {
   labels?: Record<string, string>;
   /** The paper's bibliography: citation key → the contents of \bibcite's second argument, like labels. */
   citations?: Record<string, string>;
+  /** The page's appendix started in an earlier block: \appendix does not carry over by itself. */
+  appendix?: boolean;
 }
 
 // Reset by LaTeX itself or meaningless across blocks.
@@ -142,7 +144,7 @@ const auxFor = (labels: Record<string, string>, citations: Record<string, string
     '',
   ].join('\n');
 
-export function buildBlockDocument({ preamble, source, kind, counters = {}, labels = {}, citations = {} }: BlockDocInput): BlockDoc {
+export function buildBlockDocument({ preamble, source, kind, counters = {}, labels = {}, citations = {}, appendix = false }: BlockDocInput): BlockDoc {
   const ownPreamble = preamble.replace(/\s+$/, '');
   const head = passOptionsLines(ownPreamble);
   if (!/\\documentclass/.test(stripComments(ownPreamble))) head.push('\\documentclass{article}');
@@ -166,6 +168,8 @@ export function buildBlockDocument({ preamble, source, kind, counters = {}, labe
     SUPPORT,
     '\\begin{document}',
     '\\makeatletter',
+    // Before the restore: \appendix sets the section counter back to 0.
+    ...(appendix ? ['\\appendix'] : []),
     ...restore,
     '\\results@capture',
     '\\makeatother',

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { exportTex, preambleNames, requiredPackages } from './texNames';
+import { exportPaperTex, exportTex, preambleNames, requiredPackages } from './texNames';
 
 describe('preambleNames', () => {
   it('collects defined commands and colors, ignoring comments', () => {
@@ -70,3 +70,40 @@ describe('exportTex', () => {
     expect(exportTex('plain')).toBe('plain\n');
   });
 });
+
+describe('exportPaperTex', () => {
+  it('writes the page top to bottom, headings as LaTeX, with every needed package once', () => {
+    const tex = exportPaperTex([
+      { id: 'h1', kind: 'heading', heading: { level: 'section', title: 'Results', label: 'sec:results' } },
+      { id: 't', kind: 'table', source: '% portfolio-table:v1 cache\n\\begin{tabular}{l}\\toprule A\\\\ \\cellcolor{red}B\\end{tabular}\n' },
+      { id: 'x', kind: 'text', source: 'Hidden \\textcolor{red}{note}.', hidden: true },
+      { id: 'h2', kind: 'heading', heading: { level: 'section', starred: true, title: 'Appendix', appendix: true } },
+      { id: 'f', kind: 'figure', source: '\\includegraphics{bars}\\toprule' },
+    ]);
+    expect(tex).toBe(
+      [
+        '% Requires:',
+        '% \\usepackage{booktabs}',
+        '% \\usepackage[table]{xcolor}',
+        '% \\usepackage{graphicx}',
+        '',
+        '\\section{Results}\\label{sec:results}',
+        '',
+        '\\begin{tabular}{l}\\toprule A\\\\ \\cellcolor{red}B\\end{tabular}',
+        '',
+        'Hidden \\textcolor{red}{note}.',
+        '',
+        '\\appendix',
+        '\\section*{Appendix}',
+        '',
+        '\\includegraphics{bars}\\toprule',
+        '',
+      ].join('\n'),
+    );
+  });
+
+  it('writes no package list when nothing needs one', () => {
+    expect(exportPaperTex([{ id: 'x', kind: 'text', source: 'Plain.' }])).toBe('Plain.\n');
+  });
+});
+

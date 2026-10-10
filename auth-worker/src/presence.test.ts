@@ -51,7 +51,7 @@ function room() {
       put: async (key: string, value: unknown) => void store.set(key, structuredClone(value)),
     },
   };
-  const presence = new Presence(state, env, async () => PAPERS);
+  const presence = new Presence(state, env, async () => [PAPERS, { viewers: ['carol'], collaboratorIds: { carol: 103 } }]);
   const join = async (hello: Record<string, unknown>) => {
     const socket = new FakeSocket();
     state.acceptWebSocket(socket as unknown as WebSocket);
@@ -132,6 +132,13 @@ describe('presence', () => {
     await presence.webSocketClose(bob as unknown as WebSocket);
     expect(alice.last('presence')).toEqual({ t: 'presence', viewers: [{ login: 'alice', id: 101 }] });
     expect(Object.keys(store.get('recent') as object).sort()).toEqual(['alice', 'bob']);
+  });
+
+  it('lets people on the results-wide list onto every paper', async () => {
+    const { join, say } = room();
+    const carol = await join(await collaborator('carol', 103));
+    await say(carol, { t: 'view', paper: 'B' });
+    expect(carol.last('presence')).toEqual({ t: 'presence', viewers: [{ login: 'carol', id: 103 }] });
   });
 
   it('answers pings and ignores junk', async () => {

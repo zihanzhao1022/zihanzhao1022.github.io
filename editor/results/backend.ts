@@ -1,7 +1,8 @@
-import { ResultPaper } from '../../types';
+import { ResultPaper, ResultsSiteAccess } from '../../types';
 import { EDITOR_CONFIG } from '../config';
 import { ConflictError } from '../errors';
 import { GitHubApi, GitHubError, TreeEntry } from '../github';
+import { ACCESS_PATH, parseAccess } from './collaborators';
 import type { PaperRole } from './collaborators';
 import { ResultsOp, applyResultsOp, referencedPaths, touchedPapers } from './ops';
 import { PUBLIC_FILES_PREFIX, SNAPSHOT_PATH, hasPublished, isEmptyPlan, planPublicSync, publicPath } from './snapshot';
@@ -46,6 +47,9 @@ export interface ResultsBackend {
   syncPublic(papers: ResultPaper[], message: string): Promise<string | null>;
   /** syncPublic with the latest private list, e.g. to retry after a failed sync or to catch up with collaborators. */
   resync(message: string): Promise<string | null>;
+  /** Who may view every paper (results-access.json); the owner's backends only. */
+  loadAccess?(): Promise<ResultsSiteAccess>;
+  saveAccess?(access: ResultsSiteAccess, message: string): Promise<void>;
 }
 
 /** Commit message for the site's repository when no published paper is involved: never names a hidden one. */
@@ -231,6 +235,26 @@ export function createResultsBackend(privateApi: GitHubApi, publicApi: GitHubApi
       // Behind until this succeeds, even if reading the private list fails first.
       publicBehind = true;
       return syncPublic(parsePapers(await readTextFile(privateApi, RESULTS_PATH, await privateApi.headSha())), message);
+    },
+
+    async loadAccess() {
+      return parseAccess(await readTextFile(privateApi, ACCESS_PATH, await privateApi.headSha()));
+    },
+
+    async saveAccess(access, message) {
+      for (let attempt = 1; ; attempt += 1) {
+        const head = await privateApi.headSha();
+        const tree = await privateApi.treeSha(head);
+        const entry: TreeEntry = { path: ACCESS_PATH, mode: '100644', type: 'blob', content: `${JSON.stringify(access, null, 2)}\n` };
+        const commit = await privateApi.createCommit(message, await privateApi.createTree(tree, [entry]), head);
+        try {
+          await privateApi.updateBranch(commit);
+          return;
+        } catch (error) {
+          if (!isConflict(error)) throw error;
+          if (attempt >= MAX_ATTEMPTS) throw new ConflictError();
+        }
+      }
     },
   };
 }

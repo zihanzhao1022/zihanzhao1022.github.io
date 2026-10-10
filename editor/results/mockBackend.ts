@@ -1,8 +1,8 @@
-import { ResultPaper } from '../../types';
+import { ResultPaper, ResultsSiteAccess } from '../../types';
 import { ConflictError } from '../errors';
 import { GitHubError } from '../github';
 import { ResultsBackend, toBase64 } from './backend';
-import { GitHubUser, canReadFile, checkEditorOp, isPaperPath, paperOfPath, papersFor, roleOf } from './collaborators';
+import { GitHubUser, canReadFile, checkEditorOp, hasAnyRole, isPaperPath, paperOfPath, papersFor, roleOf } from './collaborators';
 import { ResultsOp, applyResultsOp, referencedPaths, touchedPapers } from './ops';
 import { hasPublished, isEmptyPlan, planPublicSync, publicPath } from './snapshot';
 import { COLLABORATOR_UPLOAD_LIMIT, WorkerError, tooLarge } from './workerBackend';
@@ -22,6 +22,7 @@ const failure = (): string | null => {
 /** The fake private repository and the fake site, shared by the owner's and collaborators' mock backends. */
 interface Store {
   papers: ResultPaper[];
+  access?: ResultsSiteAccess;
   files: Map<string, Uint8Array>;
   publicJson: string;
   publicFiles: string[];
@@ -119,6 +120,17 @@ export function createMockResultsBackend(): ResultsBackend {
     syncPublic,
 
     resync: (message) => syncPublic(data.papers, message),
+
+    async loadAccess() {
+      return structuredClone(data.access ?? {});
+    },
+
+    async saveAccess(access, message) {
+      await wait(300);
+      data.access = structuredClone(access);
+      persist(data);
+      console.info(`[mock private commit] ${message}`, access);
+    },
   };
 }
 
@@ -130,15 +142,15 @@ export function createMockCollaboratorBackend(user: GitHubUser): ResultsBackend 
   return {
     async load() {
       await wait(300);
-      const shared = papersFor(data.papers, user);
-      if (shared.papers.length === 0) throw refused();
+      if (!hasAnyRole(data.papers, user, data.access)) throw refused();
+      const shared = papersFor(data.papers, user, true, data.access);
       return { state: 'ready', papers: structuredClone(shared.papers), roles: shared.roles };
     },
 
     async readFile(path) {
       await wait(50);
       const paper = data.papers.find((item) => item.id === paperOfPath(path));
-      const role = paper ? roleOf(paper, user) : null;
+      const role = paper ? roleOf(paper, user, data.access) : null;
       if (!paper || !role || !canReadFile(paper, role, path)) throw refused();
       const bytes = data.files.get(path);
       if (!bytes) throw new WorkerError('文件不存在', 404);
@@ -163,7 +175,7 @@ export function createMockCollaboratorBackend(user: GitHubUser): ResultsBackend 
       applyFiles(data, writes, deletes);
       persist(data);
       console.info(`[mock private commit] ${message} (by ${user.login})`, { write: writes.map((write) => write.path), delete: deletes });
-      const shared = papersFor(data.papers, user);
+      const shared = papersFor(data.papers, user, true, data.access);
       return { papers: structuredClone(shared.papers), publicCommit: null, roles: shared.roles };
     },
 

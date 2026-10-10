@@ -41,7 +41,7 @@
 - 编辑器左边写代码、右边实时预览；表格可以"复制 LaTeX"，开头会注明需要的宏包。
 - 参考文献：论文页的"参考文献"按钮新建或编辑 `references.bib`，编辑器里"粘贴 BibTeX"可以直接加入从网上复制的条目（引用名会放到剪贴板）。正文里用 `\cite` 引用，论文页最后自动列出 References，编号在各块之间连续。
 - TeX 引擎和常用宏包在 `public/texlive/`（说明见其中的 README），其他宏包从 TeXlyre 的 TeX Live 服务器按需下载，只发送文件名。
-- 每篇论文可以共享给指定的 GitHub 用户：他们用 GitHub 登录后能看到这篇论文可见块的结果，即使论文还没公开（协作者编辑功能已写好，暂未开放）。他们通过 Cloudflare Worker 访问私有仓库，自己拿不到任何 GitHub 令牌。
+- results 页的"可以查看全部论文的人"可以把所有论文一次共享给指定的 GitHub 用户；每篇论文也可以单独共享给指定的 GitHub 用户：他们用 GitHub 登录后能看到这篇论文可见块的结果，即使论文还没公开（协作者编辑功能已写好，暂未开放）。他们通过 Cloudflare Worker 访问私有仓库，自己拿不到任何 GitHub 令牌。
 - 配置方法见 [docs/admin-setup.md](docs/admin-setup.md)。
 
 ## 本地开发

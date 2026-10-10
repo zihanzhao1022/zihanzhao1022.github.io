@@ -5,10 +5,10 @@
  * not signed in never connect. Nothing is stored except when each person was last seen.
  */
 import { roleOf } from '../../editor/results/collaborators';
-import { ResultPaper } from '../../types';
+import { ResultPaper, ResultsSiteAccess } from '../../types';
 import { verifySession } from './crypto';
 import { githubHeaders } from './github-app';
-import { ResultsEnv, collaboratorsEnabled, readPapers } from './results';
+import { ResultsEnv, collaboratorsEnabled, readShared } from './results';
 
 export interface Viewer {
   login: string;
@@ -51,14 +51,14 @@ const send = (socket: WebSocket, message: unknown): void => {
 };
 
 export class Presence {
-  private papers: { at: number; list: ResultPaper[] } | null = null;
+  private papers: { at: number; list: ResultPaper[]; site: ResultsSiteAccess } | null = null;
   /** GitHub tokens already checked to be the owner's, by hash. */
   private owners = new Map<string, { user: Viewer; until: number }>();
 
   constructor(
     private readonly state: DurableObjectState,
     private readonly env: ResultsEnv,
-    private readonly loadPapers: () => Promise<ResultPaper[]> = () => readPapers(env),
+    private readonly loadShared: () => Promise<[ResultPaper[], ResultsSiteAccess]> = () => readShared(env),
   ) {}
 
   async fetch(request: Request): Promise<Response> {
@@ -150,12 +150,15 @@ export class Presence {
     if (user.owner) return true;
     if (!collaboratorsEnabled(this.env)) return false;
     try {
-      if (!this.papers || Date.now() - this.papers.at > PAPERS_TTL_MS) this.papers = { at: Date.now(), list: await this.loadPapers() };
+      if (!this.papers || Date.now() - this.papers.at > PAPERS_TTL_MS) {
+        const [list, site] = await this.loadShared();
+        this.papers = { at: Date.now(), list, site };
+      }
     } catch {
       return false;
     }
     const paper = this.papers.list.find((item) => item.id === paperId);
-    return paper !== undefined && roleOf(paper, user) !== null;
+    return paper !== undefined && roleOf(paper, user, this.papers.site) !== null;
   }
 
   /** Last seen, by user name, for the owner's "last 7 days". */

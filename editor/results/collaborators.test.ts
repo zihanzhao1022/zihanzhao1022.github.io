@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ResultBlock, ResultPaper } from '../../types';
-import { canReadFile, checkEditorOp, cleanOutput, hasAnyRole, isPaperPath, papersFor, roleOf } from './collaborators';
+import { canReadFile, checkEditorOp, cleanOutput, hasAnyRole, isPaperPath, papersFor, parseAccess, roleOf } from './collaborators';
 
 const output = (paperId: string, blockId: string) => ({ pdf: `results/${paperId}/${blockId}-0123abcd.pdf`, width: 300, height: 100 });
 
@@ -216,5 +216,31 @@ describe('checkEditorOp', () => {
     expect(cleanOutput({ ...output('res-a', 'blk-1'), url: 'https://evil.example' }, 'res-a')).toEqual(output('res-a', 'blk-1'));
     expect(cleanOutput({ ...output('res-a', 'blk-1'), width: Infinity }, 'res-a')).toBeNull();
     expect(cleanOutput({ ...output('res-a', 'blk-1'), counters: { table: '2' } }, 'res-a')).toBeNull();
+  });
+});
+
+describe('the results-wide list', () => {
+  const site = { viewers: ['Dave'], collaboratorIds: { dave: 104 } };
+  const dave = { login: 'dave', id: 104 };
+  const papers = [paper('res-a', { editors: ['bob'], collaboratorIds: { bob: 102 } }), paper('res-b')];
+
+  it('lets its people view every paper, as viewers', () => {
+    expect(roleOf(papers[1], dave, site)).toBe('viewer');
+    expect(roleOf(papers[1], dave)).toBeNull();
+    expect(roleOf(papers[1], { login: 'dave', id: 999 }, site)).toBeNull();
+    expect(hasAnyRole([], dave, site)).toBe(true);
+    const view = papersFor(papers, dave, true, site);
+    expect(view.roles).toEqual({ 'res-a': 'viewer', 'res-b': 'viewer' });
+    expect(view.papers[0].blocks[0]).not.toHaveProperty('source');
+  });
+
+  it("keeps a paper's own role when it is higher", () => {
+    expect(roleOf(papers[0], { login: 'bob', id: 102 }, { viewers: ['bob'], collaboratorIds: { bob: 102 } })).toBe('editor');
+  });
+
+  it('reads results-access.json defensively', () => {
+    expect(parseAccess(null)).toEqual({});
+    expect(parseAccess('not json')).toEqual({});
+    expect(parseAccess(JSON.stringify({ viewers: ['a', 3], collaboratorIds: { a: 1, b: 'x' } }))).toEqual({ viewers: ['a'], collaboratorIds: { a: 1 } });
   });
 });

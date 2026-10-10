@@ -8,6 +8,7 @@ import { ConflictError } from '../../editor/errors';
 import { GitHubApi, GitHubError, TreeEntry, createGitHubApi } from '../../editor/github';
 import { RESULTS_PATH, commitResults, parsePapers, readTextFile } from '../../editor/results/backend';
 import {
+  ACCESS_PATH,
   GitHubUser,
   canReadFile,
   checkEditorOp,
@@ -15,10 +16,11 @@ import {
   isPaperPath,
   paperOfPath,
   papersFor,
+  parseAccess,
   roleOf,
 } from '../../editor/results/collaborators';
 import { ResultsOp } from '../../editor/results/ops';
-import { ResultPaper } from '../../types';
+import { ResultPaper, ResultsSiteAccess } from '../../types';
 import { signSession, signText, verifySession, verifyText } from './crypto';
 import { AppEnv, USER_AGENT, forgetInstallationToken, installationToken } from './github-app';
 import { Headers, json } from './http';
@@ -67,8 +69,14 @@ async function privateRepo(env: ResultsEnv): Promise<GitHubApi> {
 
 const loadPapers = async (api: GitHubApi): Promise<ResultPaper[]> => parsePapers(await readTextFile(api, RESULTS_PATH, BRANCH));
 
-/** The private list of papers, read with the installation token (for checks outside these endpoints). */
-export const readPapers = async (env: ResultsEnv): Promise<ResultPaper[]> => loadPapers(await privateRepo(env));
+/** Who may view every paper (results-access.json). */
+const loadAccess = async (api: GitHubApi): Promise<ResultsSiteAccess> => parseAccess(await readTextFile(api, ACCESS_PATH, BRANCH));
+
+/** The papers and the results-wide list, read together. */
+const loadShared = (api: GitHubApi): Promise<[ResultPaper[], ResultsSiteAccess]> => Promise.all([loadPapers(api), loadAccess(api)]);
+
+/** The private papers and the results-wide list, read with the installation token (for checks outside these endpoints). */
+export const readShared = async (env: ResultsEnv): Promise<[ResultPaper[], ResultsSiteAccess]> => loadShared(await privateRepo(env));
 
 const isEditorOf = (papers: ResultPaper[], paperId: string, user: GitHubUser, env: ResultsEnv): boolean => {
   const paper = papers.find((item) => item.id === paperId);
@@ -93,13 +101,14 @@ class Forbidden extends Error {}
 export async function collaboratorLogin(user: GitHubUser & { avatar_url: string }, env: ResultsEnv, cors: Headers): Promise<Response> {
   if (!collaboratorsEnabled(env)) return json({ error: 'not_owner' }, 403, cors);
   let papers: ResultPaper[];
+  let site: ResultsSiteAccess;
   try {
-    papers = await loadPapers(await privateRepo(env));
+    [papers, site] = await readShared(env);
   } catch (error) {
     console.error('results: reading the private repository failed', error instanceof Error ? error.message : error);
     return json({ error: 'private_unavailable' }, 502, cors);
   }
-  if (!hasAnyRole(papers, user)) return json({ error: 'not_owner' }, 403, cors);
+  if (!hasAnyRole(papers, user, site)) return json({ error: 'not_owner' }, 403, cors);
   const expiresAt = Date.now() + SESSION_MS;
   return json(
     {
@@ -138,10 +147,11 @@ const badRequest = (cors: Headers, message?: string): Response => json({ error: 
 const forbidden = (cors: Headers): Response => json({ error: 'forbidden' }, 403, cors);
 
 const HANDLERS: Record<string, Handler> = {
-  /** The papers shared with the collaborator; 403 once no paper is. */
+  /** The papers shared with the collaborator; 403 once they are on no list at all. */
   async '/results/load'(api, user, _body, env, cors) {
-    const shared = papersFor(await loadPapers(api), user, editingEnabled(env));
-    return shared.papers.length > 0 ? json(shared, 200, cors) : json({ error: 'not_shared' }, 403, cors);
+    const [papers, site] = await loadShared(api);
+    if (!hasAnyRole(papers, user, site)) return json({ error: 'not_shared' }, 403, cors);
+    return json(papersFor(papers, user, editingEnabled(env), site), 200, cors);
   },
 
   /** One file of a shared paper: { path }. */
@@ -149,8 +159,9 @@ const HANDLERS: Record<string, Handler> = {
     const { path } = body;
     const paperId = typeof path === 'string' ? paperOfPath(path) : null;
     if (typeof path !== 'string' || !paperId) return badRequest(cors);
-    const paper = (await loadPapers(api)).find((item) => item.id === paperId);
-    const found = paper ? roleOf(paper, user) : null;
+    const [papers, site] = await loadShared(api);
+    const paper = papers.find((item) => item.id === paperId);
+    const found = paper ? roleOf(paper, user, site) : null;
     const role = found === 'editor' && !editingEnabled(env) ? 'viewer' : found;
     if (!paper || !role || !canReadFile(paper, role, path)) return forbidden(cors);
     const bytes = await api.readBytes(path, BRANCH);
@@ -201,7 +212,7 @@ const HANDLERS: Record<string, Handler> = {
       // Checked on the very list the edit is applied to.
       if (!isEditorOf(latest, paperId, user, env)) throw new Forbidden();
     });
-    return json(papersFor(papers, user, editingEnabled(env)), 200, cors);
+    return json(papersFor(papers, user, editingEnabled(env), await loadAccess(api)), 200, cors);
   },
 };
 

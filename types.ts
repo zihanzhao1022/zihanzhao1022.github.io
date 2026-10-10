@@ -140,6 +140,16 @@ export interface ResultBlockOutput {
   labels?: Record<string, string>;
 }
 
+/**
+ * Who may view every paper of the results pages, on top of each paper's own lists (results-access.json in the
+ * private repository; never sent to anyone but the owner).
+ */
+export interface ResultsSiteAccess {
+  viewers?: string[];
+  /** GitHub account ID of each listed user name (lowercase), like a paper's collaboratorIds. */
+  collaboratorIds?: Record<string, number>;
+}
+
 /** A paper's bibliography: the entries its blocks cite, typeset from references.bib under "References". */
 export interface ResultReferences extends ResultBlockOutput {
   /** What the bibliography's \bibcite says for each cited key, so the blocks' \cite can show it. Private only. */

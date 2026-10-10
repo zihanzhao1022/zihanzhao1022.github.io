@@ -1,4 +1,4 @@
-import { ResultBlock, ResultBlockKind, ResultBlockOutput, ResultPaper } from '../../types';
+import { ResultBlock, ResultBlockKind, ResultBlockOutput, ResultPaper, ResultsSiteAccess } from '../../types';
 import { ResultsOp } from './ops';
 import { publicView } from './snapshot';
 
@@ -18,19 +18,48 @@ export interface GitHubUser {
 /** GitHub user names are case-insensitive; the lists may also hold "@name". */
 export const normalLogin = (login: string): string => login.trim().replace(/^@/, '').toLowerCase();
 
-/**
- * A person's role on a paper (editors may also view), or null. They must be on a list by user name, and be
- * the account that had that name when the owner added it.
- */
-export function roleOf(paper: ResultPaper, user: GitHubUser): PaperRole | null {
+/** Anything with lists of GitHub users: a paper, or the results pages as a whole. */
+interface Listed {
+  viewers?: string[];
+  editors?: string[];
+  collaboratorIds?: Record<string, number>;
+}
+
+/** Where the private repository keeps who may view every paper. */
+export const ACCESS_PATH = 'results-access.json';
+
+/** results-access.json's contents; anything unreadable lists nobody. */
+export function parseAccess(text: string | null): ResultsSiteAccess {
+  try {
+    const raw = (text === null ? {} : JSON.parse(text)) as Record<string, unknown>;
+    const viewers = Array.isArray(raw.viewers) ? raw.viewers.filter((name): name is string => typeof name === 'string') : [];
+    const ids = typeof raw.collaboratorIds === 'object' && raw.collaboratorIds !== null ? (raw.collaboratorIds as Record<string, unknown>) : {};
+    const collaboratorIds = Object.fromEntries(Object.entries(ids).filter((entry): entry is [string, number] => typeof entry[1] === 'number'));
+    return viewers.length > 0 ? { viewers, collaboratorIds } : {};
+  } catch {
+    return {};
+  }
+}
+
+/** On a list by user name, and the account that had that name when the owner added it. */
+function listedAs(item: Listed, user: GitHubUser): PaperRole | null {
   const me = normalLogin(user.login);
-  if (!me || paper.collaboratorIds?.[me] !== user.id) return null;
-  if ((paper.editors ?? []).some((name) => normalLogin(name) === me)) return 'editor';
-  if ((paper.viewers ?? []).some((name) => normalLogin(name) === me)) return 'viewer';
+  if (!me || item.collaboratorIds?.[me] !== user.id) return null;
+  if ((item.editors ?? []).some((name) => normalLogin(name) === me)) return 'editor';
+  if ((item.viewers ?? []).some((name) => normalLogin(name) === me)) return 'viewer';
   return null;
 }
 
-export const hasAnyRole = (papers: ResultPaper[], user: GitHubUser): boolean => papers.some((paper) => roleOf(paper, user) !== null);
+/**
+ * A person's role on a paper (editors may also view), or null: from the paper's own lists, or as a viewer of
+ * every paper (`site`, results-access.json).
+ */
+export function roleOf(paper: ResultPaper, user: GitHubUser, site?: ResultsSiteAccess): PaperRole | null {
+  return listedAs(paper, user) ?? (site && listedAs(site, user) ? 'viewer' : null);
+}
+
+export const hasAnyRole = (papers: ResultPaper[], user: GitHubUser, site?: ResultsSiteAccess): boolean =>
+  (site !== undefined && listedAs(site, user) !== null) || papers.some((paper) => roleOf(paper, user) !== null);
 
 /** A GitHub account's ID by user name; null when there is no such user. */
 export type UserLookup = (login: string) => Promise<number | null>;
@@ -40,7 +69,7 @@ export type UserLookup = (login: string) => Promise<number | null>;
  * already known are kept, so a user name that was given up and registered again does not pass access to the
  * new account; names no longer listed are dropped.
  */
-export async function withCollaboratorIds(paper: ResultPaper, previous: ResultPaper | undefined, lookup: UserLookup): Promise<ResultPaper> {
+export async function withCollaboratorIds<T extends Listed>(paper: T, previous: Listed | undefined, lookup: UserLookup): Promise<T> {
   const ids: Record<string, number> = {};
   for (const name of [...(paper.viewers ?? []), ...(paper.editors ?? [])]) {
     const login = normalLogin(name);
@@ -50,7 +79,7 @@ export async function withCollaboratorIds(paper: ResultPaper, previous: ResultPa
     ids[login] = id;
   }
   const { collaboratorIds: _ids, ...rest } = paper;
-  return Object.keys(ids).length > 0 ? { ...rest, collaboratorIds: ids } : rest;
+  return (Object.keys(ids).length > 0 ? { ...rest, collaboratorIds: ids } : rest) as T;
 }
 
 export interface SharedPapers {
@@ -64,11 +93,11 @@ export interface SharedPapers {
  * were published: its visible, compiled blocks, no LaTeX. Editors get the whole paper. Nobody gets the lists
  * of who else it is shared with.
  */
-export function papersFor(papers: ResultPaper[], user: GitHubUser, editing = true): SharedPapers {
+export function papersFor(papers: ResultPaper[], user: GitHubUser, editing = true, site?: ResultsSiteAccess): SharedPapers {
   const shared: ResultPaper[] = [];
   const roles: Record<string, PaperRole> = {};
   for (const paper of papers) {
-    const found = roleOf(paper, user);
+    const found = roleOf(paper, user, site);
     if (!found) continue;
     // While editing is switched off, editors get what viewers get.
     const role: PaperRole = editing ? found : 'viewer';

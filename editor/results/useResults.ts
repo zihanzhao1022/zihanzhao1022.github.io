@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ResultsAccess } from '../../components/results/access';
 import { Session } from '../../lib/session';
-import { ResultPaper, SiteContent } from '../../types';
+import { ResultPaper, ResultsSiteAccess, SiteContent } from '../../types';
 import { describeSaveError } from '../backend';
 import { ContentOp } from '../ops';
 import { attachmentPath, rebuildPaper, withOutputs } from './actions';
@@ -46,6 +46,8 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
   const [loadState, setLoadState] = useState<LoadState>({ state: 'loading' });
   /** The site's copy of the published papers may be out of date (a sync failed). */
   const [siteBehind, setSiteBehind] = useState(false);
+  /** Who may view every paper (the owner's results-access.json). */
+  const [siteAccess, setSiteAccess] = useState<ResultsSiteAccess>({});
   /** A collaborator's role on each paper shared with them. */
   const [roles, setRoles] = useState<Record<string, PaperRole> | undefined>(undefined);
   /** Once the private list is in, reloading the public content must not replace it with the snapshot. */
@@ -90,8 +92,14 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
         setRoles(loaded.roles);
         show(loaded.papers);
         setLoadState({ state: 'private' });
-        // Only the owner publishes.
+        // Only the owner publishes and keeps the results-wide list.
         if (collaborator) return;
+        created
+          .loadAccess?.()
+          .then((access) => {
+            if (!cancelled) setSiteAccess(access);
+          })
+          .catch(() => undefined);
         if (loaded.papers.some((paper) => !paper.hidden && paper.pendingReview?.length)) {
           callbacks.current.onToast({ message: '协作者修改了已公开的论文，在论文页确认后才会更新到网站' });
         }
@@ -179,6 +187,17 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
   );
 
   const lookupUser = useMemo(() => createUserLookup(session), [session]);
+
+  /** Saves who may view every paper, with their GitHub account IDs (looked up like a paper's lists). */
+  const saveSiteViewers = useCallback(
+    async (names: string[]): Promise<void> => {
+      if (!backend?.saveAccess) throw new Error('私有仓库不可用，暂时不能保存');
+      const next = await withCollaboratorIds<ResultsSiteAccess>(names.length > 0 ? { viewers: names } : {}, siteAccess, lookupUser);
+      await enqueue(() => backend.saveAccess!(next, 'results: update who may view every paper'));
+      setSiteAccess(next);
+    },
+    [backend, siteAccess, lookupUser, enqueue],
+  );
 
   /** Saves an edit made through the generic dialogs or by dragging a paper. */
   const saveContentOp = useCallback(
@@ -302,9 +321,9 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
       ...loadState,
       readFile: backend?.readFile ?? notReady,
       shared: roles,
-      ...(collaborator ? {} : { siteBehind, syncSite, approveEdits }),
+      ...(collaborator ? {} : { siteBehind, syncSite, approveEdits, siteViewers: siteAccess.viewers ?? [], saveSiteViewers }),
     }),
-    [collaborator, loadState, backend, roles, siteBehind, syncSite, approveEdits],
+    [collaborator, loadState, backend, roles, siteBehind, syncSite, approveEdits, siteAccess, saveSiteViewers],
   );
 
   return { access, privateLoaded, saveResults, saveContentOp, reorderBlocks, reload, isReordering };

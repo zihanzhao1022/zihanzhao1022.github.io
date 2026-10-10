@@ -22,6 +22,9 @@ export interface ResultsAccess {
   syncSite?: () => void;
   /** Publishes collaborators' edits to a published paper (the owner only). */
   approveEdits?: (paperId: string) => void;
+  /** Who may view every paper, on top of each paper's own lists (the owner only). */
+  siteViewers?: string[];
+  saveSiteViewers?: (names: string[]) => Promise<void>;
 }
 
 export const ResultsAccessContext = createContext<ResultsAccess | null>(null);

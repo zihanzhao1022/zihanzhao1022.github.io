@@ -253,3 +253,16 @@ describe('publishing', () => {
     expect(result.papers[0].hidden).toBeUndefined();
   });
 });
+
+describe('the results-wide list', () => {
+  it('reads nobody from a missing file and commits only results-access.json', async () => {
+    const privateRepo = fakeRepo();
+    const backend = createResultsBackend(privateRepo, fakeRepo());
+    expect(await backend.loadAccess!()).toEqual({});
+    await backend.saveAccess!({ viewers: ['dave'], collaboratorIds: { dave: 104 } }, 'results: update who may view every paper');
+    expect(privateRepo.createTree).toHaveBeenCalledWith('tree1', [
+      { path: 'results-access.json', mode: '100644', type: 'blob', content: `${JSON.stringify({ viewers: ['dave'], collaboratorIds: { dave: 104 } }, null, 2)}\n` },
+    ]);
+    expect(privateRepo.updateBranch).toHaveBeenCalledWith('commit1');
+  });
+});

@@ -78,6 +78,8 @@ function fakeGitHub(user: { login: string; id: number } = ALICE) {
     [pdf('res-a', 'blk-2'), text('%PDF hidden block')],
     ['results/res-a/files/style.sty', text('% style')],
     [pdf('res-b', 'blk-3'), text('%PDF b')],
+    // carol may view every paper.
+    ['results-access.json', text(JSON.stringify({ viewers: ['carol'], collaboratorIds: { carol: 103 } }))],
   ]);
   const blobs = new Map<string, Uint8Array<ArrayBuffer>>();
   const trees = new Map<string, Map<string, Uint8Array<ArrayBuffer>>>();
@@ -258,6 +260,18 @@ describe('reading', () => {
       String(input).includes('/contents/results.json') ? new Response(JSON.stringify(removed)) : github.fetchMock(input, init),
     );
     expect((await request('/results/load', {}, session)).status).toBe(403);
+  });
+});
+
+describe('the results-wide list', () => {
+  it('lets its people sign in and view every paper, read-only', async () => {
+    const carol = await signIn({ login: 'carol', id: 103 });
+    fakeGitHub({ login: 'carol', id: 103 });
+    const shared = (await (await request('/results/load', {}, carol)).json()) as { papers: ResultPaper[]; roles: Record<string, string> };
+    expect(shared.roles).toEqual({ 'res-a': 'viewer', 'res-b': 'viewer', 'res-c': 'viewer' });
+    expect(JSON.stringify(shared)).not.toMatch(/made-up 1|Made-up text/);
+    expect((await request('/results/file', { path: pdf('res-b', 'blk-3') }, carol)).status).toBe(200);
+    expect((await request('/results/file', { path: 'results/res-a/files/style.sty' }, carol)).status).toBe(403);
   });
 });
 

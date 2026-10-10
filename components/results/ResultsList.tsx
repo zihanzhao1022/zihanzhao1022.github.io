@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { paperPath } from '../../lib/results';
 import { ResultPaper } from '../../types';
@@ -7,6 +8,7 @@ import { AddButton, EditButton, HiddenBadge, useEditMode, useVisibleItems } from
 import { SortableGroup } from '../SortableGroup';
 import { isCollaborator, useResultsAccess } from './access';
 import Authors from './Authors';
+import SiteViewersDialog from './SiteViewersDialog';
 
 const UNAVAILABLE: Record<string, string> = {
   missing: '读不到私有仓库 zihanzhao1022/homepage-private：请确认仓库存在，并且 GitHub App 已安装到它上面。',
@@ -87,16 +89,32 @@ const ResultsList: React.FC = () => {
   const all = useContent().results;
   const visible = useVisibleItems(all);
   const { editing } = useEditMode();
-  const collaborator = isCollaborator(useResultsAccess());
+  const access = useResultsAccess();
+  const collaborator = isCollaborator(access);
   // A collaborator got exactly the papers shared with them, hidden or not.
   const papers = collaborator ? all : visible;
+  const [sharing, setSharing] = useState(false);
 
   return (
     <div className="animate-fade-in pb-20">
+      {sharing && access?.saveSiteViewers && (
+        <SiteViewersDialog names={access.siteViewers ?? []} onSave={access.saveSiteViewers} onClose={() => setSharing(false)} />
+      )}
       <div className="mb-10">
         <h1 className="text-3xl font-light text-gray-900 mb-2">
           results
           <AddButton request={{ kind: 'add', collection: 'results' }} text="添加论文" className="ml-3" />
+          {editing && access?.saveSiteViewers && (
+            <button
+              type="button"
+              onClick={() => setSharing(true)}
+              title="这些 GitHub 用户登录后能看到所有论文"
+              className="ml-2 inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-purple-200 bg-white text-xs font-medium normal-case tracking-normal text-purple-700 hover:bg-purple-50 align-middle"
+            >
+              <Users size={14} />
+              可以查看全部论文的人{access.siteViewers?.length ? `（${access.siteViewers.length}）` : ''}
+            </button>
+          )}
         </h1>
         <p className="text-sm text-gray-500">figures, tables and notes from my papers.</p>
         {collaborator && <p className="mt-2 text-sm text-purple-700">这里是作者共享给你的论文。</p>}

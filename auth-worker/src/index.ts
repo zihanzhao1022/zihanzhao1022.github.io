@@ -6,7 +6,10 @@
  */
 import { githubHeaders } from './github-app';
 import { Headers, json } from './http';
+import { Presence } from './presence';
 import { ResultsEnv, collaboratorLogin, handleResults } from './results';
+
+export { Presence };
 
 export interface Env extends ResultsEnv {
   GITHUB_CLIENT_ID: string;
@@ -14,6 +17,8 @@ export interface Env extends ResultsEnv {
   OWNER_LOGIN: string;
   /** Comma-separated site origins, e.g. "https://zihanzhao1022.github.io,http://localhost:3000". */
   ALLOWED_ORIGINS: string;
+  /** The presence Durable Object (who is online, who reads which paper). */
+  PRESENCE?: DurableObjectNamespace;
 }
 
 // GitHub App user tokens expire after 8 hours unless the app opts out.
@@ -90,6 +95,8 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
 
     const { pathname } = new URL(request.url);
+    // One room for the whole site; the browser opens it only when someone is signed in.
+    if (pathname === '/presence' && env.PRESENCE) return env.PRESENCE.get(env.PRESENCE.idFromName('site')).fetch(request);
     if (request.method === 'POST' && pathname.startsWith('/results/')) return handleResults(request, pathname, env, cors);
     if (request.method !== 'POST' || (pathname !== '/token' && pathname !== '/revoke')) {
       return json({ error: 'not_found' }, 404, cors);

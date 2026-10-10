@@ -13,6 +13,7 @@ import BlockView from './BlockView';
 import LoginPrompt from './LoginPrompt';
 import { ResultsUnavailable } from './ResultsList';
 import './resultPage.css';
+import { avatarUrl, usePresence } from '../presence';
 
 const KIND_LABEL = { text: '文字', figure: '图', table: '表格' } as const;
 
@@ -107,6 +108,31 @@ const Notices: React.FC<{ paper: ResultPaper; access: ResultsAccess | null; edit
   );
 };
 
+/** Who else has this paper open right now, like the avatars in Overleaf. */
+const Viewers: React.FC = () => {
+  const presence = usePresence();
+  const others = presence?.viewers.filter((viewer) => viewer.login !== presence.me?.login) ?? [];
+  if (others.length === 0) return null;
+  const shown = others.slice(0, 6);
+  return (
+    <div className="flex items-center gap-2 text-xs text-gray-500" aria-label="正在看这篇论文的人">
+      <span className="hidden sm:inline">正在看</span>
+      <div className="flex -space-x-2">
+        {shown.map((viewer) => (
+          <img
+            key={viewer.login}
+            src={avatarUrl(viewer.id)}
+            alt={viewer.login}
+            title={`@${viewer.login} 正在看这篇论文`}
+            className="w-7 h-7 rounded-full ring-2 ring-white bg-gray-200"
+          />
+        ))}
+      </div>
+      {others.length > shown.length && <span>+{others.length - shown.length}</span>}
+    </div>
+  );
+};
+
 /** One paper's results: its blocks of text, figures and tables, each compiled to a PDF. */
 const ResultPage: React.FC = () => {
   const { slug } = useParams();
@@ -119,6 +145,14 @@ const ResultPage: React.FC = () => {
   // The owner edits whenever edit mode is on; a collaborator only the papers they may edit.
   const editing = paper ? (collaborator ? canEditShared(access, paper.id) : editMode.editing) : false;
   const pageMode = useMemo(() => ({ ...editMode, editing }), [editMode, editing]);
+  // Tell the presence room which paper this page shows, so others on it see this reader.
+  const setPaper = usePresence()?.setPaper;
+  const paperId = paper?.id;
+  useEffect(() => {
+    if (!setPaper || !paperId) return undefined;
+    setPaper(paperId);
+    return () => setPaper(null);
+  }, [setPaper, paperId]);
 
   if (!paper) {
     // The private list may still be loading; only then is a missing paper really missing.
@@ -134,9 +168,12 @@ const ResultPage: React.FC = () => {
   return (
     <EditModeContext.Provider value={pageMode}>
       <div className="animate-fade-in pb-20">
-        <Link to="/results" className="text-sm text-gray-500 hover:text-purple-600">
-          ← results
-        </Link>
+        <div className="flex items-center justify-between gap-4">
+          <Link to="/results" className="text-sm text-gray-500 hover:text-purple-600">
+            ← results
+          </Link>
+          <Viewers />
+        </div>
         <div className="mt-4 mb-10">
           <h1 className="text-3xl font-light text-gray-900 mb-3">
             {paper.title}

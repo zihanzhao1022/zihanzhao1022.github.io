@@ -15,7 +15,7 @@ const Footer: React.FC = () => {
             onClick={login}
             title="管理员登录"
             aria-label="管理员登录"
-            className="ml-2 align-middle text-gray-600 hover:text-gray-300 transition-colors"
+            className="ml-2 align-middle text-white/90 hover:text-white transition-colors"
           >
             <Lock size={11} />
           </button>

@@ -14,6 +14,8 @@ import { AdminBar, LoadState } from './components/AdminBar';
 import { ItemModal } from './components/ItemModal';
 import { NavigationModal } from './components/NavigationModal';
 import { EditorToast, useResultsEditor } from './results/useResults';
+import { usePresence } from './presence';
+import { PresenceContext } from '../components/presence';
 
 // The LaTeX editors (CodeMirror, the TeX engine) load only when a results dialog opens.
 const BlockEditor = lazy(() => import('./results/BlockEditor'));
@@ -47,6 +49,7 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
   // Saves run one at a time. `pending` holds ops already shown on the page but not committed yet.
   const queue = useRef<Promise<unknown>>(Promise.resolve());
   const pending = useRef<ContentOp[]>([]);
+  const presence = usePresence(session);
   const { access, privateLoaded, saveResults, saveContentOp, reorderBlocks, reload, isReordering } = useResultsEditor({
     session,
     setContent,
@@ -223,56 +226,60 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
   return (
     <EditModeContext.Provider value={value}>
       <ResultsAccessContext.Provider value={access}>
-        <AdminBar
-          session={session}
-          enabled={enabled}
-          onToggle={setEnabled}
-          loadState={loadState}
-          deploy={deploy?.status ?? null}
-          onLogout={handleLogout}
-        />
-        {children}
-        {request?.kind === 'navigation' && (
-          <NavigationModal
-            content={content}
-            onSave={save}
-            onReorder={(ids) => reorder('navigation', ids)}
-            onClose={closeDialog}
+        <PresenceContext.Provider value={presence}>
+          <AdminBar
+            session={session}
+            enabled={enabled}
+            onToggle={setEnabled}
+            loadState={loadState}
+            deploy={deploy?.status ?? null}
+            onLogout={handleLogout}
+            presence={presence}
+            paperOf={(id) => content.results.find((paper) => paper.id === id)}
           />
-        )}
-        {(request?.kind === 'edit' || request?.kind === 'add' || request?.kind === 'profile') && (
-          <ItemModal request={request} content={content} onSave={save} onClose={closeDialog} />
-        )}
-        {request?.kind === 'block' && paper && (
-          <Suspense fallback={null}>
-            <BlockEditor
-              paper={paper}
-              blockId={request.blockId}
-              blockKind={request.blockKind}
-              afterBlockId={request.afterBlockId}
-              readFile={access.readFile}
-              onSave={saveResults}
+          {children}
+          {request?.kind === 'navigation' && (
+            <NavigationModal
+              content={content}
+              onSave={save}
+              onReorder={(ids) => reorder('navigation', ids)}
               onClose={closeDialog}
             />
-          </Suspense>
-        )}
-        {request?.kind === 'paperSettings' && paper && (
-          <Suspense fallback={null}>
-            <PaperSettings paper={paper} readFile={access.readFile} onSave={saveResults} onClose={closeDialog} />
-          </Suspense>
-        )}
-        {request?.kind === 'references' && paper && (
-          <Suspense fallback={null}>
-            <ReferencesEditor paper={paper} readFile={access.readFile} onSave={saveResults} onClose={closeDialog} />
-          </Suspense>
-        )}
-        {toast && (
-          <Toast
-            message={toast.message}
-            onClose={() => setToast(null)}
-            action={toast.relogin ? { label: '重新登录', onClick: relogin } : toast.action}
-          />
-        )}
+          )}
+          {(request?.kind === 'edit' || request?.kind === 'add' || request?.kind === 'profile') && (
+            <ItemModal request={request} content={content} onSave={save} onClose={closeDialog} />
+          )}
+          {request?.kind === 'block' && paper && (
+            <Suspense fallback={null}>
+              <BlockEditor
+                paper={paper}
+                blockId={request.blockId}
+                blockKind={request.blockKind}
+                afterBlockId={request.afterBlockId}
+                readFile={access.readFile}
+                onSave={saveResults}
+                onClose={closeDialog}
+              />
+            </Suspense>
+          )}
+          {request?.kind === 'paperSettings' && paper && (
+            <Suspense fallback={null}>
+              <PaperSettings paper={paper} readFile={access.readFile} onSave={saveResults} onClose={closeDialog} />
+            </Suspense>
+          )}
+          {request?.kind === 'references' && paper && (
+            <Suspense fallback={null}>
+              <ReferencesEditor paper={paper} readFile={access.readFile} onSave={saveResults} onClose={closeDialog} />
+            </Suspense>
+          )}
+          {toast && (
+            <Toast
+              message={toast.message}
+              onClose={() => setToast(null)}
+              action={toast.relogin ? { label: '重新登录', onClick: relogin } : toast.action}
+            />
+          )}
+        </PresenceContext.Provider>
       </ResultsAccessContext.Provider>
     </EditModeContext.Provider>
   );

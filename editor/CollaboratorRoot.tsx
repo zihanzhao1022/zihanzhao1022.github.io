@@ -7,6 +7,8 @@ import { Session, clearSession, isExpiringSoon } from '../lib/session';
 import { EditRequest } from '../types';
 import { logout, startLogin } from './auth';
 import { EditorToast, useResultsEditor } from './results/useResults';
+import { usePresence } from './presence';
+import { PresenceContext } from '../components/presence';
 
 // The LaTeX editors (CodeMirror, the TeX engine) load only when a dialog opens.
 const BlockEditor = lazy(() => import('./results/BlockEditor'));
@@ -73,6 +75,7 @@ const CollaboratorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
     logoutRef.current(message);
   }, []);
 
+  const presence = usePresence(session);
   const { access, saveResults, reorderBlocks, isReordering } = useResultsEditor({
     session,
     setContent,
@@ -139,33 +142,35 @@ const CollaboratorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
   return (
     <EditModeContext.Provider value={value}>
       <ResultsAccessContext.Provider value={access}>
-        <CollaboratorBar session={session} loading={access.state === 'loading'} onLogout={handleLogout} />
-        {children}
-        {request?.kind === 'block' && paper && (
-          <Suspense fallback={null}>
-            <BlockEditor
-              paper={paper}
-              blockId={request.blockId}
-              blockKind={request.blockKind}
-              afterBlockId={request.afterBlockId}
-              readFile={access.readFile}
-              onSave={saveResults}
-              onClose={closeDialog}
+        <PresenceContext.Provider value={presence}>
+          <CollaboratorBar session={session} loading={access.state === 'loading'} onLogout={handleLogout} />
+          {children}
+          {request?.kind === 'block' && paper && (
+            <Suspense fallback={null}>
+              <BlockEditor
+                paper={paper}
+                blockId={request.blockId}
+                blockKind={request.blockKind}
+                afterBlockId={request.afterBlockId}
+                readFile={access.readFile}
+                onSave={saveResults}
+                onClose={closeDialog}
+              />
+            </Suspense>
+          )}
+          {request?.kind === 'paperSettings' && paper && (
+            <Suspense fallback={null}>
+              <PaperSettings paper={paper} readFile={access.readFile} onSave={saveResults} onClose={closeDialog} />
+            </Suspense>
+          )}
+          {toast && (
+            <Toast
+              message={toast.message}
+              onClose={() => setToast(null)}
+              action={toast.relogin ? { label: '重新登录', onClick: relogin } : toast.action}
             />
-          </Suspense>
-        )}
-        {request?.kind === 'paperSettings' && paper && (
-          <Suspense fallback={null}>
-            <PaperSettings paper={paper} readFile={access.readFile} onSave={saveResults} onClose={closeDialog} />
-          </Suspense>
-        )}
-        {toast && (
-          <Toast
-            message={toast.message}
-            onClose={() => setToast(null)}
-            action={toast.relogin ? { label: '重新登录', onClick: relogin } : toast.action}
-          />
-        )}
+          )}
+        </PresenceContext.Provider>
       </ResultsAccessContext.Provider>
     </EditModeContext.Provider>
   );

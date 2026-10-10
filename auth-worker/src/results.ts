@@ -67,6 +67,9 @@ async function privateRepo(env: ResultsEnv): Promise<GitHubApi> {
 
 const loadPapers = async (api: GitHubApi): Promise<ResultPaper[]> => parsePapers(await readTextFile(api, RESULTS_PATH, BRANCH));
 
+/** The private list of papers, read with the installation token (for checks outside these endpoints). */
+export const readPapers = async (env: ResultsEnv): Promise<ResultPaper[]> => loadPapers(await privateRepo(env));
+
 const isEditorOf = (papers: ResultPaper[], paperId: string, user: GitHubUser, env: ResultsEnv): boolean => {
   const paper = papers.find((item) => item.id === paperId);
   return editingEnabled(env) && paper !== undefined && roleOf(paper, user) === 'editor';

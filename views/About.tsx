@@ -3,17 +3,21 @@ import { useContent } from '../components/ContentContext';
 import { AddButton, EditButton, HiddenBadge, useVisibleItems } from '../components/EditMode';
 import { SortableGroup } from '../components/SortableGroup';
 import { Icon } from '../components/Icon';
+import OverwatchRanks from '../components/OverwatchRanks';
 import { resolveImage } from '../lib/localImages';
 import { renderInlineMarkdown } from '../lib/markdown';
 
 const About: React.FC = () => {
   const { profile, news: allNews } = useContent();
   const news = useVisibleItems(allNews);
+  // The social icon whose QR code or Overwatch ranks are showing.
   const [activeQr, setActiveQr] = useState<string | null>(null);
 
   const toggleQr = (platform: string) => {
     setActiveQr(prev => prev === platform ? null : platform);
   };
+  const ranks = profile.overwatch ?? [];
+  const showRanks = activeQr === 'overwatch' && ranks.length > 0;
 
   return (
     <div className="animate-fade-in">
@@ -49,7 +53,11 @@ const About: React.FC = () => {
           <div className="text-gray-700 space-y-4 text-justify font-light mb-8">
             <EditButton request={{ kind: 'profile', section: 'bio' }} label="编辑简介" className="float-right ml-3" />
             {profile.bio.map((paragraph, idx) => (
-              <p key={idx} dangerouslySetInnerHTML={{ __html: renderInlineMarkdown(paragraph) }} />
+              <React.Fragment key={idx}>
+                <p dangerouslySetInnerHTML={{ __html: renderInlineMarkdown(paragraph) }} />
+                {/* The Overwatch icon opens the ranks under the second paragraph. */}
+                {showRanks && idx === Math.min(1, profile.bio.length - 1) && <OverwatchRanks ranks={ranks} />}
+              </React.Fragment>
             ))}
           </div>
         </div>
@@ -77,6 +85,7 @@ const About: React.FC = () => {
           <div className="flex gap-6 mt-6 relative z-20 justify-center">
             {profile.socials.map((social) => {
               const hasQr = !!social.qrCode;
+              const toggles = hasQr || social.platform === 'overwatch';
               const isActive = activeQr === social.platform;
 
               return (
@@ -105,11 +114,12 @@ const About: React.FC = () => {
                     target="_blank"
                     rel="noreferrer"
                     onClick={(e) => {
-                      if (hasQr) {
+                      if (toggles) {
                         e.preventDefault();
                         toggleQr(social.platform);
                       }
                     }}
+                    {...(social.platform === 'overwatch' ? { 'aria-label': 'Overwatch ranks', 'aria-expanded': isActive } : {})}
                     className={`block transition-colors transform hover:scale-110 ${
                       isActive ? 'text-purple-600' : 'text-gray-400 hover:text-purple-600'
                     }`}

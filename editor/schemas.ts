@@ -303,6 +303,7 @@ const PLATFORMS: Option[] = [
   { value: 'linkedin', label: 'LinkedIn' },
   { value: 'orcid', label: 'ORCID' },
   { value: 'wechat', label: '微信' },
+  { value: 'overwatch', label: '守望先锋' },
 ];
 
 export const PROFILE_SCHEMAS: Record<ProfileSection, FormSchema> = {
@@ -347,7 +348,7 @@ export const PROFILE_SCHEMAS: Record<ProfileSection, FormSchema> = {
         label: '联系方式',
         type: 'rows',
         addLabel: '添加联系方式',
-        help: '微信的链接可以填 #，并上传二维码；访客点图标时会显示二维码',
+        help: '微信的链接可以填 #，并上传二维码；访客点图标时会显示二维码。守望先锋的链接填 #，点图标会在简介第二段下面显示段位',
         columns: [
           { key: 'platform', label: '平台', type: 'select', options: PLATFORMS, required: true },
           { key: 'url', label: '链接', type: 'text', required: true, placeholder: 'https://' },

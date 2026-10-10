@@ -4,7 +4,7 @@ export type AwardType = 'international' | 'national' | 'provincial' | 'scholarsh
 export type ExperienceCategory = 'education' | 'work' | 'volunteer';
 
 export interface SocialLink {
-  platform: 'email' | 'github' | 'linkedin' | 'orcid' | 'wechat';
+  platform: 'email' | 'github' | 'linkedin' | 'orcid' | 'wechat' | 'overwatch';
   url: string;
   label?: string;
   qrCode?: string; // Optional: URL to QR code image (e.g. for WeChat)
@@ -121,6 +121,16 @@ export interface Profile {
   awards: Award[]; // Used for CV summary
   skills: string[];
   languages: Language[];
+  /** Competitive ranks the Overwatch icon shows under the bio's second paragraph. */
+  overwatch?: OverwatchRank[];
+}
+
+export interface OverwatchRank {
+  role: 'tank' | 'damage' | 'support';
+  /** e.g. "Grandmaster". */
+  tier: string;
+  /** 1 (highest) to 5. */
+  division: number;
 }
 
 /** Blocks of LaTeX, each compiled to a PDF. */

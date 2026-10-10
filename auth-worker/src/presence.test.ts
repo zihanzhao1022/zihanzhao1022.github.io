@@ -141,6 +141,25 @@ describe('presence', () => {
     expect(carol.last('presence')).toEqual({ t: 'presence', viewers: [{ login: 'carol', id: 103 }] });
   });
 
+  it('keeps access requests for the owner, who alone answers them', async () => {
+    ownerGitHub();
+    const { presence, join, say } = room();
+    const owner = await join({ kind: 'owner', token: 'ghu_owner' });
+    const alice = await join(await collaborator('alice', 101));
+    const stored = await presence.fetch(
+      new Request('https://presence/request', { method: 'POST', body: JSON.stringify({ login: 'Dave', id: 104, note: 'Co-author' }) }),
+    );
+    expect(stored.status).toBe(202);
+    const seen = owner.last('presence') as { requests: { login: string; note: string }[] };
+    expect(seen.requests.map((item) => [item.login, item.note])).toEqual([['Dave', 'Co-author']]);
+    expect(alice.last('presence')).not.toHaveProperty('requests');
+    // Only the owner can answer.
+    await say(alice, { t: 'resolve', login: 'dave' });
+    expect((owner.last('presence') as { requests: unknown[] }).requests).toHaveLength(1);
+    await say(owner, { t: 'resolve', login: 'dave' });
+    expect((owner.last('presence') as { requests: unknown[] }).requests).toEqual([]);
+  });
+
   it('answers pings and ignores junk', async () => {
     const { join, say } = room();
     const alice = await join(await collaborator('alice', 101));

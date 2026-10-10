@@ -24,7 +24,7 @@ export interface ResultsAccess {
   approveEdits?: (paperId: string) => void;
   /** Who may view every paper, on top of each paper's own lists (the owner only). */
   siteViewers?: string[];
-  saveSiteViewers?: (names: string[]) => Promise<void>;
+  saveSiteViewers?: (names: string[], knownIds?: Record<string, number>) => Promise<void>;
 }
 
 export const ResultsAccessContext = createContext<ResultsAccess | null>(null);

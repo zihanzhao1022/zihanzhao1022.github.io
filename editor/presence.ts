@@ -6,6 +6,7 @@ import { EDITOR_CONFIG } from './config';
 
 interface Connection {
   setPaper(paperId: string | null): void;
+  resolve(login: string): void;
   close(): void;
 }
 
@@ -53,6 +54,7 @@ function connect(session: Session, onChange: (state: PresenceState) => void): Co
           viewers: (message.viewers as Viewer[]) ?? [],
           ...(message.online ? { online: message.online as PresenceState['online'] } : {}),
           ...(message.recent ? { recent: message.recent as PresenceState['recent'] } : {}),
+          ...(message.requests ? { requests: message.requests as PresenceState['requests'] } : {}),
         });
       }
     };
@@ -70,6 +72,9 @@ function connect(session: Session, onChange: (state: PresenceState) => void): Co
       paper = next;
       send({ t: 'view', paper });
     },
+    resolve(login) {
+      send({ t: 'resolve', login });
+    },
     close() {
       closed = true;
       clearInterval(ping);
@@ -85,6 +90,7 @@ function connectMock(session: Session, onChange: (state: PresenceState) => void)
   const alice = { login: 'alice', id: mockUserId('alice') };
   const bob = { login: 'bob', id: mockUserId('bob') };
   let paper: string | null = null;
+  let requests: PresenceState['requests'] = [];
   const emit = () =>
     onChange({
       me,
@@ -101,13 +107,26 @@ function connectMock(session: Session, onChange: (state: PresenceState) => void)
               { ...alice, at: Date.now() - 60 * 60_000 },
               { ...bob, at: Date.now() - 26 * 60 * 60_000 },
             ],
+            requests,
           }),
     });
-  const timer = setTimeout(emit, 300);
+  // Requests made by mock collaborators (see AccessRequest), kept by the mock backend.
+  const load = () =>
+    import('./results/mockBackend').then(({ mockRequests }) => {
+      requests = mockRequests();
+      emit();
+    });
+  const timer = setTimeout(() => void load(), 300);
   return {
     setPaper(next) {
       paper = next;
       emit();
+    },
+    resolve(login) {
+      void import('./results/mockBackend').then(({ mockResolveRequest }) => {
+        mockResolveRequest(login);
+        return load();
+      });
     },
     close() {
       clearTimeout(timer);
@@ -128,5 +147,6 @@ export function usePresence(session: Session): PresenceValue {
     };
   }, [session]);
   const setPaper = useCallback((paperId: string | null) => connection.current?.setPaper(paperId), []);
-  return useMemo(() => ({ ...state, setPaper }), [state, setPaper]);
+  const resolveRequest = useCallback((login: string) => connection.current?.resolve(login), []);
+  return useMemo(() => ({ ...state, setPaper, resolveRequest }), [state, setPaper, resolveRequest]);
 }

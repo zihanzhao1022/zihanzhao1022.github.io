@@ -15,11 +15,20 @@ export interface PresenceState {
   online?: (Viewer & { papers: string[] })[];
   /** The owner only: who came by in the last 7 days, most recent first (epoch milliseconds). */
   recent?: (Viewer & { at: number })[];
+  /** The owner only: people without access who asked for it, most recent first. */
+  requests?: AccessRequest[];
+}
+
+export interface AccessRequest extends Viewer {
+  note: string;
+  at: number;
 }
 
 export interface PresenceValue extends PresenceState {
   /** Says which results paper this page shows (null when none). */
   setPaper: (paperId: string | null) => void;
+  /** The owner answered a request (approving also needs the results-wide list to be saved). */
+  resolveRequest: (login: string) => void;
 }
 
 /** Who else is around, like the avatars in Overleaf; null for visitors, who are not signed in. */

@@ -190,9 +190,11 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
 
   /** Saves who may view every paper, with their GitHub account IDs (looked up like a paper's lists). */
   const saveSiteViewers = useCallback(
-    async (names: string[]): Promise<void> => {
+    async (names: string[], knownIds: Record<string, number> = {}): Promise<void> => {
       if (!backend?.saveAccess) throw new Error('私有仓库不可用，暂时不能保存');
-      const next = await withCollaboratorIds<ResultsSiteAccess>(names.length > 0 ? { viewers: names } : {}, siteAccess, lookupUser);
+      // IDs already known (e.g. from an access request, checked at GitHub sign-in) need no lookup.
+      const previous = { collaboratorIds: { ...siteAccess.collaboratorIds, ...knownIds } };
+      const next = await withCollaboratorIds<ResultsSiteAccess>(names.length > 0 ? { viewers: names } : {}, previous, lookupUser);
       await enqueue(() => backend.saveAccess!(next, 'results: update who may view every paper'));
       setSiteAccess(next);
     },

@@ -7,7 +7,7 @@
 import { githubHeaders } from './github-app';
 import { Headers, json } from './http';
 import { Presence } from './presence';
-import { ResultsEnv, collaboratorLogin, handleResults } from './results';
+import { ResultsEnv, collaboratorLogin, handleResults, requestAccess } from './results';
 
 export { Presence };
 
@@ -98,6 +98,7 @@ export default {
     // One room for the whole site; the browser opens it only when someone is signed in.
     if (pathname === '/presence' && env.PRESENCE) return env.PRESENCE.get(env.PRESENCE.idFromName('site')).fetch(request);
     if (request.method === 'POST' && pathname.startsWith('/results/')) return handleResults(request, pathname, env, cors);
+    if (request.method === 'POST' && pathname === '/access/request') return requestAccess(request, env, cors);
     if (request.method !== 'POST' || (pathname !== '/token' && pathname !== '/revoke')) {
       return json({ error: 'not_found' }, 404, cors);
     }

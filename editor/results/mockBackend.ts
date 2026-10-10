@@ -183,3 +183,29 @@ export function createMockCollaboratorBackend(user: GitHubUser): ResultsBackend 
     resync: async () => null,
   };
 }
+
+/** `npm run dev:mock`: whether a made-up collaborator is on any list (else they may only ask for access). */
+export const mockMayEnter = (user: GitHubUser): boolean => {
+  const data = openStore();
+  return hasAnyRole(data.papers, user, data.access);
+};
+
+const REQUESTS_KEY = 'mock-requests';
+
+/** Access requests made under `npm run dev:mock`, kept in localStorage for the mock presence room. */
+export function mockRequests(): { login: string; id: number; note: string; at: number }[] {
+  try {
+    return JSON.parse(localStorage.getItem(REQUESTS_KEY) ?? '[]') as { login: string; id: number; note: string; at: number }[];
+  } catch {
+    return [];
+  }
+}
+
+export function mockRequestAccess(user: GitHubUser, note: string): void {
+  const others = mockRequests().filter((request) => request.login.toLowerCase() !== user.login.toLowerCase());
+  localStorage.setItem(REQUESTS_KEY, JSON.stringify([{ login: user.login, id: user.id, note, at: Date.now() }, ...others]));
+}
+
+export function mockResolveRequest(login: string): void {
+  localStorage.setItem(REQUESTS_KEY, JSON.stringify(mockRequests().filter((request) => request.login.toLowerCase() !== login.toLowerCase())));
+}

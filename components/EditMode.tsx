@@ -3,6 +3,7 @@ import { EyeOff, Pencil, Plus, X } from 'lucide-react';
 import { loginConfigured } from '../editor/config';
 import { LoginCallback, MOCK_MODE, Session, loadSession } from '../lib/session';
 import { EditRequest, ListCollection } from '../types';
+import type { AccessDenied } from '../editor/auth';
 
 export interface EditModeValue {
   /** True when the owner is signed in, the latest content has loaded and the edit switch is on. */
@@ -51,6 +52,7 @@ export const HiddenBadge: React.FC = () => (
 // Loaded only once someone signs in, so visitors never download the editor.
 const EditorRoot = lazy(() => import('../editor/EditorRoot'));
 const CollaboratorRoot = lazy(() => import('../editor/CollaboratorRoot'));
+const AccessRequest = lazy(() => import('../editor/AccessRequest'));
 
 export const Toast: React.FC<{
   message: string;
@@ -87,6 +89,8 @@ export const EditModeProvider: React.FC<{ loginCallback: LoginCallback | null; c
 }) => {
   const [session, setSession] = useState<Session | null>(() => loadSession());
   const [toast, setToast] = useState<string | null>(null);
+  // A GitHub account with no access yet, which may ask the owner for it.
+  const [denied, setDenied] = useState<AccessDenied | null>(null);
   const handledCallback = useRef(false);
 
   useEffect(() => {
@@ -94,16 +98,27 @@ export const EditModeProvider: React.FC<{ loginCallback: LoginCallback | null; c
     if (!loginCallback || handledCallback.current) return;
     handledCallback.current = true;
     import('../editor/auth')
-      .then(({ completeLogin }) => completeLogin(loginCallback))
-      .then(setSession)
-      .catch((error: unknown) => setToast(error instanceof Error ? error.message : '登录失败，请重新登录'));
+      .then(async (auth) => {
+        try {
+          setSession(await auth.completeLogin(loginCallback));
+        } catch (error) {
+          if (error instanceof auth.AccessDenied) setDenied(error);
+          else setToast(error instanceof Error ? error.message : '登录失败，请重新登录');
+        }
+      })
+      .catch(() => setToast('登录失败，请重新登录'));
   }, [loginCallback]);
 
   const login = useCallback(() => {
     import('../editor/auth')
-      .then(({ startLogin }) => startLogin())
-      .then((started) => {
-        if (started) setSession(started);
+      .then(async (auth) => {
+        try {
+          const started = await auth.startLogin();
+          if (started) setSession(started);
+        } catch (error) {
+          if (error instanceof auth.AccessDenied) setDenied(error);
+          else setToast('无法开始登录，请稍后重试');
+        }
       })
       .catch(() => setToast('无法开始登录，请稍后重试'));
   }, []);
@@ -150,6 +165,11 @@ export const EditModeProvider: React.FC<{ loginCallback: LoginCallback | null; c
         page
       )}
       {toast && <Toast message={toast} onClose={() => setToast(null)} />}
+      {denied && (
+        <Suspense fallback={null}>
+          <AccessRequest denied={denied} onClose={() => setDenied(null)} />
+        </Suspense>
+      )}
     </>
   );
 };

@@ -37,6 +37,8 @@ const editingEnabled = (env: ResultsEnv): boolean => env.COLLABORATOR_EDITING ==
 const BRANCH = 'main';
 /** How long a collaborator stays signed in (as long as the owner's GitHub token). */
 export const SESSION_MS = 8 * 60 * 60 * 1000;
+/** How long someone refused at login may still ask the owner for access with the token the refusal gave them. */
+const REQUEST_MS = 60 * 60 * 1000;
 /**
  * The largest file a collaborator can upload. Cloudflare's free plan gives a worker 10 ms of CPU per request,
  * and every byte passes through it as base64 text.
@@ -108,7 +110,12 @@ export async function collaboratorLogin(user: GitHubUser & { avatar_url: string 
     console.error('results: reading the private repository failed', error instanceof Error ? error.message : error);
     return json({ error: 'private_unavailable' }, 502, cors);
   }
-  if (!hasAnyRole(papers, user, site)) return json({ error: 'not_owner' }, 403, cors);
+  if (!hasAnyRole(papers, user, site)) {
+    // Their identity is proven, so they may ask the owner for access (POST /access/request). The token grants
+    // nothing else: every endpoint checks the lists.
+    const request = await signSession({ login: user.login, id: user.id, exp: Date.now() + REQUEST_MS }, env.SESSION_SECRET ?? '');
+    return json({ error: 'not_owner', request, login: user.login, avatar_url: user.avatar_url }, 403, cors);
+  }
   const expiresAt = Date.now() + SESSION_MS;
   return json(
     {
@@ -215,6 +222,29 @@ const HANDLERS: Record<string, Handler> = {
     return json(papersFor(papers, user, editingEnabled(env), await loadAccess(api)), 200, cors);
   },
 };
+
+/**
+ * POST /access/request { note }: someone refused at login asks the owner for access to the results pages. The
+ * presence room keeps the request and shows it to the owner, who can add them to the results-wide list.
+ */
+export async function requestAccess(request: Request, env: ResultsEnv & { PRESENCE?: DurableObjectNamespace }, cors: Headers): Promise<Response> {
+  if (!collaboratorsEnabled(env) || !env.PRESENCE) return json({ error: 'not_found' }, 404, cors);
+  const user = await sessionUser(request, env.SESSION_SECRET ?? '');
+  if (!user) return json({ error: 'session_expired' }, 401, cors);
+  const body = await readBody(request, 4096);
+  if (body === 'too_large' || !body) return badRequest(cors);
+  const note = typeof body.note === 'string' ? body.note.replace(/\s+/g, ' ').trim().slice(0, 300) : '';
+  try {
+    const [papers, site] = await readShared(env);
+    if (hasAnyRole(papers, user, site)) return json({ error: 'already_allowed' }, 409, cors);
+  } catch (error) {
+    console.error('results: reading the private repository failed', error instanceof Error ? error.message : error);
+    return json({ error: 'github_error' }, 502, cors);
+  }
+  const room = env.PRESENCE.get(env.PRESENCE.idFromName('site'));
+  const stored = await room.fetch(new Request('https://presence/request', { method: 'POST', body: JSON.stringify({ login: user.login, id: user.id, note }) }));
+  return stored.ok ? new Response(null, { status: 202, headers: cors }) : json({ error: 'too_many_requests' }, 429, cors);
+}
 
 /** POST /results/load, /results/file, /results/upload and /results/save, with the collaborator's session. */
 export async function handleResults(request: Request, pathname: string, env: ResultsEnv, cors: Headers): Promise<Response> {

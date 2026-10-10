@@ -15,7 +15,7 @@ import { ItemModal } from './components/ItemModal';
 import { NavigationModal } from './components/NavigationModal';
 import { EditorToast, useResultsEditor } from './results/useResults';
 import { usePresence } from './presence';
-import { PresenceContext } from '../components/presence';
+import { AccessRequest, PresenceContext } from '../components/presence';
 
 // The LaTeX editors (CodeMirror, the TeX engine) load only when a results dialog opens.
 const BlockEditor = lazy(() => import('./results/BlockEditor'));
@@ -198,6 +198,22 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
     [session, setContent, save, backend, reload, privateLoaded],
   );
 
+  /** Adds someone who asked for access to the results-wide list, with the account ID GitHub confirmed. */
+  const approveRequest = useCallback(
+    async (request: AccessRequest) => {
+      try {
+        if (!access.saveSiteViewers) throw new Error('私有仓库不可用，暂时不能保存');
+        const names = [...(access.siteViewers ?? []).filter((name) => name.toLowerCase() !== request.login.toLowerCase()), request.login];
+        await access.saveSiteViewers(names, { [request.login.toLowerCase()]: request.id });
+        presence.resolveRequest(request.login);
+        setToast({ message: `已同意 @${request.login}：对方重新登录后就能看到所有论文` });
+      } catch (error) {
+        setToast({ message: describeSaveError(error) });
+      }
+    },
+    [access, presence],
+  );
+
   const handleLogout = useCallback(() => {
     void logout(session).finally(() => logoutRef.current());
   }, [session]);
@@ -236,6 +252,7 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
             onLogout={handleLogout}
             presence={presence}
             paperOf={(id) => content.results.find((paper) => paper.id === id)}
+            onApprove={approveRequest}
           />
           {children}
           {request?.kind === 'navigation' && (

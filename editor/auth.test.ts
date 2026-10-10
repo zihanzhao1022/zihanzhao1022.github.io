@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { LoginError, buildAuthorizeUrl, checkCallback, exchangeCode, pkceChallenge } from './auth';
+import { AccessDenied, LoginError, buildAuthorizeUrl, checkCallback, exchangeCode, pkceChallenge } from './auth';
 
 describe('pkceChallenge', () => {
   it('matches the RFC 7636 example', async () => {
@@ -77,6 +77,12 @@ describe('exchangeCode', () => {
       avatarUrl: '',
       role: 'collaborator',
     });
+  });
+
+  it('lets a refused account ask for access with the token the worker gave it', async () => {
+    const refusal = exchangeCode('c', 'v', 'r', reply(403, { error: 'not_owner', request: 'payload.signature', login: 'dave', avatar_url: '' }));
+    await expect(refusal).rejects.toBeInstanceOf(AccessDenied);
+    await expect(refusal).rejects.toMatchObject({ token: 'payload.signature', login: 'dave' });
   });
 
   it('explains a refused account', async () => {

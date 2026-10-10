@@ -15,6 +15,17 @@ import {
 /** A login failure whose message can be shown to the owner as is. */
 export class LoginError extends Error {}
 
+/** A GitHub account with no access yet: it may ask the owner for it with `token` (see requestAccess). */
+export class AccessDenied extends LoginError {
+  constructor(
+    readonly token: string,
+    readonly login: string,
+    readonly avatarUrl: string,
+  ) {
+    super('这个 GitHub 账号还没有访问权限');
+  }
+}
+
 const MOCK_SESSION_MS = 8 * 60 * 60 * 1000;
 
 const workerUrl = (path: string): string => `${EDITOR_CONFIG.workerUrl.replace(/\/+$/, '')}${path}`;
@@ -76,7 +87,13 @@ export async function exchangeCode(
   } catch {
     throw new LoginError('无法连接登录服务，请稍后重试');
   }
-  if (res.status === 403) throw new LoginError('这个 GitHub 账号没有访问权限');
+  if (res.status === 403) {
+    const refused = (await res.json().catch(() => ({}))) as { request?: unknown; login?: unknown; avatar_url?: unknown };
+    if (typeof refused.request === 'string' && typeof refused.login === 'string') {
+      throw new AccessDenied(refused.request, refused.login, typeof refused.avatar_url === 'string' ? refused.avatar_url : '');
+    }
+    throw new LoginError('这个 GitHub 账号没有访问权限');
+  }
   if (!res.ok) throw new LoginError('登录失败，请重新登录');
   const data = (await res.json()) as {
     access_token?: string;
@@ -117,6 +134,13 @@ function mockSession(): Session {
 export async function startLogin(): Promise<Session | null> {
   if (MOCK_MODE) {
     const session = mockSession();
+    if (session.role === 'collaborator') {
+      // Like the worker: someone on no list may only ask for access.
+      const { mockMayEnter } = await import('./results/mockBackend');
+      if (!mockMayEnter(JSON.parse(session.token) as { login: string; id: number })) {
+        throw new AccessDenied(session.token, session.login, '');
+      }
+    }
     saveSession(session);
     return session;
   }
@@ -151,4 +175,27 @@ export async function logout(session: Session): Promise<void> {
   } catch {
     // The token still expires on its own within 8 hours.
   }
+}
+
+/** Asks the owner for access to the results pages, with the token a refused login gave (see AccessDenied). */
+export async function requestAccess(token: string, note: string): Promise<void> {
+  if (MOCK_MODE) {
+    const { mockRequestAccess } = await import('./results/mockBackend');
+    mockRequestAccess(JSON.parse(token) as { login: string; id: number }, note);
+    return;
+  }
+  let res: Response;
+  try {
+    res = await fetch(workerUrl('/access/request'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ note }),
+    });
+  } catch {
+    throw new LoginError('无法连接服务器，请稍后重试');
+  }
+  if (res.status === 409) throw new LoginError('你已经有访问权限了，请重新登录');
+  if (res.status === 401) throw new LoginError('登录已过期，请重新登录后再申请');
+  if (res.status === 429) throw new LoginError('现在等待处理的申请太多了，请过几天再试');
+  if (!res.ok) throw new LoginError('申请没有发出去，请稍后重试');
 }

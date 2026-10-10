@@ -263,6 +263,54 @@ describe('reading', () => {
   });
 });
 
+describe('access requests', () => {
+  /** A stand-in for the presence room, recording what the worker hands it. */
+  const room = () => {
+    const received: unknown[] = [];
+    const PRESENCE = {
+      idFromName: (name: string) => ({ toString: () => name }),
+      get: () => ({
+        fetch: async (request: Request) => {
+          received.push({ url: request.url, body: await request.json() });
+          return new Response(null, { status: 202 });
+        },
+      }),
+    };
+    return { PRESENCE, received };
+  };
+  const ask = (token: string, note: string, presence: unknown) =>
+    worker.fetch(
+      new Request('https://auth.example/access/request', {
+        method: 'POST',
+        headers: { Origin: SITE, 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ note }),
+      }),
+      { ...env, PRESENCE: presence } as Env,
+    );
+
+  it('lets someone refused at login ask the owner for access', async () => {
+    fakeGitHub({ login: 'dave', id: 104 });
+    const refused = await request('/token', login);
+    expect(refused.status).toBe(403);
+    const body = (await refused.json()) as { error: string; request: string; login: string };
+    expect(body).toMatchObject({ error: 'not_owner', login: 'dave' });
+    const { PRESENCE, received } = room();
+    const res = await ask(body.request, '  I am a   co-author.  ', PRESENCE);
+    expect(res.status).toBe(202);
+    expect(received).toEqual([{ url: 'https://presence/request', body: { login: 'dave', id: 104, note: 'I am a co-author.' } }]);
+    // The token is only an identity: it opens no results.
+    expect((await request('/results/load', {}, body.request)).status).toBe(403);
+  });
+
+  it('refuses forged tokens and people who already have access', async () => {
+    const { PRESENCE } = room();
+    expect((await ask('forged.token', '', PRESENCE)).status).toBe(401);
+    const alice = await signIn(ALICE);
+    fakeGitHub(ALICE);
+    expect((await ask(alice, '', PRESENCE)).status).toBe(409);
+  });
+});
+
 describe('the results-wide list', () => {
   it('lets its people sign in and view every paper, read-only', async () => {
     const carol = await signIn({ login: 'carol', id: 103 });

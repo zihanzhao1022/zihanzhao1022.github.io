@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { ExternalLink, Loader2, LogOut, Users } from 'lucide-react';
-import { PresenceValue, avatarUrl } from '../../components/presence';
+import { ExternalLink, Loader2, LogOut, UserPlus, Users } from 'lucide-react';
+import { AccessRequest, PresenceValue, avatarUrl } from '../../components/presence';
 import { Session } from '../../lib/session';
 import { DeployStatus } from '../backend';
 
@@ -108,6 +108,68 @@ const Online: React.FC<{ presence: PresenceValue; paperOf: (id: string) => { tit
   );
 };
 
+/** People without access who asked for it: approving adds them to the results-wide list. */
+const Requests: React.FC<{ presence: PresenceValue; onApprove: (request: AccessRequest) => Promise<void> }> = ({ presence, onApprove }) => {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const requests = presence.requests ?? [];
+  if (requests.length === 0) return null;
+  const approve = async (request: AccessRequest) => {
+    setBusy(request.login);
+    try {
+      await onApprove(request);
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <span className="relative">
+      <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} className="flex items-center gap-1 text-amber-300 hover:text-amber-200">
+        <UserPlus size={12} />
+        访问申请 {requests.length}
+      </button>
+      {open && (
+        <div className="absolute left-0 top-6 z-[60] w-80 rounded-lg bg-white p-3 text-xs text-gray-700 shadow-lg ring-1 ring-gray-200">
+          <p className="mb-1 font-semibold text-gray-900">访问申请</p>
+          <p className="mb-2 text-gray-500">同意后加进"可以查看全部论文的人"，对方重新登录就能看到所有论文。</p>
+          <ul className="space-y-3">
+            {requests.map((request) => (
+              <li key={request.login} className="flex items-start gap-2">
+                <img src={avatarUrl(request.id)} alt="" className="mt-0.5 w-6 h-6 rounded-full bg-gray-200" />
+                <span className="min-w-0 flex-1">
+                  <a href={`https://github.com/${request.login}`} target="_blank" rel="noreferrer" className="font-medium hover:underline">
+                    @{request.login}
+                  </a>
+                  <span className="ml-1 text-gray-400">{ago(request.at)}</span>
+                  {request.note && <span className="block break-words text-gray-600">{request.note}</span>}
+                  <span className="mt-1 flex gap-2">
+                    <button
+                      type="button"
+                      disabled={busy !== null}
+                      onClick={() => void approve(request)}
+                      className="rounded bg-purple-600 px-2 py-0.5 text-white hover:bg-purple-700 disabled:opacity-60"
+                    >
+                      {busy === request.login ? '处理中…' : '同意'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy !== null}
+                      onClick={() => presence.resolveRequest(request.login)}
+                      className="rounded border border-gray-300 px-2 py-0.5 hover:bg-gray-50"
+                    >
+                      拒绝
+                    </button>
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </span>
+  );
+};
+
 interface Props {
   session: Session;
   enabled: boolean;
@@ -117,9 +179,10 @@ interface Props {
   onLogout: () => void;
   presence?: PresenceValue | null;
   paperOf?: (id: string) => { title: string; slug: string } | undefined;
+  onApprove?: (request: AccessRequest) => Promise<void>;
 }
 
-export const AdminBar: React.FC<Props> = ({ session, enabled, onToggle, loadState, deploy, onLogout, presence, paperOf = () => undefined }) => (
+export const AdminBar: React.FC<Props> = ({ session, enabled, onToggle, loadState, deploy, onLogout, presence, paperOf = () => undefined, onApprove }) => (
   <div className="bg-gray-900 text-xs text-gray-300">
     <div className="max-w-5xl mx-auto px-6 md:px-12 py-2 flex flex-wrap items-center gap-x-4 gap-y-1">
       <span className="flex items-center gap-2">
@@ -147,6 +210,7 @@ export const AdminBar: React.FC<Props> = ({ session, enabled, onToggle, loadStat
         编辑模式
       </label>
       {presence?.online && <Online presence={presence} paperOf={paperOf} />}
+      {presence && onApprove && <Requests presence={presence} onApprove={onApprove} />}
       <span className="ml-auto">
         <Status loadState={loadState} deploy={deploy} />
       </span>

@@ -22,6 +22,10 @@ export interface RecentVisit extends Viewer {
   /** Epoch milliseconds. */
   at: number;
 }
+/** Someone who signed in without access and asked the owner for it. */
+export interface AccessRequest extends RecentVisit {
+  note: string;
+}
 
 interface Signed extends Viewer {
   owner: boolean;
@@ -34,6 +38,8 @@ interface Attachment {
 }
 
 const RECENT_MS = 7 * 24 * 60 * 60 * 1000;
+/** Requests kept at once; more are refused until the owner answers some. */
+const MAX_REQUESTS = 30;
 const PAPERS_TTL_MS = 60_000;
 const OWNER_TTL_MS = 10 * 60_000;
 
@@ -62,6 +68,8 @@ export class Presence {
   ) {}
 
   async fetch(request: Request): Promise<Response> {
+    // From the worker only (it checked the requester's token); browsers reach this object at /presence.
+    if (new URL(request.url).pathname === '/request' && request.method === 'POST') return this.addRequest(await request.json());
     if (request.headers.get('Upgrade')?.toLowerCase() !== 'websocket') return new Response('Expected a WebSocket', { status: 426 });
     const pair = new WebSocketPair();
     this.state.acceptWebSocket(pair[1]);
@@ -93,6 +101,14 @@ export class Presence {
       socket.serializeAttachment({ user, paper: null } satisfies Attachment);
       await this.remember(user);
       send(socket, { t: 'welcome', me: { login: user.login, id: user.id } });
+      await this.broadcast();
+      return;
+    }
+    if (message.t === 'resolve' && attachment.user?.owner && typeof message.login === 'string') {
+      // The owner answered (the site adds an approved person to the results-wide list itself).
+      const requests = await this.requests();
+      delete requests[message.login.toLowerCase()];
+      await this.state.storage.put('requests', requests);
       await this.broadcast();
       return;
     }
@@ -161,6 +177,22 @@ export class Presence {
     return paper !== undefined && roleOf(paper, user, this.papers.site) !== null;
   }
 
+  private async requests(): Promise<Record<string, AccessRequest>> {
+    return (await this.state.storage.get<Record<string, AccessRequest>>('requests')) ?? {};
+  }
+
+  private async addRequest(raw: unknown): Promise<Response> {
+    const { login, id, note } = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
+    if (typeof login !== 'string' || typeof id !== 'number') return new Response(null, { status: 400 });
+    const requests = await this.requests();
+    const key = login.toLowerCase();
+    if (!requests[key] && Object.keys(requests).length >= MAX_REQUESTS) return new Response(null, { status: 429 });
+    requests[key] = { login, id, at: Date.now(), note: typeof note === 'string' ? note.slice(0, 300) : '' };
+    await this.state.storage.put('requests', requests);
+    await this.broadcast();
+    return new Response(null, { status: 202 });
+  }
+
   /** Last seen, by user name, for the owner's "last 7 days". */
   private async remember(user: Signed): Promise<void> {
     const now = Date.now();
@@ -185,6 +217,7 @@ export class Presence {
     const recent = Object.values((await this.state.storage.get<Record<string, RecentVisit>>('recent')) ?? {})
       .filter((visit) => Date.now() - visit.at <= RECENT_MS)
       .sort((a, b) => b.at - a.at);
+    const requests = Object.values(await this.requests()).sort((a, b) => b.at - a.at);
     for (const { socket, attachment } of signed) {
       const viewers = new Map<string, Viewer>();
       if (attachment.paper) {
@@ -195,7 +228,7 @@ export class Presence {
       send(socket, {
         t: 'presence',
         viewers: [...viewers.values()],
-        ...(attachment.user.owner ? { online: [...online.values()], recent } : {}),
+        ...(attachment.user.owner ? { online: [...online.values()], recent, requests } : {}),
       });
     }
   }

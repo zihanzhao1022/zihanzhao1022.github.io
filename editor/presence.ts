@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { PresenceValue, PresenceState, Viewer } from '../components/presence';
+import type { PresenceValue, PresenceState, Reader, Viewer } from '../components/presence';
 import { MOCK_MODE, Session } from '../lib/session';
 import { mockUserId } from './auth';
 import { EDITOR_CONFIG } from './config';
 
 interface Connection {
   setPaper(paperId: string | null): void;
+  setBlock(blockId: string | null): void;
   resolve(login: string): void;
   close(): void;
 }
@@ -14,13 +15,15 @@ const PING_MS = 45_000;
 const RETRY_MS = [1_000, 2_000, 5_000, 10_000, 30_000];
 
 /**
- * Keeps a WebSocket to the worker's presence room while someone is signed in: says who they are and which
- * paper they show, and hands every update to `onChange`. Reconnects after drops.
+ * Keeps a WebSocket to the worker's presence room while someone is signed in: says who they are, which
+ * paper they show and which block of it is on screen, and hands every update to `onChange`. Reconnects
+ * after drops.
  */
 function connect(session: Session, onChange: (state: PresenceState) => void): Connection {
   const url = `${EDITOR_CONFIG.workerUrl.replace(/^http/, 'ws').replace(/\/+$/, '')}/presence`;
   let socket: WebSocket | null = null;
   let paper: string | null = null;
+  let block: string | null = null;
   let closed = false;
   let attempt = 0;
   let ping: ReturnType<typeof setInterval> | undefined;
@@ -36,7 +39,7 @@ function connect(session: Session, onChange: (state: PresenceState) => void): Co
     socket.onopen = () => {
       attempt = 0;
       send({ t: 'hello', kind: session.role === 'collaborator' ? 'collaborator' : 'owner', token: session.token });
-      send({ t: 'view', paper });
+      send({ t: 'view', paper, block });
       ping = setInterval(() => send({ t: 'ping' }), PING_MS);
     };
     socket.onmessage = (event: MessageEvent<string>) => {
@@ -51,7 +54,7 @@ function connect(session: Session, onChange: (state: PresenceState) => void): Co
       if (message.t === 'presence') {
         onChange({
           me,
-          viewers: (message.viewers as Viewer[]) ?? [],
+          viewers: (message.viewers as Reader[]) ?? [],
           ...(message.online ? { online: message.online as PresenceState['online'] } : {}),
           ...(message.recent ? { recent: message.recent as PresenceState['recent'] } : {}),
           ...(message.requests ? { requests: message.requests as PresenceState['requests'] } : {}),
@@ -69,8 +72,14 @@ function connect(session: Session, onChange: (state: PresenceState) => void): Co
 
   return {
     setPaper(next) {
+      if (next !== paper) block = null;
       paper = next;
-      send({ t: 'view', paper });
+      send({ t: 'view', paper, block });
+    },
+    setBlock(next) {
+      if (next === block || paper === null) return;
+      block = next;
+      send({ t: 'view', paper, block });
     },
     resolve(login) {
       send({ t: 'resolve', login });
@@ -84,17 +93,24 @@ function connect(session: Session, onChange: (state: PresenceState) => void): Co
   };
 }
 
-/** `npm run dev:mock`: two made-up people, alice on the same paper and bob elsewhere on the site. */
+/** `npm run dev:mock`: two made-up people, alice on the same paper (at its second block) and bob elsewhere. */
 function connectMock(session: Session, onChange: (state: PresenceState) => void): Connection {
   const me = { login: session.login, id: mockUserId(session.login) };
   const alice = { login: 'alice', id: mockUserId('alice') };
   const bob = { login: 'bob', id: mockUserId('bob') };
   let paper: string | null = null;
+  let block: string | null = null;
   let requests: PresenceState['requests'] = [];
+  // The mock knows no paper's blocks, so alice reads the second one on the page.
+  const aliceBlock = () => {
+    const ids = Array.from(document.querySelectorAll<HTMLElement>('[data-result-block-id]'), (element) => element.dataset.resultBlockId);
+    return ids[1] ?? ids[0];
+  };
+  const at = (where: string | null | undefined) => (where ? { block: where } : {});
   const emit = () =>
     onChange({
       me,
-      viewers: paper ? [me, alice] : [],
+      viewers: paper ? [{ ...me, ...at(block) }, { ...alice, ...at(aliceBlock()) }] : [],
       ...(session.role === 'collaborator'
         ? {}
         : {
@@ -119,7 +135,12 @@ function connectMock(session: Session, onChange: (state: PresenceState) => void)
   const timer = setTimeout(() => void load(), 300);
   return {
     setPaper(next) {
+      if (next !== paper) block = null;
       paper = next;
+      emit();
+    },
+    setBlock(next) {
+      block = next;
       emit();
     },
     resolve(login) {
@@ -147,6 +168,7 @@ export function usePresence(session: Session): PresenceValue {
     };
   }, [session]);
   const setPaper = useCallback((paperId: string | null) => connection.current?.setPaper(paperId), []);
+  const setBlock = useCallback((blockId: string | null) => connection.current?.setBlock(blockId), []);
   const resolveRequest = useCallback((login: string) => connection.current?.resolve(login), []);
-  return useMemo(() => ({ ...state, setPaper, resolveRequest }), [state, setPaper, resolveRequest]);
+  return useMemo(() => ({ ...state, setPaper, setBlock, resolveRequest }), [state, setPaper, setBlock, resolveRequest]);
 }

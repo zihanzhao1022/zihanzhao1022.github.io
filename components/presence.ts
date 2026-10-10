@@ -6,11 +6,17 @@ export interface Viewer {
   id: number;
 }
 
+/** Someone on the same paper, with the block they are looking at (none near the top of the page). */
+export interface Reader extends Viewer {
+  /** A block ID, or "references" for the bibliography. */
+  block?: string;
+}
+
 export interface PresenceState {
   /** Who this browser is signed in as, once the worker has checked. */
   me?: Viewer;
-  /** Everyone on the paper this page shows, including me. */
-  viewers: Viewer[];
+  /** Everyone on the paper this page shows, including me, and where on it they are. */
+  viewers: Reader[];
   /** The owner only: everyone signed in, with the papers they have open. */
   online?: (Viewer & { papers: string[] })[];
   /** The owner only: who came by in the last 7 days, most recent first (epoch milliseconds). */
@@ -27,6 +33,8 @@ export interface AccessRequest extends Viewer {
 export interface PresenceValue extends PresenceState {
   /** Says which results paper this page shows (null when none). */
   setPaper: (paperId: string | null) => void;
+  /** Says which block of that paper is on screen (null when none). */
+  setBlock: (blockId: string | null) => void;
   /** The owner answered a request (approving also needs the results-wide list to be saved). */
   resolveRequest: (login: string) => void;
 }

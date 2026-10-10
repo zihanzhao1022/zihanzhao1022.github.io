@@ -32,7 +32,7 @@ export interface ResultsEnv extends AppEnv {
   COLLABORATOR_EDITING?: string;
 }
 
-const editingEnabled = (env: ResultsEnv): boolean => env.COLLABORATOR_EDITING === 'true';
+export const editingEnabled = (env: ResultsEnv): boolean => env.COLLABORATOR_EDITING === 'true';
 
 const BRANCH = 'main';
 /** How long a collaborator stays signed in (as long as the owner's GitHub token). */

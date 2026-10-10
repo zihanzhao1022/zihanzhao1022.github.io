@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { exportTex } from '../../editor/results/texNames';
@@ -14,6 +14,7 @@ import LoginPrompt from './LoginPrompt';
 import { ResultsUnavailable } from './ResultsList';
 import './resultPage.css';
 import { avatarUrl, usePresence } from '../presence';
+import { useReportBlockInView } from './readingPosition';
 
 const KIND_LABEL = { text: '文字', figure: '图', table: '表格' } as const;
 
@@ -53,13 +54,35 @@ const CopyLatex: React.FC<{ source: string }> = ({ source }) => {
   );
 };
 
+/** The others looking at a block, beside it like collaborators' cursors in Overleaf. */
+const BlockReaders: React.FC<{ blockId: string }> = ({ blockId }) => {
+  const presence = usePresence();
+  const here = presence?.viewers.filter((viewer) => viewer.block === blockId && viewer.login !== presence.me?.login) ?? [];
+  if (here.length === 0) return null;
+  return (
+    // In the right margin: the left one holds the drag handles while editing.
+    <div className="absolute z-10 -top-8 right-0 flex gap-1 md:top-0 md:-right-10 md:flex-col" aria-label="正在看这一块的人">
+      {here.map((viewer) => (
+        <img
+          key={viewer.login}
+          src={avatarUrl(viewer.id, 48)}
+          alt={viewer.login}
+          title={`@${viewer.login} 正在看这里`}
+          className="w-6 h-6 rounded-full ring-2 ring-white bg-gray-200 shadow-sm"
+        />
+      ))}
+    </div>
+  );
+};
+
 const BlockItem: React.FC<{ paperId: string; block: ResultBlock }> = ({ paperId, block }) => {
   const { editing } = useEditMode();
   return (
     <div
       data-result-block-id={block.id}
-      className={`relative${editing ? ' result-block--editable' : ''}${block.hidden ? ' opacity-50' : ''}`}
+      className={`relative scroll-mt-24${editing ? ' result-block--editable' : ''}${block.hidden ? ' opacity-50' : ''}`}
     >
+      <BlockReaders blockId={block.id} />
       {editing && (
         <div className="flex items-center justify-end gap-2 mb-1 text-xs text-gray-400">
           {KIND_LABEL[block.kind]}
@@ -108,8 +131,25 @@ const Notices: React.FC<{ paper: ResultPaper; access: ResultsAccess | null; edit
   );
 };
 
-/** Who else has this paper open right now, like the avatars in Overleaf. */
-const Viewers: React.FC = () => {
+/** Where on the page a block is, for the tooltip of someone's avatar. */
+function placeOf(blockId: string | undefined, blocks: ResultBlock[]): string {
+  if (!blockId) return '开头';
+  if (blockId === 'references') return '参考文献';
+  const index = blocks.findIndex((block) => block.id === blockId);
+  return index < 0 ? '这篇论文' : `第 ${index + 1} 块（${KIND_LABEL[blocks[index].kind]}）`;
+}
+
+/** Scrolls to a block of this page, or to the top for none. */
+function goTo(blockId: string | undefined): void {
+  if (!blockId) {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return;
+  }
+  document.querySelector(`[data-result-block-id="${CSS.escape(blockId)}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/** Who else has this paper open right now, like the avatars in Overleaf; clicking one goes to where they are. */
+const Viewers: React.FC<{ blocks: ResultBlock[] }> = ({ blocks }) => {
   const presence = usePresence();
   const others = presence?.viewers.filter((viewer) => viewer.login !== presence.me?.login) ?? [];
   if (others.length === 0) return null;
@@ -119,13 +159,15 @@ const Viewers: React.FC = () => {
       <span className="hidden sm:inline">正在看</span>
       <div className="flex -space-x-2">
         {shown.map((viewer) => (
-          <img
+          <button
             key={viewer.login}
-            src={avatarUrl(viewer.id)}
-            alt={viewer.login}
-            title={`@${viewer.login} 正在看这篇论文`}
-            className="w-7 h-7 rounded-full ring-2 ring-white bg-gray-200"
-          />
+            type="button"
+            onClick={() => goTo(viewer.block)}
+            title={`@${viewer.login} 正在看${placeOf(viewer.block, blocks)}，点击跳过去`}
+            className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+          >
+            <img src={avatarUrl(viewer.id)} alt={viewer.login} className="w-7 h-7 rounded-full ring-2 ring-white bg-gray-200" />
+          </button>
         ))}
       </div>
       {others.length > shown.length && <span>+{others.length - shown.length}</span>}
@@ -145,14 +187,18 @@ const ResultPage: React.FC = () => {
   // The owner edits whenever edit mode is on; a collaborator only the papers they may edit.
   const editing = paper ? (collaborator ? canEditShared(access, paper.id) : editMode.editing) : false;
   const pageMode = useMemo(() => ({ ...editMode, editing }), [editMode, editing]);
-  // Tell the presence room which paper this page shows, so others on it see this reader.
-  const setPaper = usePresence()?.setPaper;
+  // Tell the presence room which paper this page shows and which block is on screen, so others on it see
+  // this reader there.
+  const presence = usePresence();
+  const setPaper = presence?.setPaper;
   const paperId = paper?.id;
   useEffect(() => {
     if (!setPaper || !paperId) return undefined;
     setPaper(paperId);
     return () => setPaper(null);
   }, [setPaper, paperId]);
+  const readingArea = useRef<HTMLDivElement>(null);
+  useReportBlockInView(readingArea, presence?.setBlock, paperId);
 
   if (!paper) {
     // The private list may still be loading; only then is a missing paper really missing.
@@ -172,7 +218,7 @@ const ResultPage: React.FC = () => {
           <Link to="/results" className="text-sm text-gray-500 hover:text-purple-600">
             ← results
           </Link>
-          <Viewers />
+          <Viewers blocks={blocks} />
         </div>
         <div className="mt-4 mb-10">
           <h1 className="text-3xl font-light text-gray-900 mb-3">
@@ -206,19 +252,22 @@ const ResultPage: React.FC = () => {
         </div>
         <ResultsUnavailable />
         <Notices paper={paper} access={access} editing={editing} />
-        <SortableGroup
-          collection="results"
-          items={blocks}
-          className="space-y-10"
-          onReorder={(ids) => reorderBlocks(paper.id, ids)}
-          renderItem={(block) => <BlockItem paperId={paper.id} block={block} />}
-        />
-        {/* "References": the entries the blocks cite from references.bib, typeset after them. */}
-        {paper.references && (
-          <div className="mt-10">
-            <BlockView paperId={paper.id} block={{ id: 'references', kind: 'text', output: paper.references }} references />
-          </div>
-        )}
+        <div ref={readingArea}>
+          <SortableGroup
+            collection="results"
+            items={blocks}
+            className="space-y-10"
+            onReorder={(ids) => reorderBlocks(paper.id, ids)}
+            renderItem={(block) => <BlockItem paperId={paper.id} block={block} />}
+          />
+          {/* "References": the entries the blocks cite from references.bib, typeset after them. */}
+          {paper.references && (
+            <div data-result-block-id="references" className="relative mt-10 scroll-mt-24">
+              <BlockReaders blockId="references" />
+              <BlockView paperId={paper.id} block={{ id: 'references', kind: 'text', output: paper.references }} references />
+            </div>
+          )}
+        </div>
         {!paper.references && editing && (paper.files ?? []).includes('references.bib') && (
           <p className="mt-10 text-sm italic text-gray-400">References：正文里还没有用 \cite 引用 references.bib 里的文献。</p>
         )}

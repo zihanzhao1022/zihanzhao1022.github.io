@@ -1,18 +1,23 @@
 /**
  * Who is on the site right now, like the avatars in Overleaf. Every signed-in browser keeps a WebSocket to
- * one Durable Object and says which results paper it shows. On a paper page everyone sees who else is on
- * that paper; only the owner sees who is online anywhere and who came by in the last week. Visitors who are
- * not signed in never connect. Nothing is stored except when each person was last seen.
+ * one Durable Object and says which results paper it shows and which block of it is on screen. On a paper
+ * page everyone sees who else is on that paper and where; only the owner sees who is online anywhere and who
+ * came by in the last week. Visitors who are not signed in never connect. Nothing is stored except when each
+ * person was last seen.
  */
-import { roleOf } from '../../editor/results/collaborators';
+import { papersFor, roleOf } from '../../editor/results/collaborators';
 import { ResultPaper, ResultsSiteAccess } from '../../types';
 import { verifySession } from './crypto';
 import { githubHeaders } from './github-app';
-import { ResultsEnv, collaboratorsEnabled, readShared } from './results';
+import { ResultsEnv, collaboratorsEnabled, editingEnabled, readShared } from './results';
 
 export interface Viewer {
   login: string;
   id: number;
+}
+/** Someone on the same paper, with the block they are looking at (none near the top of the page). */
+export interface Reader extends Viewer {
+  block?: string;
 }
 export interface OnlineUser extends Viewer {
   /** The papers this person has open (several tabs can show several). */
@@ -35,6 +40,10 @@ interface Signed extends Viewer {
 interface Attachment {
   user?: Signed;
   paper: string | null;
+  /** The block of `paper` on screen ("references" for the bibliography). */
+  block?: string | null;
+  /** When this socket last said where it is (epoch milliseconds), so someone's latest tab wins. */
+  at?: number;
 }
 
 const RECENT_MS = 7 * 24 * 60 * 60 * 1000;
@@ -42,24 +51,30 @@ const RECENT_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_REQUESTS = 30;
 const PAPERS_TTL_MS = 60_000;
 const OWNER_TTL_MS = 10 * 60_000;
+/** Block IDs as the site makes them, and "references". */
+const BLOCK_ID = /^[A-Za-z0-9_-]{1,64}$/;
 
 async function sha256(text: string): Promise<string> {
   const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)));
   return [...digest].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-const send = (socket: WebSocket, message: unknown): void => {
+const sendText = (socket: WebSocket, text: string): void => {
   try {
-    socket.send(JSON.stringify(message));
+    socket.send(text);
   } catch {
     // A socket that went away meanwhile; its close event cleans up.
   }
 };
 
+const send = (socket: WebSocket, message: unknown): void => sendText(socket, JSON.stringify(message));
+
 export class Presence {
   private papers: { at: number; list: ResultPaper[]; site: ResultsSiteAccess } | null = null;
   /** GitHub tokens already checked to be the owner's, by hash. */
   private owners = new Map<string, { user: Viewer; until: number }>();
+  /** The last presence message each socket got, so an unchanged one is not sent again (forgotten on hibernation). */
+  private sent = new WeakMap<WebSocket, string>();
 
   constructor(
     private readonly state: DurableObjectState,
@@ -116,7 +131,8 @@ export class Presence {
       const wanted = typeof message.paper === 'string' ? message.paper : null;
       // Only papers this person may see, so nobody learns who reads a paper they have no access to.
       const paper = wanted && (await this.mayView(attachment.user, wanted)) ? wanted : null;
-      socket.serializeAttachment({ ...attachment, paper } satisfies Attachment);
+      const block = paper && typeof message.block === 'string' && BLOCK_ID.test(message.block) ? message.block : null;
+      socket.serializeAttachment({ ...attachment, paper, block, at: Date.now() } satisfies Attachment);
       await this.broadcast();
     }
   }
@@ -177,6 +193,16 @@ export class Presence {
     return paper !== undefined && roleOf(paper, user, this.papers.site) !== null;
   }
 
+  /** The blocks of a paper `user` may hear others are on: all for the owner, otherwise those the site gives them. */
+  private blocksFor(user: Signed, paperId: string): (block: string) => boolean {
+    if (user.owner) return () => true;
+    const paper = this.papers?.list.find((item) => item.id === paperId);
+    const [view] = paper && this.papers ? papersFor([paper], user, editingEnabled(this.env), this.papers.site).papers : [];
+    const shown = new Set(view?.blocks.map((block) => block.id));
+    if (view?.references) shown.add('references');
+    return (block) => shown.has(block);
+  }
+
   private async requests(): Promise<Record<string, AccessRequest>> {
     return (await this.state.storage.get<Record<string, AccessRequest>>('requests')) ?? {};
   }
@@ -219,17 +245,27 @@ export class Presence {
       .sort((a, b) => b.at - a.at);
     const requests = Object.values(await this.requests()).sort((a, b) => b.at - a.at);
     for (const { socket, attachment } of signed) {
-      const viewers = new Map<string, Viewer>();
+      const viewers = new Map<string, { reader: Reader; at: number }>();
       if (attachment.paper) {
-        for (const other of signed) {
-          if (other.attachment.paper === attachment.paper) viewers.set(other.attachment.user.login.toLowerCase(), { login: other.attachment.user.login, id: other.attachment.user.id });
+        const mayHear = this.blocksFor(attachment.user, attachment.paper);
+        for (const { attachment: other } of signed) {
+          if (other.paper !== attachment.paper) continue;
+          const key = other.user.login.toLowerCase();
+          const at = other.at ?? 0;
+          // Someone with the paper open in several tabs is where they moved last.
+          if ((viewers.get(key)?.at ?? -1) > at) continue;
+          const block = other.block && mayHear(other.block) ? { block: other.block } : {};
+          viewers.set(key, { reader: { login: other.user.login, id: other.user.id, ...block }, at });
         }
       }
-      send(socket, {
+      const text = JSON.stringify({
         t: 'presence',
-        viewers: [...viewers.values()],
+        viewers: [...viewers.values()].map((entry) => entry.reader),
         ...(attachment.user.owner ? { online: [...online.values()], recent, requests } : {}),
       });
+      if (this.sent.get(socket) === text) continue;
+      this.sent.set(socket, text);
+      sendText(socket, text);
     }
   }
 }

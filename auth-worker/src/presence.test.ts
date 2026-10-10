@@ -34,9 +34,24 @@ const env: ResultsEnv & { OWNER_LOGIN: string } = {
   SESSION_SECRET: 'session-secret',
 };
 
-// Made-up papers: alice and bob may view A, only alice B.
+const PDF = { pdf: 'results/A/made-up.pdf', width: 100, height: 50 };
+// Made-up papers: alice and bob may view A (whose block a3 is hidden), only alice B.
 const PAPERS: ResultPaper[] = [
-  { id: 'A', slug: 'a', title: 'Made-up A', authors: [], hidden: true, viewers: ['alice', 'bob'], collaboratorIds: { alice: 101, bob: 102 }, blocks: [] },
+  {
+    id: 'A',
+    slug: 'a',
+    title: 'Made-up A',
+    authors: [],
+    hidden: true,
+    viewers: ['alice', 'bob'],
+    collaboratorIds: { alice: 101, bob: 102 },
+    blocks: [
+      { id: 'a1', kind: 'text', output: PDF },
+      { id: 'a2', kind: 'table', output: PDF },
+      { id: 'a3', kind: 'text', hidden: true, output: PDF },
+    ],
+    references: PDF,
+  },
   { id: 'B', slug: 'b', title: 'Made-up B', authors: [], hidden: true, viewers: ['alice'], collaboratorIds: { alice: 101 }, blocks: [] },
 ];
 
@@ -77,7 +92,12 @@ function ownerGitHub() {
   );
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
+
+const viewersOf = (socket: FakeSocket) => (socket.last('presence') as { viewers: unknown[] }).viewers;
 
 describe('presence', () => {
   it('lets in only signed-in people', async () => {
@@ -158,6 +178,80 @@ describe('presence', () => {
     expect((owner.last('presence') as { requests: unknown[] }).requests).toHaveLength(1);
     await say(owner, { t: 'resolve', login: 'dave' });
     expect((owner.last('presence') as { requests: unknown[] }).requests).toEqual([]);
+  });
+
+  it('shows everyone on a paper which block each person is looking at', async () => {
+    ownerGitHub();
+    const { join, say } = room();
+    const owner = await join({ kind: 'owner', token: 'ghu_owner' });
+    const alice = await join(await collaborator('alice', 101));
+    await say(owner, { t: 'view', paper: 'A', block: 'a1' });
+    await say(alice, { t: 'view', paper: 'A', block: 'a2' });
+    const both = [
+      { login: 'ZihanZhao1022', id: 1, block: 'a1' },
+      { login: 'alice', id: 101, block: 'a2' },
+    ];
+    expect(viewersOf(alice)).toEqual(both);
+    expect(viewersOf(owner)).toEqual(both);
+    // Back at the top of the page, on no block.
+    await say(alice, { t: 'view', paper: 'A', block: null });
+    expect(viewersOf(owner)).toEqual([both[0], { login: 'alice', id: 101 }]);
+    await say(owner, { t: 'view', paper: 'A', block: 'references' });
+    expect(viewersOf(alice)).toEqual([{ login: 'ZihanZhao1022', id: 1, block: 'references' }, { login: 'alice', id: 101 }]);
+  });
+
+  it('never tells viewers about blocks hidden from them', async () => {
+    ownerGitHub();
+    const { join, say } = room();
+    const owner = await join({ kind: 'owner', token: 'ghu_owner' });
+    const alice = await join(await collaborator('alice', 101));
+    await say(alice, { t: 'view', paper: 'A', block: 'a1' });
+    for (const block of ['a3', 'made-up']) {
+      await say(owner, { t: 'view', paper: 'A', block });
+      // alice still sees the owner on the paper, just not where.
+      expect(viewersOf(alice)).toEqual([{ login: 'ZihanZhao1022', id: 1 }, { login: 'alice', id: 101, block: 'a1' }]);
+      expect(viewersOf(owner)).toEqual([{ login: 'ZihanZhao1022', id: 1, block }, { login: 'alice', id: 101, block: 'a1' }]);
+    }
+  });
+
+  it('follows the tab someone used last', async () => {
+    ownerGitHub();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const { join, say } = room();
+    const owner = await join({ kind: 'owner', token: 'ghu_owner' });
+    const first = await join(await collaborator('alice', 101));
+    const second = await join(await collaborator('alice', 101));
+    await say(owner, { t: 'view', paper: 'A' });
+    const me = { login: 'ZihanZhao1022', id: 1 };
+    vi.setSystemTime(1_000);
+    await say(first, { t: 'view', paper: 'A', block: 'a1' });
+    vi.setSystemTime(2_000);
+    await say(second, { t: 'view', paper: 'A', block: 'a2' });
+    expect(viewersOf(owner)).toEqual([me, { login: 'alice', id: 101, block: 'a2' }]);
+    vi.setSystemTime(3_000);
+    await say(first, { t: 'view', paper: 'A', block: 'a1' });
+    expect(viewersOf(owner)).toEqual([me, { login: 'alice', id: 101, block: 'a1' }]);
+  });
+
+  it('ignores block ids that are not ids', async () => {
+    const { join, say } = room();
+    const alice = await join(await collaborator('alice', 101));
+    for (const junk of ['../a1', 'a'.repeat(65), 7]) {
+      await say(alice, { t: 'view', paper: 'A', block: 'a1' });
+      await say(alice, { t: 'view', paper: 'A', block: junk });
+      expect(viewersOf(alice)).toEqual([{ login: 'alice', id: 101 }]);
+    }
+  });
+
+  it('sends nothing to people whose view did not change', async () => {
+    const { join, say } = room();
+    const alice = await join(await collaborator('alice', 101));
+    const bob = await join(await collaborator('bob', 102));
+    await say(bob, { t: 'view', paper: null });
+    const before = bob.sent.length;
+    await say(alice, { t: 'view', paper: 'A', block: 'a1' });
+    await say(alice, { t: 'view', paper: 'A', block: 'a2' });
+    expect(bob.sent.length).toBe(before);
   });
 
   it('answers pings and ignores junk', async () => {

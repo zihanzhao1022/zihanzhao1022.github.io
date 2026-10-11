@@ -14,6 +14,7 @@ import {
   keymap,
   lineNumbers,
 } from '@codemirror/view';
+import { t } from '../../lib/phrases/results';
 
 const COMMANDS = [
   'textbf', 'textit', 'emph', 'underline', 'texttt', 'textsc', 'textsf', 'textrm', 'textsuperscript', 'textsubscript',
@@ -70,7 +71,7 @@ function completions(names: React.MutableRefObject<{ macros: string[]; colors: s
     }
     const command = context.matchBefore(/\\[A-Za-z]*/);
     if (!command || (command.from === command.to && !context.explicit)) return null;
-    const own = names.current.macros.map((name) => ({ label: `\\${name}`, type: 'function', detail: '导言区' }));
+    const own = names.current.macros.map((name) => ({ label: `\\${name}`, type: 'function', detail: t('导言区') }));
     return { from: command.from, options: [...own, ...COMMANDS.map((name) => ({ label: `\\${name}`, type: 'keyword' }))] };
   };
 }

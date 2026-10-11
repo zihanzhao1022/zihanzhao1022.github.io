@@ -1,3 +1,4 @@
+import { t } from '../../lib/phrases/results';
 import { ResultBlock, ResultBlockKind, ResultBlockOutput, ResultPaper, ResultsSiteAccess } from '../../types';
 import { ResultsOp } from './ops';
 import { publicView } from './snapshot';
@@ -75,7 +76,7 @@ export async function withCollaboratorIds<T extends Listed>(paper: T, previous: 
     const login = normalLogin(name);
     if (!login || ids[login] !== undefined) continue;
     const id = previous?.collaboratorIds?.[login] ?? (await lookup(login));
-    if (id === null) throw new Error(`找不到 GitHub 用户 ${name}，请检查用户名`);
+    if (id === null) throw new Error(t('找不到 GitHub 用户 {name}，请检查用户名', { name }));
     ids[login] = id;
   }
   const { collaboratorIds: _ids, ...rest } = paper;
@@ -179,6 +180,7 @@ export function cleanOutput(raw: unknown, paperId: string): ResultBlockOutput | 
 
 export type CheckedOp = { op: ResultsOp } | { error: string };
 
+// The worker sends these as written; the site translates them (lib/phrases/results.ts).
 const OTHER_PAPER = '只能修改共享给你的论文';
 const MALFORMED = '请求的内容不符合要求';
 

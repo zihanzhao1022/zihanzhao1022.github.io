@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ClipboardPaste, Copy, Download, Eye, EyeOff, Loader2, Paperclip, Play, Redo2, Trash2, Undo2, Upload, X } from 'lucide-react';
 import PdfView from '../../components/results/PdfView';
 import { pdfPageSize } from '../../components/results/pdfjs';
+import { N_, useLang } from '../../lib/i18n';
+import { useT } from '../../lib/phrases/results';
 import { PdfBlockKind, ResultBlock, ResultBlockKind, ResultPaper } from '../../types';
 import { describeSaveError } from '../backend';
 import { BUTTON_PRIMARY, BUTTON_SECONDARY } from '../components/Modal';
@@ -35,7 +37,13 @@ import { parseTable, serializeTable } from './table/latex';
 
 export type ResultsSave = (op: ResultsOp, writes: FileWrite[], deletes: string[], message: string, publicMessage: string) => Promise<void>;
 
-const KIND_LABEL: Record<ResultBlockKind, string> = { text: '文字', figure: '图', table: '表格', heading: '小节标题' };
+/** Each kind's name, and the editor's title when adding or editing one. */
+const KIND: Record<ResultBlockKind, { label: string; add: string; edit: string }> = {
+  text: { label: N_('文字'), add: N_('添加文字'), edit: N_('编辑文字') },
+  figure: { label: N_('图'), add: N_('添加图'), edit: N_('编辑图') },
+  table: { label: N_('表格'), add: N_('添加表格'), edit: N_('编辑表格') },
+  heading: { label: N_('小节标题'), add: N_('添加小节标题'), edit: N_('编辑小节标题') },
+};
 const COMPILE_DELAY_MS = 1000;
 
 interface Compiled {
@@ -59,10 +67,11 @@ interface Props {
 
 /** Full-screen LaTeX editor for one block: code on the left, the compiled PDF on the right. */
 const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afterBlockId, readFile, onSave, onClose }) => {
+  const t = useT();
   const existing = blockId === undefined ? undefined : paper.blocks.find((item) => item.id === blockId);
   const [block] = useState<ResultBlock>(() => existing ?? {
     id: newBlockId(), kind: blockKind,
-    source: blockKind === 'table' ? serializeTable(createTable()) : BLOCK_TEMPLATES[blockKind],
+    source: blockKind === 'table' ? serializeTable(createTable()) : BLOCK_TEMPLATES[blockKind](),
   });
   const isNew = existing === undefined;
   const original = block.source ?? '';
@@ -89,7 +98,9 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
   const upload = useRef<HTMLInputElement>(null);
 
   const preamble = preambleOf(paper);
-  const table = useMemo(() => block.kind === 'table' ? parseTable(source, preamble) : null, [block.kind, source, preamble]);
+  const lang = useLang();
+  // The parse explains in the interface language why a table cannot be edited visually, so it follows the switch.
+  const table = useMemo(() => block.kind === 'table' ? parseTable(source, preamble) : null, [block.kind, source, preamble, lang]);
   const names = useMemo(() => preambleNames(preamble), [preamble]);
   const files = useMemo(() => (stored ? { ...stored, ...added } : null), [stored, added]);
   const blockOp = useMemo<Extract<ResultsOp, { kind: 'putBlock' }>>(() => {
@@ -138,7 +149,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
         if (!cancelled) setStored(loaded);
       })
       .catch(() => {
-        if (!cancelled) setProblem('读取论文附件失败，请关闭后重试');
+        if (!cancelled) setProblem(t('读取论文附件失败，请关闭后重试'));
       });
     return () => {
       cancelled = true;
@@ -162,7 +173,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
         }
         return next;
       } catch (error) {
-        if (ticket === latest.current) setProblem(error instanceof Error ? error.message : 'TeX 引擎出错，请重试');
+        if (ticket === latest.current) setProblem(error instanceof Error ? error.message : t('TeX 引擎出错，请重试'));
         return null;
       } finally {
         if (ticket === latest.current) setCompiling(false);
@@ -181,7 +192,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
 
   const close = useCallback(() => {
     if (saving) return;
-    if (dirty && !window.confirm('放弃未保存的修改？')) return;
+    if (dirty && !window.confirm(t('放弃未保存的修改？'))) return;
     onClose();
   }, [saving, dirty, onClose]);
 
@@ -223,7 +234,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
       const current = compiled && compiled.source === source && compiled.preview === preview ? compiled : await compile(source);
       if (!current) return;
       if (!current.result.ok) {
-        setProblem('编译有错误，修好后才能保存');
+        setProblem(t('编译有错误，修好后才能保存'));
         setTab('preview');
         return;
       }
@@ -256,12 +267,12 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
     });
 
   const remove = () => {
-    if (!files || !window.confirm('确定删除这个块吗？')) return;
+    if (!files || !window.confirm(t('确定删除这个块吗？'))) return;
     void run(async () => {
       const draft: ResultPaper = { ...paper, blocks: paper.blocks.filter((item) => item.id !== block.id) };
       const rebuilt = await rebuildWith(draft, files);
       if (rebuilt.failed) {
-        setProblem(`${describeFailure(draft.blocks, rebuilt.failed, '删除后')}。先修好再删除。`);
+        setProblem(t('{problem}。先修好再删除。', { problem: describeFailure(draft.blocks, rebuilt.failed, 'delete') }));
         return;
       }
       const deletes = [...(block.output ? [block.output.pdf] : []), ...rebuilt.deletes];
@@ -277,8 +288,8 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
   };
 
   const toggleHidden = () => {
-    if (dirty && !window.confirm('放弃未保存的修改？')) return;
-    if (block.hidden && !paper.hidden && !window.confirm('这篇论文已公开，取消隐藏后这个块会发布到网站。确定吗？')) return;
+    if (dirty && !window.confirm(t('放弃未保存的修改？'))) return;
+    if (block.hidden && !paper.hidden && !window.confirm(t('这篇论文已公开，取消隐藏后这个块会发布到网站。确定吗？'))) return;
     void run(async () => {
       await onSave(
         { kind: 'setBlockHidden', paperId: paper.id, blockId: block.id, hidden: !block.hidden },
@@ -294,9 +305,9 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
   const copyTex = async () => {
     try {
       await navigator.clipboard.writeText(exportTex(source));
-      setNotice('LaTeX 已复制');
+      setNotice(t('LaTeX 已复制'));
     } catch {
-      setNotice('复制失败，请改用"下载"');
+      setNotice(t('复制失败，请改用"下载"'));
     }
   };
 
@@ -320,17 +331,17 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
       try {
         pasted = await navigator.clipboard.readText();
       } catch {
-        pasted = window.prompt('把 BibTeX 条目粘贴到这里') ?? '';
+        pasted = window.prompt(t('把 BibTeX 条目粘贴到这里')) ?? '';
       }
       const existing = files[REFERENCES_FILE] ? new TextDecoder().decode(files[REFERENCES_FILE]) : '';
       const merge = addBibEntries(existing, pasted);
       const keys = [...merge.added, ...merge.skipped];
       if (keys.length === 0) {
-        setProblem('剪贴板里没有 BibTeX 条目（应该以 @article{… 这样开头）');
+        setProblem(t('剪贴板里没有 BibTeX 条目（应该以 @article{… 这样开头）'));
         return;
       }
       const created = !(paper.files ?? []).includes(REFERENCES_FILE);
-      if (created && !window.confirm(`这篇论文还没有参考文献文件，要新建 ${REFERENCES_FILE} 并加入这些条目吗？`)) return;
+      if (created && !window.confirm(t('这篇论文还没有参考文献文件，要新建 {file} 并加入这些条目吗？', { file: REFERENCES_FILE }))) return;
       if (merge.added.length > 0) {
         const data = new TextEncoder().encode(merge.text);
         const uploads = await putFiles(paper.id, { [REFERENCES_FILE]: data });
@@ -347,12 +358,13 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
         () => true,
         () => false,
       );
+      const entries = { n: merge.added.length, file: REFERENCES_FILE };
       const parts = [
-        merge.added.length > 0 ? `已加入 ${merge.added.length} 条文献${created ? `（新建了 ${REFERENCES_FILE}）` : ''}` : '',
-        merge.skipped.length > 0 ? `${merge.skipped.join('、')} 已经在参考文献里` : '',
-        copied ? `引用名已复制：${keys.join(',')}` : `引用名：${keys.join(',')}`,
+        merge.added.length > 0 ? (created ? t('已加入 {n} 条文献（新建了 {file}）', entries) : t('已加入 {n} 条文献', entries)) : '',
+        merge.skipped.length > 0 ? t('{keys} 已经在参考文献里', { keys: merge.skipped.join(t('、')) }) : '',
+        copied ? t('引用名已复制：{keys}', { keys: keys.join(',') }) : t('引用名：{keys}', { keys: keys.join(',') }),
       ];
-      setNotice(`${parts.filter(Boolean).join('；')}。在正文中引用后，预览会自动更新。`);
+      setNotice(t('{parts}。在正文中引用后，预览会自动更新。', { parts: parts.filter(Boolean).join(t('；')) }));
     });
 
   const addFiles = async (list: FileList | null) => {
@@ -361,7 +373,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
     for (const file of Array.from(list)) {
       const reason = attachmentProblem(file);
       if (reason) {
-        setProblem(`${file.name}：${reason}`);
+        setProblem(t('{name}：{reason}', { name: file.name, reason }));
         continue;
       }
       const data = new Uint8Array(await file.arrayBuffer());
@@ -377,18 +389,18 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
     .map((issue) => ({ line: issue.line!, message: issue.message }));
 
   let status: React.ReactNode = null;
-  if (!files) status = '正在读取附件…';
+  if (!files) status = t('正在读取附件…');
   else if (compiling) status = (
     <span className="inline-flex items-center gap-1">
       <Loader2 size={12} className="animate-spin" />
-      编译中…
+      {t('编译中…')}
     </span>
   );
-  else if (shown?.ok) status = <span className="text-emerald-600">已编译 · {compiled!.ms} ms</span>;
-  else if (shown) status = <span className="text-red-600">{shown.issues.length} 个错误</span>;
+  else if (shown?.ok) status = <span className="text-emerald-600">{t('已编译 · {ms} ms', { ms: compiled!.ms })}</span>;
+  else if (shown) status = <span className="text-red-600">{t('{n} 个错误', { n: shown.issues.length })}</span>;
 
   return (
-    <div role="dialog" aria-modal="true" aria-label={`${KIND_LABEL[block.kind]}编辑器`} className="fixed inset-0 z-[100] flex flex-col bg-white"
+    <div role="dialog" aria-modal="true" aria-label={t('{kind}编辑器', { kind: t(KIND[block.kind].label) })} className="fixed inset-0 z-[100] flex flex-col bg-white"
       onKeyDown={(event) => {
         if (block.kind !== 'table' || tableMode !== 'visual' || !(event.metaKey || event.ctrlKey)) return;
         if (event.key.toLowerCase() === 's') { event.preventDefault(); if (files) void save(); }
@@ -397,53 +409,50 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
       }}
     >
       <header className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 border-b border-gray-200">
-        <span className="font-semibold text-gray-900">
-          {isNew ? '添加' : '编辑'}
-          {KIND_LABEL[block.kind]}
-        </span>
+        <span className="font-semibold text-gray-900">{t(isNew ? KIND[block.kind].add : KIND[block.kind].edit)}</span>
         <span className="text-sm text-gray-500 truncate max-w-[16rem]">{paper.title}</span>
         <span className="text-xs text-gray-500">{status}</span>
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <button type="button" onClick={() => void compile(source)} className={BUTTON_SECONDARY} title="立即编译（Ctrl/Cmd+Enter）">
+          <button type="button" onClick={() => void compile(source)} className={BUTTON_SECONDARY} title={t('立即编译（Ctrl/Cmd+Enter）')}>
             <Play size={14} />
-            编译
+            {t('编译')}
           </button>
-          <button type="button" onClick={() => void copyTex()} className={BUTTON_SECONDARY} title="复制 LaTeX 代码（开头注明需要的宏包）">
+          <button type="button" onClick={() => void copyTex()} className={BUTTON_SECONDARY} title={t('复制 LaTeX 代码（开头注明需要的宏包）')}>
             <Copy size={14} />
-            复制 LaTeX
+            {t('复制 LaTeX')}
           </button>
           <button
             type="button"
             disabled={saving || !files}
             onClick={() => void pasteBib()}
             className={BUTTON_SECONDARY}
-            title="把复制来的 BibTeX 条目加入 references.bib，并把它们的引用名放到剪贴板"
+            title={t('把复制来的 BibTeX 条目加入 references.bib，并把它们的引用名放到剪贴板')}
           >
             <ClipboardPaste size={14} />
-            粘贴 BibTeX
+            {t('粘贴 BibTeX')}
           </button>
-          <button type="button" onClick={downloadTex} className={BUTTON_SECONDARY} title="下载为 .tex 文件">
+          <button type="button" onClick={downloadTex} className={BUTTON_SECONDARY} title={t('下载为 .tex 文件')}>
             <Download size={14} />
           </button>
           {!isNew && (
             <button type="button" disabled={saving} onClick={toggleHidden} className={BUTTON_SECONDARY}>
               {block.hidden ? <Eye size={14} /> : <EyeOff size={14} />}
-              {block.hidden ? '取消隐藏' : '隐藏'}
+              {block.hidden ? t('取消隐藏') : t('隐藏')}
             </button>
           )}
           {!isNew && (
             <button type="button" disabled={saving} onClick={remove} className={`${BUTTON_SECONDARY} text-red-600`}>
               <Trash2 size={14} />
-              删除
+              {t('删除')}
             </button>
           )}
           <button type="button" disabled={saving} onClick={close} className={BUTTON_SECONDARY}>
-            取消
+            {t('取消')}
           </button>
-          <button type="button" disabled={saving || !files} onClick={() => void save()} className={BUTTON_PRIMARY} title="保存（Ctrl/Cmd+S）">
-            {saving ? '保存中…' : '保存'}
+          <button type="button" disabled={saving || !files} onClick={() => void save()} className={BUTTON_PRIMARY} title={t('保存（Ctrl/Cmd+S）')}>
+            {saving ? t('保存中…') : t('保存')}
           </button>
-          <button type="button" onClick={close} aria-label="关闭" className="p-1 text-gray-400 hover:text-gray-700">
+          <button type="button" onClick={close} aria-label={t('关闭')} className="p-1 text-gray-400 hover:text-gray-700">
             <X size={18} />
           </button>
         </div>
@@ -456,7 +465,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
             </p>
           )}
           {notice && <p className="text-emerald-700">{notice}</p>}
-          {!paper.hidden && !block.hidden && <p className="text-amber-700">这篇论文已公开，保存后访客就能看到这个块。</p>}
+          {!paper.hidden && !block.hidden && <p className="text-amber-700">{t('这篇论文已公开，保存后访客就能看到这个块。')}</p>}
         </div>
       )}
       <div className="flex lg:hidden border-b border-gray-200 text-sm">
@@ -467,7 +476,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
             onClick={() => setTab(name)}
             className={`flex-1 py-2 ${tab === name ? 'text-purple-700 border-b-2 border-purple-600' : 'text-gray-500'}`}
           >
-            {name === 'code' ? (block.kind === 'table' ? '编辑' : '代码') : '预览'}
+            {name === 'code' ? (block.kind === 'table' ? t('编辑') : t('代码')) : t('预览')}
           </button>
         ))}
       </div>
@@ -475,36 +484,36 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
         <section className={`min-h-0 min-w-0 flex-col border-r border-gray-200 ${tab === 'code' ? 'flex' : 'hidden lg:flex'}`}>
           {block.kind === 'table' && (
             <div className="flex items-center gap-3 px-3 py-2 border-b border-gray-200 bg-white">
-              <div className="inline-flex rounded-lg bg-purple-50 p-1 gap-1" role="group" aria-label="表格编辑方式">
+              <div className="inline-flex rounded-lg bg-purple-50 p-1 gap-1" role="group" aria-label={t('表格编辑方式')}>
                 {(['visual', 'latex'] as const).map((mode) => (
                   <button key={mode} type="button" aria-pressed={tableMode === mode} onClick={() => setTableMode(mode)}
                     className={`rounded-md px-3 py-1.5 text-sm ${tableMode === mode ? 'bg-white text-purple-700 shadow-sm font-medium' : 'text-gray-500 hover:text-purple-700'}`}>
-                    {mode === 'visual' ? '可视化' : 'LaTeX'}
+                    {mode === 'visual' ? t('可视化') : 'LaTeX'}
                   </button>
                 ))}
               </div>
               <div className="flex items-center gap-1">
-                <button type="button" aria-label="撤销表格修改" title="撤销" disabled={saving || !tableUndo.current.length} onClick={() => restoreTable()}
+                <button type="button" aria-label={t('撤销表格修改')} title={t('撤销')} disabled={saving || !tableUndo.current.length} onClick={() => restoreTable()}
                   className="p-1.5 rounded text-gray-500 hover:bg-purple-50 hover:text-purple-700 disabled:opacity-30"><Undo2 size={16} /></button>
-                <button type="button" aria-label="重做表格修改" title="重做" disabled={saving || !tableRedo.current.length} onClick={() => restoreTable(true)}
+                <button type="button" aria-label={t('重做表格修改')} title={t('重做')} disabled={saving || !tableRedo.current.length} onClick={() => restoreTable(true)}
                   className="p-1.5 rounded text-gray-500 hover:bg-purple-50 hover:text-purple-700 disabled:opacity-30"><Redo2 size={16} /></button>
               </div>
-              <span className="text-xs text-gray-400 ml-auto hidden sm:inline">自动更新预览</span>
+              <span className="text-xs text-gray-400 ml-auto hidden sm:inline">{t('自动更新预览')}</span>
             </div>
           )}
           {block.kind === 'figure' && (
             <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-gray-100 bg-gray-50 text-xs">
               <Paperclip size={14} className="text-gray-400" />
-              {images.length === 0 && <span className="text-gray-500">还没有图片：上传 PDF、PNG 或 JPG（不超过 20 MB）</span>}
+              {images.length === 0 && <span className="text-gray-500">{t('还没有图片：上传 PDF、PNG 或 JPG（不超过 20 MB）')}</span>}
               {images.map((name) => (
                 <button
                   key={name}
                   type="button"
                   onClick={() => editor.current?.insert(`\\includegraphics[width=\\linewidth]{${name}}\n`)}
                   className="px-2 py-1 rounded border border-gray-300 bg-white hover:border-purple-300 hover:text-purple-700"
-                  title="在光标处插入 \includegraphics"
+                  title={t('在光标处插入 \\includegraphics')}
                 >
-                  插入 {name}
+                  {t('插入 {name}', { name })}
                 </button>
               ))}
               <button
@@ -513,7 +522,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
                 className="inline-flex items-center gap-1 px-2 py-1 rounded border border-purple-200 bg-white text-purple-700 hover:bg-purple-50"
               >
                 <Upload size={12} />
-                上传图片
+                {t('上传图片')}
               </button>
               <input
                 ref={upload}
@@ -531,10 +540,10 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
           {block.kind === 'table' && tableMode === 'visual' ? (
             table?.ok ? <TableVisualEditor value={table.table} onChange={(next) => changeSource(serializeTable(next))} disabled={saving} /> : (
               <div className="m-5 rounded-xl border border-purple-100 bg-purple-50/50 p-5 text-sm text-gray-600 space-y-3">
-                <p className="font-medium text-gray-900">这张表格需要使用 LaTeX 编辑</p>
-                <p>{table && !table.ok ? table.reason : '暂时无法读取表格结构。'}</p>
-                <p>原代码已保留，不会自动替换或丢失内容。</p>
-                <button type="button" className={BUTTON_SECONDARY} onClick={() => setTableMode('latex')}>返回 LaTeX 编辑</button>
+                <p className="font-medium text-gray-900">{t('这张表格需要使用 LaTeX 编辑')}</p>
+                <p>{table && !table.ok ? table.reason : t('暂时无法读取表格结构。')}</p>
+                <p>{t('原代码已保留，不会自动替换或丢失内容。')}</p>
+                <button type="button" className={BUTTON_SECONDARY} onClick={() => setTableMode('latex')}>{t('返回 LaTeX 编辑')}</button>
               </div>
             )
           ) : <CodeEditor
@@ -581,11 +590,11 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
               )}
             </div>
           ) : (
-            <div className="py-20 text-center text-sm text-gray-400">{files ? '编译后在这里显示' : '正在读取附件…'}</div>
+            <div className="py-20 text-center text-sm text-gray-400">{files ? t('编译后在这里显示') : t('正在读取附件…')}</div>
           )}
           {shown && shown.warnings.length > 0 && (
             <details className="text-xs text-amber-700">
-              <summary className="cursor-pointer">{shown.warnings.length} 条警告</summary>
+              <summary className="cursor-pointer">{t('{n} 条警告', { n: shown.warnings.length })}</summary>
               <ul className="mt-1 space-y-1">
                 {shown.warnings.map((warning, position) => (
                   <li key={`${position}-${warning}`}>{warning}</li>
@@ -595,7 +604,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
           )}
           {shown && (
             <details className="text-xs text-gray-500">
-              <summary className="cursor-pointer">编译日志</summary>
+              <summary className="cursor-pointer">{t('编译日志')}</summary>
               <pre className="mt-1 max-h-80 overflow-auto whitespace-pre-wrap">{shown.log}</pre>
             </details>
           )}

@@ -1,3 +1,4 @@
+import { t } from '../../lib/phrases/results';
 import { ResultBlock, ResultPaper } from '../../types';
 import { DEFAULT_PREAMBLE } from '../tex/document';
 import { TexEngine } from '../tex/engine';
@@ -56,7 +57,7 @@ export function createBlockPreview(
           counters: {},
           labels: {},
           warnings: [],
-          issues: references.issues.map((issue) => ({ ...issue, message: `参考文献：${issue.message}` })),
+          issues: references.issues.map((issue) => ({ ...issue, message: t('参考文献：{message}', { message: issue.message }) })),
           log: references.log,
         };
       }

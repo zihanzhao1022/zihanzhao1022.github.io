@@ -1,3 +1,5 @@
+import { t } from '../lib/phrases/editor';
+
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 export const MAX_IMAGE_EDGE = 1600;
 
@@ -22,8 +24,8 @@ export const isPendingImage = (value: unknown): value is PendingImage =>
   typeof value === 'object' && value !== null && (value as PendingImage).pending === true;
 
 export function validateImage(file: { type: string; size: number }): string | null {
-  if (!EXTENSIONS[file.type]) return '只支持 PNG、JPG、WebP、GIF 格式的图片';
-  if (file.size > MAX_IMAGE_BYTES) return '图片不能超过 5MB';
+  if (!EXTENSIONS[file.type]) return t('只支持 PNG、JPG、WebP、GIF 格式的图片');
+  if (file.size > MAX_IMAGE_BYTES) return t('图片不能超过 5MB');
   return null;
 }
 
@@ -75,7 +77,7 @@ export async function prepareImage(file: File): Promise<PendingImage> {
       canvas.height = size.height;
       canvas.getContext('2d')?.drawImage(bitmap, 0, 0, size.width, size.height);
       blob = await new Promise<Blob>((resolve, reject) =>
-        canvas.toBlob((result) => (result ? resolve(result) : reject(new Error('图片处理失败'))), file.type, 0.9),
+        canvas.toBlob((result) => (result ? resolve(result) : reject(new Error(t('图片处理失败')))), file.type, 0.9),
       );
     }
     bitmap.close();

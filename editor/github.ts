@@ -1,3 +1,5 @@
+import { t } from '../lib/phrases/editor';
+
 export class GitHubError extends Error {
   readonly status: number;
 
@@ -78,9 +80,9 @@ export function createGitHubApi(
         body: body === undefined ? undefined : JSON.stringify(body),
       });
     } catch {
-      throw new GitHubError('网络连接失败', 0);
+      throw new GitHubError(t('网络连接失败'), 0);
     }
-    if (!res.ok) throw new GitHubError(`GitHub 返回 ${res.status}`, res.status);
+    if (!res.ok) throw new GitHubError(t('GitHub 返回 {status}', { status: res.status }), res.status);
     return res;
   }
 
@@ -113,7 +115,7 @@ export function createGitHubApi(
       const tree = await request<{ tree: { path: string; type: string; sha: string }[]; truncated: boolean }>(
         `/git/trees/${treeSha}?recursive=1`,
       );
-      if (tree.truncated) throw new Error('仓库里的文件太多，GitHub 无法一次列出，请联系维护者');
+      if (tree.truncated) throw new Error(t('仓库里的文件太多，GitHub 无法一次列出，请联系维护者'));
       return tree.tree
         .filter((entry) => entry.type === 'blob' && entry.path.startsWith(prefix))
         .map((entry) => ({ path: entry.path, sha: entry.sha }));

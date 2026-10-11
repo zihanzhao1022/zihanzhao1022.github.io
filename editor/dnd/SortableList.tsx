@@ -19,6 +19,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from 'lucide-react';
+import { useT } from '../../lib/phrases/editor';
 
 export interface SortableListProps<T extends { id: string }> {
   items: T[];
@@ -35,6 +36,7 @@ const MARGIN_HANDLE = 'absolute top-1/2 -translate-y-1/2 -left-6 md:-left-9';
 
 function SortableRow({ id, handleClassName, children }: { id: string; handleClassName: string; children: React.ReactNode }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const t = useT();
   return (
     <div
       ref={setNodeRef}
@@ -45,10 +47,10 @@ function SortableRow({ id, handleClassName, children }: { id: string; handleClas
       <button
         ref={setActivatorNodeRef}
         type="button"
-        title="拖动排序"
+        title={t('拖动排序')}
         {...attributes}
         {...listeners}
-        aria-label="拖动排序"
+        aria-label={t('拖动排序')}
         className={`${handleClassName} z-20 p-0.5 rounded-md text-gray-400 hover:text-purple-600 hover:bg-purple-50 cursor-grab active:cursor-grabbing touch-none`}
       >
         <GripVertical size={18} />

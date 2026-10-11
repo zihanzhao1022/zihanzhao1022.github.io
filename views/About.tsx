@@ -2,10 +2,24 @@ import React, { useState } from 'react';
 import { useContent } from '../components/ContentContext';
 import { AddButton, EditButton, HiddenBadge, useVisibleItems } from '../components/EditMode';
 import { SortableGroup } from '../components/SortableGroup';
-import { Icon } from '../components/Icon';
+import { Icon, Overwatch } from '../components/Icon';
+import { SocialLink } from '../types';
 import OverwatchRanks from '../components/OverwatchRanks';
 import { resolveImage } from '../lib/localImages';
 import { renderInlineMarkdown } from '../lib/markdown';
+
+/**
+ * Each icon turns its brand's colour on hover and while its QR code is open (the Overwatch icon colours
+ * its two parts itself); email keeps the site's purple.
+ */
+const BRAND: Record<SocialLink['platform'], { hover: string; active: string }> = {
+  email: { hover: 'hover:text-purple-600', active: 'text-purple-600' },
+  github: { hover: 'hover:text-[#181717]', active: 'text-[#181717]' },
+  linkedin: { hover: 'hover:text-[#0A66C2]', active: 'text-[#0A66C2]' },
+  orcid: { hover: 'hover:text-[#A6CE39]', active: 'text-[#A6CE39]' },
+  wechat: { hover: 'hover:text-[#07C160]', active: 'text-[#07C160]' },
+  overwatch: { hover: '', active: '' },
+};
 
 const About: React.FC = () => {
   const { profile, news: allNews } = useContent();
@@ -121,10 +135,14 @@ const About: React.FC = () => {
                     }}
                     {...(social.platform === 'overwatch' ? { 'aria-label': 'Overwatch ranks', 'aria-expanded': isActive } : {})}
                     className={`block transition-colors transform hover:scale-110 ${
-                      isActive ? 'text-purple-600' : 'text-gray-400 hover:text-purple-600'
+                      isActive ? BRAND[social.platform].active : `text-gray-400 ${BRAND[social.platform].hover}`
                     }`}
                   >
-                    <Icon name={social.platform} className="w-6 h-6" />
+                    {social.platform === 'overwatch' ? (
+                      <Overwatch className="w-6 h-6" colored={isActive} />
+                    ) : (
+                      <Icon name={social.platform} className="w-6 h-6" />
+                    )}
                   </a>
                 </div>
               );

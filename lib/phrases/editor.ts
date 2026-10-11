@@ -2,6 +2,10 @@ import { phrases } from '../i18n';
 
 /** Japanese and English for the owner's editor: the admin bar, the item and navigation forms, sign-in and save errors. */
 export const { t, useT, table } = phrases({
+  '找不到 GitHub 用户 {name}，请检查用户名': {
+    ja: 'GitHub ユーザー {name} が見つかりません。ユーザー名を確認してください',
+    en: 'GitHub user {name} was not found; check the user name',
+  },
   // The admin bar.
   '正在读取最新内容…': { ja: '最新の内容を読み込み中…', en: 'Loading the latest content…' },
   '读取最新内容失败，请刷新页面重试': {

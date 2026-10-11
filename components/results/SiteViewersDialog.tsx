@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
+import { describeSaveError } from '../../editor/backend';
 import { useT } from '../../lib/phrases/site';
 
 const LOGIN = /^@?[A-Za-z0-9][A-Za-z0-9-]{0,38}$/;
@@ -36,7 +37,7 @@ const SiteViewersDialog: React.FC<Props> = ({ names, onSave, onClose }) => {
       await onSave(unique);
       onClose();
     } catch (error) {
-      setProblem(error instanceof Error ? error.message : t('保存失败，请稍后重试'));
+      setProblem(describeSaveError(error));
     } finally {
       setSaving(false);
     }

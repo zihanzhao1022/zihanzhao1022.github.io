@@ -1,5 +1,5 @@
-import { t } from '../../lib/phrases/results';
 import { ResultBlock, ResultBlockKind, ResultBlockOutput, ResultPaper, ResultsSiteAccess } from '../../types';
+import { UnknownUserError } from '../errors';
 import { ResultsOp } from './ops';
 import { publicView } from './snapshot';
 
@@ -76,7 +76,7 @@ export async function withCollaboratorIds<T extends Listed>(paper: T, previous: 
     const login = normalLogin(name);
     if (!login || ids[login] !== undefined) continue;
     const id = previous?.collaboratorIds?.[login] ?? (await lookup(login));
-    if (id === null) throw new Error(t('找不到 GitHub 用户 {name}，请检查用户名', { name }));
+    if (id === null) throw new UnknownUserError(name);
     ids[login] = id;
   }
   const { collaboratorIds: _ids, ...rest } = paper;

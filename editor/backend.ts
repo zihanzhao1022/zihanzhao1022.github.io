@@ -1,6 +1,6 @@
 import { t } from '../lib/phrases/editor';
 import { EDITOR_CONFIG } from './config';
-import { ConflictError } from './errors';
+import { ConflictError, UnknownUserError } from './errors';
 import { GitHubApi, GitHubError, TreeEntry, createGitHubApi } from './github';
 import { ContentOp, applyOp } from './ops';
 import { Session } from '../lib/session';
@@ -94,6 +94,7 @@ export function createGitHubBackend(api: GitHubApi): EditorBackend {
 export function describeSaveError(error: unknown): string {
   // Messages made by code the worker shares are in Chinese; the others arrive translated and pass through.
   if (error instanceof ConflictError) return t(error.message);
+  if (error instanceof UnknownUserError) return t('找不到 GitHub 用户 {name}，请检查用户名', { name: error.login });
   if (error instanceof GitHubError) {
     if (error.status === 401) return t('登录已过期，请先复制你的修改，再重新登录后保存');
     if (error.status === 403 || error.status === 404) return t('没有写入权限，请确认 GitHub App 已安装到这个仓库');

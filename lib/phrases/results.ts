@@ -14,10 +14,7 @@ export const { t, useT, table } = phrases({
   },
 
   // Talking to the worker and to GitHub.
-  '网络连接失败，请检查网络后重试': {
-    ja: 'ネットワークに接続できませんでした。接続を確認してから再試行してください',
-    en: 'Network connection failed; check your connection and try again',
-  },
+  '网络连接失败，请检查网络后重试': { ja: 'ネットワークに接続できませんでした。接続を確認してから再試行してください', en: 'Network error. Check your connection and try again' },
   '登录已过期，请重新登录': { ja: 'ログインの有効期限が切れました。もう一度ログインしてください', en: 'Your sign-in has expired; please sign in again' },
   '你没有这篇论文的权限，或者作者已经取消了共享': {
     ja: 'この論文へのアクセス権がないか、著者が共有を取り消しました',
@@ -119,14 +116,8 @@ export const { t, useT, table } = phrases({
     ja: '保存しましたが、サイトの公開内容を更新できませんでした',
     en: "Saved, but updating the site's public content failed",
   },
-  '论文结果还在加载，请稍后再试': {
-    ja: '研究結果をまだ読み込んでいます。しばらくしてからもう一度お試しください',
-    en: 'The results are still loading; try again in a moment',
-  },
-  '私有仓库不可用，暂时不能保存': {
-    ja: '非公開リポジトリを利用できないため、今は保存できません',
-    en: "The private repository is unavailable, so saving isn't possible right now",
-  },
+  '论文结果还在加载，请稍后再试': { ja: '研究結果を読み込み中です。しばらくしてからもう一度お試しください', en: 'The results are still loading. Try again in a moment' },
+  '私有仓库不可用，暂时不能保存': { ja: '非公開リポジトリを利用できないため、今は保存できません', en: 'The private repository is unavailable, so nothing can be saved for now' },
   不支持的操作: { ja: 'サポートされていない操作です', en: 'Unsupported operation' },
   已取消公开: { ja: '公開をキャンセルしました', en: 'Publishing cancelled' },
   '修改已发布，网站约 1 分钟后更新': { ja: '変更を公開しました。サイトは約 1 分後に更新されます', en: 'Changes published; the site updates in about a minute' },
@@ -174,10 +165,7 @@ export const { t, useT, table } = phrases({
   'LaTeX 已复制': { ja: 'LaTeX をコピーしました', en: 'LaTeX copied' },
   '复制失败，请改用"下载"': { ja: 'コピーできませんでした。「ダウンロード」を使ってください', en: 'Copy failed; use "Download" instead' },
   '立即编译（Ctrl/Cmd+Enter）': { ja: '今すぐコンパイル（Ctrl/Cmd+Enter）', en: 'Compile now (Ctrl/Cmd+Enter)' },
-  '复制 LaTeX 代码（开头注明需要的宏包）': {
-    ja: 'LaTeX コードをコピー（必要なパッケージを冒頭に記載）',
-    en: 'Copy the LaTeX code (with the packages it needs noted at the top)',
-  },
+  '复制 LaTeX 代码（开头注明需要的宏包）': { ja: 'LaTeX コードをコピー（必要なパッケージを冒頭に記載）', en: 'Copy the LaTeX code (with the packages it needs listed at the top)' },
   '复制 LaTeX': { ja: 'LaTeX をコピー', en: 'Copy LaTeX' },
   '下载为 .tex 文件': { ja: '.tex ファイルとしてダウンロード', en: 'Download as a .tex file' },
   '保存（Ctrl/Cmd+S）': { ja: '保存（Ctrl/Cmd+S）', en: 'Save (Ctrl/Cmd+S)' },

@@ -44,10 +44,7 @@ export const { t, useT, table } = phrases({
   '例如：我是这篇论文的合作者 ××': { ja: '例：この論文の共著者の○○です', en: "e.g. I'm [name], a co-author of this paper" },
   '发送中…': { ja: '送信中…', en: 'Sending…' },
   '发送申请': { ja: '申請を送信', en: 'Send request' },
-  '申请没有发出去，请稍后重试': {
-    ja: '申請を送信できませんでした。しばらくしてからもう一度お試しください',
-    en: 'The request was not sent. Please try again later',
-  },
+  '申请没有发出去，请稍后重试': { ja: '申請を送信できませんでした。しばらくしてからもう一度お試しください', en: 'The request was not sent. Try again later' },
   '申请已发给作者。作者同意后，重新点一次登录就能看到论文结果。': {
     ja: '申請を著者に送信しました。承認されたら、もう一度ログインすると研究結果を閲覧できます。',
     en: 'Your request was sent to the author. Once it is approved, sign in again to see the results.',
@@ -59,10 +56,7 @@ export const { t, useT, table } = phrases({
   '共享给你的论文': { ja: 'あなたと共有された論文', en: 'Papers shared with you' },
   '正在读取…': { ja: '読み込み中…', en: 'Loading…' },
   '重新登录': { ja: '再ログイン', en: 'Sign in again' },
-  '登录即将过期，请重新登录后再编辑': {
-    ja: 'ログインの有効期限がまもなく切れます。もう一度ログインしてから編集してください',
-    en: 'Your sign-in expires soon. Please sign in again before editing',
-  },
+  '登录即将过期，请重新登录后再编辑': { ja: 'ログインの有効期限がまもなく切れます。もう一度ログインしてから編集してください', en: 'Your sign-in expires soon. Sign in again before editing' },
   '你只能编辑作者允许你编辑的论文': { ja: '著者が編集を許可した論文だけを編集できます', en: 'You can only edit the papers the author lets you edit' },
   '论文还在加载，请稍后再试': {
     ja: '論文を読み込み中です。しばらくしてからもう一度お試しください',
@@ -72,10 +66,7 @@ export const { t, useT, table } = phrases({
     ja: '共有された論文を今は読み込めません。ページを再読み込みしてもう一度お試しください',
     en: 'The shared papers cannot be read right now. Please reload the page and try again',
   },
-  '正在保存新的顺序并更新编号，请几秒后再编辑': {
-    ja: '新しい順序を保存し、番号を更新しています。数秒後にもう一度編集してください',
-    en: 'Saving the new order and updating the numbers. Please edit again in a few seconds',
-  },
+  '正在保存新的顺序并更新编号，请几秒后再编辑': { ja: '新しい順序を保存し、番号を更新しています。数秒後にもう一度編集してください', en: 'Saving the new order and updating the numbers. Edit again in a few seconds' },
 
   // The list of results papers
   '读不到私有仓库 zihanzhao1022/homepage-private：请确认仓库存在，并且 GitHub App 已安装到它上面。': {
@@ -122,7 +113,7 @@ export const { t, useT, table } = phrases({
     ja: '「{name}」は GitHub のユーザー名ではありません。1 行に 1 つずつ、英数字とハイフンだけで入力してください',
     en: '"{name}" is not a GitHub username: one per line, with letters, digits and hyphens only',
   },
-  '保存失败，请稍后重试': { ja: '保存できませんでした。しばらくしてからもう一度お試しください', en: 'Could not save. Please try again later' },
+  '保存失败，请稍后重试': { ja: '保存できませんでした。しばらくしてからもう一度お試しください', en: 'Could not save. Try again later' },
   '每行一个 GitHub 用户名。他们用 GitHub 登录后能看到这里所有的论文（只看到可见块的结果，看不到 LaTeX 代码），包括以后新建的。只想共享某一篇，就在那篇的"编辑论文信息"里填。': {
     ja: '1 行に 1 つずつ GitHub のユーザー名を入力します。登録した人は GitHub でログインすると、今後追加される論文も含め、ここにあるすべての論文を閲覧できます（公開中のブロックの結果だけで、LaTeX コードは見えません）。1 本だけ共有したい場合は、その論文の「論文情報を編集」で設定してください。',
     en: 'One GitHub username per line. Once signed in with GitHub, they can see every paper here, including papers added later (only the results of visible blocks, not the LaTeX code). To share a single paper, fill in its "Edit paper details" instead.',
@@ -158,10 +149,7 @@ export const { t, useT, table } = phrases({
   '编辑表格': { ja: '表を編集', en: 'Edit table' },
   '编辑小节标题': { ja: '見出しを編集', en: 'Edit heading' },
   '复制 LaTeX': { ja: 'LaTeX をコピー', en: 'Copy LaTeX' },
-  '复制 LaTeX 代码（开头注明需要的宏包）': {
-    ja: 'LaTeX コードをコピー（必要なパッケージを冒頭に記載）',
-    en: 'Copy the LaTeX code (with the packages it needs listed at the top)',
-  },
+  '复制 LaTeX 代码（开头注明需要的宏包）': { ja: 'LaTeX コードをコピー（必要なパッケージを冒頭に記載）', en: 'Copy the LaTeX code (with the packages it needs listed at the top)' },
   '导出全文 LaTeX': { ja: '全文の LaTeX を書き出す', en: 'Export full LaTeX' },
   '按顺序复制所有块（包括隐藏的）和小节标题，开头注明需要的宏包，不含 References': {
     ja: 'すべてのブロック（非公開のものも含む）と見出しを順にコピーします。必要なパッケージを冒頭に記載し、References は含みません',

@@ -42,34 +42,22 @@ export const { t, useT, table } = phrases({
   编辑模式: { ja: '編集モード', en: 'Edit mode' },
 
   // The editor's toasts and errors.
-  '登录即将过期，请重新登录后再编辑': {
-    ja: 'ログインの有効期限がまもなく切れます。もう一度ログインしてから編集してください',
-    en: 'Your sign-in is about to expire. Sign in again before editing',
-  },
+  '登录即将过期，请重新登录后再编辑': { ja: 'ログインの有効期限がまもなく切れます。もう一度ログインしてから編集してください', en: 'Your sign-in expires soon. Sign in again before editing' },
   '登录已失效，请重新登录': {
     ja: 'ログインが無効になりました。もう一度ログインしてください',
     en: 'Your sign-in is no longer valid. Sign in again',
   },
-  '论文结果还在加载，请稍后再试': {
-    ja: '研究結果を読み込み中です。しばらくしてからもう一度お試しください',
-    en: 'The results are still loading. Try again in a moment',
-  },
+  '论文结果还在加载，请稍后再试': { ja: '研究結果を読み込み中です。しばらくしてからもう一度お試しください', en: 'The results are still loading. Try again in a moment' },
   '私有仓库不可用，暂时不能编辑论文结果': {
     ja: '非公開リポジトリを利用できないため、今は研究結果を編集できません',
     en: 'The private repository is unavailable, so the results cannot be edited for now',
   },
-  '正在保存新的顺序并更新编号，请几秒后再编辑': {
-    ja: '新しい順序を保存して番号を更新しています。数秒後に編集してください',
-    en: 'Saving the new order and updating the numbers. Edit again in a few seconds',
-  },
+  '正在保存新的顺序并更新编号，请几秒后再编辑': { ja: '新しい順序を保存し、番号を更新しています。数秒後にもう一度編集してください', en: 'Saving the new order and updating the numbers. Edit again in a few seconds' },
   '编辑器还在加载，请稍后再试': {
     ja: 'エディターを読み込み中です。しばらくしてからもう一度お試しください',
     en: 'The editor is still loading. Try again in a moment',
   },
-  '私有仓库不可用，暂时不能保存': {
-    ja: '非公開リポジトリを利用できないため、今は保存できません',
-    en: 'The private repository is unavailable, so nothing can be saved for now',
-  },
+  '私有仓库不可用，暂时不能保存': { ja: '非公開リポジトリを利用できないため、今は保存できません', en: 'The private repository is unavailable, so nothing can be saved for now' },
   '已同意 @{login}：对方重新登录后就能看到所有论文': {
     ja: '@{login} を承認しました。もう一度ログインすると、すべての論文を閲覧できます',
     en: 'Approved @{login}: they can see all papers once they sign in again',
@@ -112,10 +100,7 @@ export const { t, useT, table } = phrases({
     ja: '処理待ちの申請が多すぎます。数日後にもう一度お試しください',
     en: 'Too many requests are waiting. Try again in a few days',
   },
-  '申请没有发出去，请稍后重试': {
-    ja: '申請を送信できませんでした。しばらくしてから再試行してください',
-    en: 'The request was not sent. Try again later',
-  },
+  '申请没有发出去，请稍后重试': { ja: '申請を送信できませんでした。しばらくしてからもう一度お試しください', en: 'The request was not sent. Try again later' },
 
   // Saving to GitHub.
   '登录已过期，请先复制你的修改，再重新登录后保存': {
@@ -126,15 +111,12 @@ export const { t, useT, table } = phrases({
     ja: '書き込み権限がありません。GitHub App がこのリポジトリにインストールされているか確認してください',
     en: 'No write access. Check that the GitHub App is installed on this repository',
   },
-  '网络连接失败，请检查网络后重试': {
-    ja: 'ネットワークに接続できませんでした。接続を確認してから再試行してください',
-    en: 'Network error. Check your connection and try again',
-  },
+  '网络连接失败，请检查网络后重试': { ja: 'ネットワークに接続できませんでした。接続を確認してから再試行してください', en: 'Network error. Check your connection and try again' },
   '保存失败（GitHub 返回 {status}），请稍后重试': {
     ja: '保存できませんでした（GitHub の応答：{status}）。しばらくしてから再試行してください',
     en: 'Save failed (GitHub returned {status}). Try again later',
   },
-  '保存失败，请稍后重试': { ja: '保存できませんでした。しばらくしてから再試行してください', en: 'Save failed. Try again later' },
+  '保存失败，请稍后重试': { ja: '保存できませんでした。しばらくしてからもう一度お試しください', en: 'Could not save. Try again later' },
   '内容已在别处修改，请刷新页面后再试': {
     ja: '内容がほかの場所で変更されました。ページを再読み込みしてからもう一度お試しください',
     en: 'The content was changed elsewhere. Refresh the page and try again',
@@ -228,13 +210,13 @@ export const { t, useT, table } = phrases({
   编辑项目: { ja: 'プロジェクトを編集', en: 'Edit project' },
   添加报告: { ja: '講演を追加', en: 'Add talk' },
   编辑报告: { ja: '講演を編集', en: 'Edit talk' },
-  添加奖项: { ja: '受賞を追加', en: 'Add award' },
+  添加奖项: { ja: '受賞歴を追加', en: 'Add award' },
   编辑奖项: { ja: '受賞を編集', en: 'Edit award' },
   编辑论文信息: { ja: '論文情報を編集', en: 'Edit paper details' },
   编辑基本信息: { ja: '基本情報を編集', en: 'Edit basic info' },
   编辑简介: { ja: '自己紹介を編集', en: 'Edit bio' },
-  更换头像: { ja: 'プロフィール写真を変更', en: 'Change avatar' },
-  编辑联系方式: { ja: '連絡先を編集', en: 'Edit contact links' },
+  更换头像: { ja: 'プロフィール写真を変更', en: 'Change profile picture' },
+  编辑联系方式: { ja: '連絡先を編集', en: 'Edit contact info' },
   恢复页面: { ja: 'ページを復元', en: 'Restore page' },
   编辑导航项: { ja: 'ナビゲーション項目を編集', en: 'Edit navigation entry' },
   编辑页面: { ja: 'ページを編集', en: 'Edit page' },

@@ -11,7 +11,7 @@ import { SortableGroup } from '../SortableGroup';
 import { ResultsAccess, canEditShared, isCollaborator, useResultsAccess } from './access';
 import Authors from './Authors';
 import BlockView, { QuoteMark } from './BlockView';
-import CommentsPanel, { DraftComment } from './comments/CommentsPanel';
+import CommentsPanel, { DRAFT, DraftComment } from './comments/CommentsPanel';
 import { useSelectedQuote } from './comments/textLayer';
 import HeadingView from './HeadingView';
 import LoginPrompt from './LoginPrompt';
@@ -359,13 +359,17 @@ const ResultPage: React.FC = () => {
   const blockComments = (blockId: string): BlockComments | undefined => {
     if (!presence) return undefined;
     const threads = openThreads.filter((thread) => thread.block === blockId);
+    // The text a comment is being written about stays marked while the selection is gone.
+    const drafting = draft?.quote && draft.block === blockId ? [{ id: DRAFT, quote: draft.quote, prefix: draft.prefix, suffix: draft.suffix }] : [];
     return {
       count: threads.length,
       first: threads[0]?.id,
-      quotes: threads.flatMap((thread) => (thread.quote ? [{ id: thread.id, quote: thread.quote, prefix: thread.prefix, suffix: thread.suffix }] : [])),
-      active: focused,
+      quotes: [...threads.flatMap((thread) => (thread.quote ? [{ id: thread.id, quote: thread.quote, prefix: thread.prefix, suffix: thread.suffix }] : [])), ...drafting],
+      active: drafting.length > 0 ? DRAFT : focused,
       onAdd: () => startDraft({ block: blockId }),
-      onOpen: openThread,
+      onOpen: (id) => {
+        if (id !== DRAFT) openThread(id);
+      },
     };
   };
   const panel = (aligned: boolean) => (
@@ -510,8 +514,8 @@ const ResultPage: React.FC = () => {
                   block={{ id: 'references', kind: 'text', output: paper.references }}
                   references
                   quotes={referencesComments?.quotes}
-                  activeQuote={focused}
-                  onQuoteClick={openThread}
+                  activeQuote={referencesComments?.active}
+                  onQuoteClick={referencesComments?.onOpen}
                 />
               </div>
             )}

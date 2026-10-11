@@ -37,7 +37,8 @@ interface Props {
 }
 
 const GAP = 12;
-const DRAFT = 'draft';
+/** The comment being written, as a card and as the highlight of the text it quotes. */
+export const DRAFT = 'draft';
 
 /** The comments of a paper: beside the text on wide screens, a list in a drawer elsewhere. */
 const CommentsPanel: React.FC<Props> = ({
@@ -100,11 +101,12 @@ const CommentsPanel: React.FC<Props> = ({
     if (!column || !area.current) return;
     // Measured from where the cards sit, below the panel's header.
     const origin = area.current.getBoundingClientRect().top;
+    // The highlighted text a card discusses, else where the selection was, else its block.
     const anchor = (id: string, block: string, y?: number): number => {
+      const mark = document.querySelector(`[data-comment-highlight="${CSS.escape(id)}"]`);
+      if (mark) return mark.getBoundingClientRect().top - origin;
       if (y !== undefined) return y - window.scrollY - origin;
-      const target =
-        (id !== DRAFT && document.querySelector(`[data-comment-highlight="${CSS.escape(id)}"]`)) ||
-        document.querySelector(`[data-result-block-id="${CSS.escape(block)}"]`);
+      const target = document.querySelector(`[data-result-block-id="${CSS.escape(block)}"]`);
       return target ? target.getBoundingClientRect().top - origin : Number.POSITIVE_INFINITY;
     };
     const items = [

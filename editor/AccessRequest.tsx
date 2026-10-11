@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useMessage } from '../lib/i18n';
 import { X } from 'lucide-react';
 import LangSwitch from '../components/LangSwitch';
 import { useT } from '../lib/phrases/site';
@@ -9,7 +10,7 @@ const AccessRequest: React.FC<{ denied: AccessDenied; onClose: () => void }> = (
   const t = useT();
   const [note, setNote] = useState('');
   const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle');
-  const [problem, setProblem] = useState<string | null>(null);
+  const [problem, setProblem] = useMessage();
   // One sentence to translate, with the account name set apart where {login} is.
   const [beforeLogin, afterLogin] = t('GitHub 账号 {login} 还没有访问权限。可以向作者申请，附一句话说明你是谁：').split('{login}');
 
@@ -20,7 +21,7 @@ const AccessRequest: React.FC<{ denied: AccessDenied; onClose: () => void }> = (
       await requestAccess(denied.token, note);
       setState('sent');
     } catch (error) {
-      setProblem(error instanceof Error ? error.message : t('申请没有发出去，请稍后重试'));
+      setProblem(() => error instanceof Error ? error.message : t('申请没有发出去，请稍后重试'));
       setState('idle');
     }
   };

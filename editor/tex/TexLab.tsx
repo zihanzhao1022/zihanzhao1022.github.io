@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import PdfView from '../../components/results/PdfView';
 import { pdfPageSize } from '../../components/results/pdfjs';
-import { N_ } from '../../lib/i18n';
+import { N_, useMessage } from '../../lib/i18n';
 import { useT } from '../../lib/phrases/results';
 import { BlockKind, DEFAULT_PREAMBLE, buildBlockDocument } from './document';
 import { getTexEngine } from './engine';
@@ -44,7 +44,7 @@ const TexLab: React.FC = () => {
   const [counters, setCounters] = useState('{"table": 2}');
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState<string | null>(null);
+  const [failure, setFailure] = useMessage();
 
   const compile = useCallback(async () => {
     setBusy(true);
@@ -74,7 +74,7 @@ const TexLab: React.FC = () => {
         log: out.log,
       });
     } catch (error) {
-      setFailure(error instanceof Error ? error.message : String(error));
+      setFailure(() => error instanceof Error ? error.message : String(error));
     } finally {
       setBusy(false);
     }

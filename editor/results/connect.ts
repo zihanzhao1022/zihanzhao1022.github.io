@@ -1,3 +1,4 @@
+import { PhraseError } from '../../lib/i18n';
 import { t } from '../../lib/phrases/results';
 import { Session } from '../../lib/session';
 import { mockUserId } from '../auth';
@@ -42,10 +43,10 @@ export function createUserLookup(session: Session): UserLookup {
         headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${session.token}` },
       });
     } catch {
-      throw new Error(t('网络连接失败，请检查网络后重试'));
+      throw new PhraseError(() => t('网络连接失败，请检查网络后重试'));
     }
     if (res.status === 404) return null;
-    if (!res.ok) throw new Error(t('查询 GitHub 用户失败（GitHub 返回 {status}），请稍后重试', { status: res.status }));
+    if (!res.ok) throw new PhraseError(() => t('查询 GitHub 用户失败（GitHub 返回 {status}），请稍后重试', { status: res.status }));
     const user = (await res.json()) as { id?: unknown };
     return typeof user.id === 'number' ? user.id : null;
   };

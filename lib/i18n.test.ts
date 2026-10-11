@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { getLang, phrases, pickLang, setLang } from './i18n';
+import { PhraseError, getLang, phrases, pickLang, say, setLang } from './i18n';
 
 afterEach(() => setLang('zh'));
 
@@ -29,3 +29,25 @@ describe('phrases', () => {
     expect(t('没有翻译的话')).toBe('没有翻译的话');
   });
 });
+
+describe('messages that follow the switch', () => {
+  const { t } = phrases({ 保存失败: { ja: '保存できませんでした', en: 'Could not save' } });
+
+  it('translates a message each time it is shown', () => {
+    const message = () => t('保存失败');
+    expect(say(message)).toBe('保存失败');
+    setLang('en');
+    expect(say(message)).toBe('Could not save');
+    expect(say('as written')).toBe('as written');
+  });
+
+  it('gives errors a message in the current language', () => {
+    const error = new PhraseError(() => t('保存失败'));
+    expect(error.message).toBe('保存失败');
+    setLang('ja');
+    expect(error.message).toBe('保存できませんでした');
+    expect(error).toBeInstanceOf(Error);
+    expect(new PhraseError('plain').message).toBe('plain');
+  });
+});
+

@@ -1,4 +1,5 @@
 import React, { Suspense, createContext, lazy, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Message, say, useMessage } from '../lib/i18n';
 import { EyeOff, Pencil, Plus, X } from 'lucide-react';
 import { loginConfigured } from '../editor/config';
 import { t, useT } from '../lib/phrases/site';
@@ -59,9 +60,9 @@ const CollaboratorRoot = lazy(() => import('../editor/CollaboratorRoot'));
 const AccessRequest = lazy(() => import('../editor/AccessRequest'));
 
 export const Toast: React.FC<{
-  message: string;
+  message: Message;
   onClose: () => void;
-  action?: { label: string; onClick: () => void };
+  action?: { label: Message; onClick: () => void };
 }> = ({ message, onClose, action }) => {
   const t = useT();
   const close = useRef(onClose);
@@ -75,10 +76,10 @@ export const Toast: React.FC<{
       role="status"
       className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[110] flex items-center gap-3 w-max max-w-[90vw] px-4 py-3 rounded-lg bg-gray-900 text-sm text-white shadow-lg"
     >
-      <span>{message}</span>
+      <span>{say(message)}</span>
       {action && (
         <button type="button" onClick={action.onClick} className="shrink-0 font-medium text-purple-300 hover:text-purple-200">
-          {action.label}
+          {say(action.label)}
         </button>
       )}
       <button type="button" onClick={onClose} aria-label={t('关闭')} className="shrink-0 text-gray-400 hover:text-white">
@@ -93,7 +94,7 @@ export const EditModeProvider: React.FC<{ loginCallback: LoginCallback | null; c
   children,
 }) => {
   const [session, setSession] = useState<Session | null>(() => loadSession());
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useMessage();
   // A GitHub account with no access yet, which may ask the owner for it.
   const [denied, setDenied] = useState<AccessDenied | null>(null);
   const handledCallback = useRef(false);
@@ -108,10 +109,10 @@ export const EditModeProvider: React.FC<{ loginCallback: LoginCallback | null; c
           setSession(await auth.completeLogin(loginCallback));
         } catch (error) {
           if (error instanceof auth.AccessDenied) setDenied(error);
-          else setToast(error instanceof Error ? error.message : t('登录失败，请重新登录'));
+          else setToast(() => error instanceof Error ? error.message : t('登录失败，请重新登录'));
         }
       })
-      .catch(() => setToast(t('登录失败，请重新登录')));
+      .catch(() => setToast(() => t('登录失败，请重新登录')));
   }, [loginCallback]);
 
   const login = useCallback(() => {
@@ -122,15 +123,15 @@ export const EditModeProvider: React.FC<{ loginCallback: LoginCallback | null; c
           if (started) setSession(started);
         } catch (error) {
           if (error instanceof auth.AccessDenied) setDenied(error);
-          else setToast(t('无法开始登录，请稍后重试'));
+          else setToast(() => t('无法开始登录，请稍后重试'));
         }
       })
-      .catch(() => setToast(t('无法开始登录，请稍后重试')));
+      .catch(() => setToast(() => t('无法开始登录，请稍后重试')));
   }, []);
 
   const handleLogout = useCallback((message?: string) => {
     setSession(null);
-    if (message) setToast(message);
+    if (message) setToast(() => message);
   }, []);
 
   const visitor = useMemo<EditModeValue>(

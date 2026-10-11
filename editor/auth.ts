@@ -1,3 +1,4 @@
+import { PhraseError } from '../lib/i18n';
 import { t } from '../lib/phrases/editor';
 import { EDITOR_CONFIG } from './config';
 import {
@@ -14,7 +15,7 @@ import {
 } from '../lib/session';
 
 /** A login failure whose message can be shown to the owner as is. */
-export class LoginError extends Error {}
+export class LoginError extends PhraseError {}
 
 /** A GitHub account with no access yet: it may ask the owner for it with `token` (see requestAccess). */
 export class AccessDenied extends LoginError {
@@ -23,7 +24,7 @@ export class AccessDenied extends LoginError {
     readonly login: string,
     readonly avatarUrl: string,
   ) {
-    super(t('这个 GitHub 账号还没有访问权限'));
+    super(() => t('这个 GitHub 账号还没有访问权限'));
   }
 }
 
@@ -63,12 +64,11 @@ export function buildAuthorizeUrl(options: {
 /** Checks GitHub's redirect against the login this browser started. */
 export function checkCallback(callback: LoginCallback, pending: PendingLogin | null): { code: string; verifier: string } {
   if (callback.error) {
-    throw new LoginError(
-      callback.error === 'access_denied' ? t('已取消登录') : t('GitHub 登录失败（{error}）', { error: callback.error }),
-    );
+    const error = callback.error;
+    throw new LoginError(() => (error === 'access_denied' ? t('已取消登录') : t('GitHub 登录失败（{error}）', { error })));
   }
   if (!pending || !callback.code || callback.state !== pending.state) {
-    throw new LoginError(t('登录校验失败，请重新登录'));
+    throw new LoginError(() => t('登录校验失败，请重新登录'));
   }
   return { code: callback.code, verifier: pending.verifier };
 }
@@ -88,16 +88,16 @@ export async function exchangeCode(
       body: JSON.stringify({ code, code_verifier: verifier, redirect_uri: redirect }),
     });
   } catch {
-    throw new LoginError(t('无法连接登录服务，请稍后重试'));
+    throw new LoginError(() => t('无法连接登录服务，请稍后重试'));
   }
   if (res.status === 403) {
     const refused = (await res.json().catch(() => ({}))) as { request?: unknown; login?: unknown; avatar_url?: unknown };
     if (typeof refused.request === 'string' && typeof refused.login === 'string') {
       throw new AccessDenied(refused.request, refused.login, typeof refused.avatar_url === 'string' ? refused.avatar_url : '');
     }
-    throw new LoginError(t('这个 GitHub 账号没有访问权限'));
+    throw new LoginError(() => t('这个 GitHub 账号没有访问权限'));
   }
-  if (!res.ok) throw new LoginError(t('登录失败，请重新登录'));
+  if (!res.ok) throw new LoginError(() => t('登录失败，请重新登录'));
   const data = (await res.json()) as {
     access_token?: string;
     role?: string;
@@ -195,10 +195,10 @@ export async function requestAccess(token: string, note: string): Promise<void> 
       body: JSON.stringify({ note }),
     });
   } catch {
-    throw new LoginError(t('无法连接服务器，请稍后重试'));
+    throw new LoginError(() => t('无法连接服务器，请稍后重试'));
   }
-  if (res.status === 409) throw new LoginError(t('你已经有访问权限了，请重新登录'));
-  if (res.status === 401) throw new LoginError(t('登录已过期，请重新登录后再申请'));
-  if (res.status === 429) throw new LoginError(t('现在等待处理的申请太多了，请过几天再试'));
-  if (!res.ok) throw new LoginError(t('申请没有发出去，请稍后重试'));
+  if (res.status === 409) throw new LoginError(() => t('你已经有访问权限了，请重新登录'));
+  if (res.status === 401) throw new LoginError(() => t('登录已过期，请重新登录后再申请'));
+  if (res.status === 429) throw new LoginError(() => t('现在等待处理的申请太多了，请过几天再试'));
+  if (!res.ok) throw new LoginError(() => t('申请没有发出去，请稍后重试'));
 }

@@ -1,3 +1,4 @@
+import { PhraseError } from '../lib/i18n';
 import { t } from '../lib/phrases/editor';
 
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -77,7 +78,7 @@ export async function prepareImage(file: File): Promise<PendingImage> {
       canvas.height = size.height;
       canvas.getContext('2d')?.drawImage(bitmap, 0, 0, size.width, size.height);
       blob = await new Promise<Blob>((resolve, reject) =>
-        canvas.toBlob((result) => (result ? resolve(result) : reject(new Error(t('图片处理失败')))), file.type, 0.9),
+        canvas.toBlob((result) => (result ? resolve(result) : reject(new PhraseError(() => t('图片处理失败')))), file.type, 0.9),
       );
     }
     bitmap.close();

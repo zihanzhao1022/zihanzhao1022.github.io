@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ResultsAccess } from '../../components/results/access';
-import { N_ } from '../../lib/i18n';
+import { Message, N_, PhraseError } from '../../lib/i18n';
 import { t } from '../../lib/phrases/results';
 import { Session } from '../../lib/session';
 import { ResultPaper, ResultsSiteAccess, SiteContent } from '../../types';
@@ -14,15 +14,16 @@ import { createCollaboratorResults, createResults, createUserLookup } from './co
 import { ResultsOp, applyResultsOp, fromContentOp, resultsCommitMessage } from './ops';
 import { WorkerError } from './workerBackend';
 
+/** A notice for the editor's toast; its words follow the language switch. */
 export interface EditorToast {
-  message: string;
-  action?: { label: string; onClick: () => void };
+  message: Message;
+  action?: { label: Message; onClick: () => void };
 }
 
 const PUBLISH_CONFIRM =
   N_('公开后，这篇论文的结果会提交到网站的公开仓库，访客可以看到。之后再隐藏，Git 历史里仍会保留。确定公开吗？');
 
-const notReady = (): Promise<Uint8Array> => Promise.reject(new Error(t('私有仓库还没有准备好')));
+const notReady = (): Promise<Uint8Array> => Promise.reject(new PhraseError(() => t('私有仓库还没有准备好')));
 
 interface Options {
   session: Session;
@@ -103,7 +104,7 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
           })
           .catch(() => undefined);
         if (loaded.papers.some((paper) => !paper.hidden && paper.pendingReview?.length)) {
-          callbacks.current.onToast({ message: t('协作者修改了已公开的论文，在论文页确认后才会更新到网站') });
+          callbacks.current.onToast({ message: () => t('协作者修改了已公开的论文，在论文页确认后才会更新到网站') });
         }
         if (loaded.papers.length === 0) {
           // An empty private list next to published papers looks like a lost results.json: never wipe the
@@ -118,7 +119,7 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
           (sha) => {
             if (!sha) return;
             callbacks.current.onDeploy(sha);
-            callbacks.current.onToast({ message: t('已更新网站上的公开论文结果') });
+            callbacks.current.onToast({ message: () => t('已更新网站上的公开论文结果') });
           },
           () => setSiteBehind(true),
         );
@@ -154,9 +155,9 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
       (sha) => {
         setSiteBehind(false);
         if (sha) callbacks.current.onDeploy(sha);
-        callbacks.current.onToast({ message: t('网站上的公开内容已更新') });
+        callbacks.current.onToast({ message: () => t('网站上的公开内容已更新') });
       },
-      (error: unknown) => callbacks.current.onToast({ message: describeSaveError(error) }),
+      (error: unknown) => callbacks.current.onToast({ message: () => describeSaveError(error) }),
     );
   }, [backend, enqueue]);
 
@@ -169,14 +170,14 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
       if (result.publicCommit) callbacks.current.onDeploy(result.publicCommit);
       setSiteBehind(Boolean(result.publicError));
       if (result.publicError) {
-        callbacks.current.onToast({ message: t('已保存，但更新网站上的公开内容失败'), action: { label: t('重试'), onClick: syncSite } });
+        callbacks.current.onToast({ message: () => t('已保存，但更新网站上的公开内容失败'), action: { label: () => t('重试'), onClick: syncSite } });
       }
     },
     [show, syncSite],
   );
 
   const unavailable = useCallback(
-    () => new Error(loadState.state === 'loading' ? t('论文结果还在加载，请稍后再试') : t('私有仓库不可用，暂时不能保存')),
+    () => new PhraseError(() => (loadState.state === 'loading' ? t('论文结果还在加载，请稍后再试') : t('私有仓库不可用，暂时不能保存'))),
     [loadState.state],
   );
 
@@ -193,7 +194,7 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
   /** Saves who may view every paper, with their GitHub account IDs (looked up like a paper's lists). */
   const saveSiteViewers = useCallback(
     async (names: string[], knownIds: Record<string, number> = {}): Promise<void> => {
-      if (!backend?.saveAccess) throw new Error(t('私有仓库不可用，暂时不能保存'));
+      if (!backend?.saveAccess) throw new PhraseError(() => t('私有仓库不可用，暂时不能保存'));
       // IDs already known (e.g. from an access request, checked at GitHub sign-in) need no lookup.
       const previous = { collaboratorIds: { ...siteAccess.collaboratorIds, ...knownIds } };
       const next = await withCollaboratorIds<ResultsSiteAccess>(names.length > 0 ? { viewers: names } : {}, previous, lookupUser);
@@ -207,7 +208,7 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
   const saveContentOp = useCallback(
     async (op: ContentOp): Promise<void> => {
       const resultsOp = fromContentOp(op);
-      if (!resultsOp || op.kind === 'patchProfile') throw new Error(t('不支持的操作'));
+      if (!resultsOp || op.kind === 'patchProfile') throw new PhraseError(() => t('不支持的操作'));
       if (op.kind === 'upsert') {
         const title = String(op.item.title ?? '');
         const previous = latest.current.find((paper) => paper.id === op.item.id);
@@ -235,7 +236,7 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
           : [];
         return saveResults(resultsOp, [], files, resultsCommitMessage('delete paper', title), `content: unpublish result "${title}"`);
       }
-      if (!op.hidden && !window.confirm(t(PUBLISH_CONFIRM))) throw new Error(t('已取消公开'));
+      if (!op.hidden && !window.confirm(t(PUBLISH_CONFIRM))) throw new PhraseError(() => t('已取消公开'));
       return saveResults(
         resultsOp,
         [],
@@ -261,8 +262,8 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
           `content: update result "${paper.title}"`,
         );
         settle(result);
-        if (!result.publicError) callbacks.current.onToast({ message: t('修改已发布，网站约 1 分钟后更新') });
-      }).catch((error: unknown) => callbacks.current.onToast({ message: describeSaveError(error) }));
+        if (!result.publicError) callbacks.current.onToast({ message: () => t('修改已发布，网站约 1 分钟后更新') });
+      }).catch((error: unknown) => callbacks.current.onToast({ message: () => describeSaveError(error) }));
     },
     [backend, enqueue, settle],
   );
@@ -277,7 +278,7 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
       const op: ResultsOp = { kind: 'reorderBlocks', paperId, ids };
       pending.current.push(op);
       setContent((current) => ({ ...current, results: applyResultsOp(current.results, op) }));
-      callbacks.current.onToast({ message: t('正在更新编号…') });
+      callbacks.current.onToast({ message: () => t('正在更新编号…') });
       const done = () => {
         pending.current = pending.current.filter((queued) => queued !== op);
       };
@@ -289,7 +290,8 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
           return;
         }
         const rebuilt = await rebuildPaper(paper, backend.readFile);
-        if (rebuilt.failed) throw new Error(t('重新编译失败：{message}', { message: rebuilt.failed.message }));
+        const failed = rebuilt.failed;
+        if (failed) throw new PhraseError(() => t('重新编译失败：{message}', { message: failed.message }));
         const result = await backend.save(
           withOutputs(paperId, [op], rebuilt),
           rebuilt.writes,
@@ -299,11 +301,11 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
         );
         done();
         settle(result);
-        if (!result.publicError) callbacks.current.onToast({ message: t('顺序已保存') });
+        if (!result.publicError) callbacks.current.onToast({ message: () => t('顺序已保存') });
       }).catch((error: unknown) => {
         done();
         show(latest.current);
-        callbacks.current.onToast({ message: describeSaveError(error) });
+        callbacks.current.onToast({ message: () => describeSaveError(error) });
       });
     },
     [backend, loadState.state, setContent, enqueue, settle, show],

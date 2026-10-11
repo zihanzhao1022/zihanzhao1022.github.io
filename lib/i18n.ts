@@ -1,4 +1,4 @@
-import { useMemo, useSyncExternalStore } from 'react';
+import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import { COMMON } from './phrases/common';
 
 /**
@@ -101,3 +101,33 @@ export function phrases(table: Phrases): { t: Translate; useT: () => Translate; 
   };
   return { t, useT, table };
 }
+
+/**
+ * Text to show that follows the language switch: a function that translates it when it is shown, or text
+ * kept as it is. Screens keep a Message rather than the text, so what is already on screen follows the switch.
+ */
+export type Message = string | (() => string);
+
+/** A message's text in the current language. */
+export const say = (message: Message): string => (typeof message === 'function' ? message() : message);
+
+/** An error whose message is translated each time it is read (when given a function), like a Message. */
+export class PhraseError extends Error {
+  constructor(message: Message) {
+    super(say(message));
+    if (typeof message === 'function') Object.defineProperty(this, 'message', { get: message, configurable: true });
+  }
+}
+
+/**
+ * State for a message on screen, e.g. a dialog's error: set it to a Message (a function that translates it),
+ * read its text in the current language. The component renders again when the language changes.
+ */
+export function useMessage(): [string | null, (message: Message | null) => void] {
+  useLang();
+  const [message, setMessage] = useState<Message | null>(null);
+  // A function given to setState is taken as an updater; wrap it to keep the function itself.
+  const set = useCallback((next: Message | null) => setMessage(() => next), []);
+  return [message === null ? null : say(message), set];
+}
+

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, Link2, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
-import { N_ } from '../../lib/i18n';
+import { N_, useMessage } from '../../lib/i18n';
 import { useT } from '../../lib/phrases/editor';
 import { BUILTIN_PAGES, BuiltinPage, NavItem, SiteContent } from '../../types';
 import { describeSaveError } from '../backend';
@@ -36,7 +36,7 @@ export const NavigationModal: React.FC<Props> = ({ content, onSave, onReorder, o
   const t = useT();
   const [form, setForm] = useState<FormRequest | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useMessage();
   const items = content.navigation;
   const deleted = BUILTIN_PAGES.filter((page) => !items.some((item) => item.type === 'builtin' && item.page === page));
 
@@ -46,7 +46,7 @@ export const NavigationModal: React.FC<Props> = ({ content, onSave, onReorder, o
     try {
       await onSave(op, [], message);
     } catch (saveError) {
-      setError(describeSaveError(saveError));
+      setError(() => describeSaveError(saveError));
     } finally {
       setBusy(false);
     }

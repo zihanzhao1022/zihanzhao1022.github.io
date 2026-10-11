@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { Message, say, useMessage } from '../../lib/i18n';
 import { Eye, EyeOff, Trash2 } from 'lucide-react';
 import { useT } from '../../lib/phrases/editor';
 import { EditRequest, SiteContent } from '../../types';
@@ -66,9 +67,9 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
   const [form] = useState(() => resolveForm(request, content));
   const initial = useMemo(() => (form ? toFormState(form.schema, form.item) : {}), [form]);
   const [state, setState] = useState<FormState>(initial);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Record<string, Message>>({});
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useMessage();
 
   if (!form) {
     return (
@@ -102,14 +103,15 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
       await onSave(op, uploads, message);
       onClose();
     } catch (error) {
-      setSaveError(describeSaveError(error));
+      setSaveError(() => describeSaveError(error));
       setSaving(false);
     }
   };
 
   const save = () => {
     const found = validateForm(form.schema, state);
-    setErrors(found);
+    // Checked again when shown, so the messages follow the language switch.
+    setErrors(Object.fromEntries(Object.keys(found).map((key) => [key, () => validateForm(form.schema, state)[key] ?? found[key]])));
     if (Object.keys(found).length > 0) return;
     const { item, uploads } = fromFormState(form.schema, state, form.item, new Date());
     if (request.kind === 'profile') {
@@ -125,7 +127,8 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
       ([key]) => item[key] !== undefined && others.some((entry) => entry[key] === item[key]),
     );
     if (taken) {
-      setErrors({ [taken[0]]: t(taken[1]) });
+      const [key, message] = taken;
+      setErrors({ [key]: () => t(message) });
       return;
     }
     void submit(
@@ -226,7 +229,7 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
           key={field.key}
           field={field}
           value={state[field.key]}
-          error={errors[field.key]}
+          error={errors[field.key] === undefined ? undefined : say(errors[field.key])}
           onChange={(value) => setField(field.key, value)}
           imageChoices={field.type === 'image' ? existingImages(content, `${imageKind}.${field.key}`) : undefined}
         />

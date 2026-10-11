@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { useMessage } from '../../lib/i18n';
 import { Eye, EyeOff, Trash2 } from 'lucide-react';
 import { headingText, startsAppendix } from '../../lib/headings';
 import { useT } from '../../lib/phrases/results';
@@ -42,7 +43,7 @@ const HeadingEditor: React.FC<Props> = ({ paper, blockId, afterBlockId, readFile
   const [label, setLabel] = useState(initial?.label ?? '');
   const [appendix, setAppendix] = useState(initial?.appendix === true);
   const [saving, setSaving] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
+  const [problem, setProblem] = useMessage();
   const busy = useRef(false);
   const isNew = existing === undefined;
   // The appendix starts once; another heading may already start it.
@@ -72,7 +73,7 @@ const HeadingEditor: React.FC<Props> = ({ paper, blockId, afterBlockId, readFile
     try {
       await work();
     } catch (error) {
-      setProblem(describeSaveError(error));
+      setProblem(() => describeSaveError(error));
     } finally {
       busy.current = false;
       setSaving(false);
@@ -81,17 +82,18 @@ const HeadingEditor: React.FC<Props> = ({ paper, blockId, afterBlockId, readFile
 
   const save = () => {
     const next = heading();
-    if (!next.title) return setProblem(t('请填写标题'));
-    if (next.title.length > MAX_TITLE) return setProblem(t('标题最长 {n} 字', { n: MAX_TITLE }));
-    if (next.label && !LABEL.test(next.label)) return setProblem(t('引用名只能用字母、数字和 : _ - .'));
+    if (!next.title) return setProblem(() => t('请填写标题'));
+    if (next.title.length > MAX_TITLE) return setProblem(() => t('标题最长 {n} 字', { n: MAX_TITLE }));
+    if (next.label && !LABEL.test(next.label)) return setProblem(() => t('引用名只能用字母、数字和 : _ - .'));
     void run(async () => {
       const block: ResultBlock = { id, kind: 'heading', heading: next };
       const anchor = afterBlockId === undefined ? -1 : paper.blocks.findIndex((item) => item.id === afterBlockId);
       const putBlock: ResultsOp = { kind: 'putBlock', paperId: paper.id, block, ...(isNew && anchor >= 0 ? { at: anchor + 1 } : {}) };
       const draft = applyResultsOp([paper], putBlock)[0];
       const rebuilt = await rebuildWith(draft, await loadAttachments(paper, readFile));
-      if (rebuilt.failed) {
-        setProblem(describeFailure(draft.blocks, rebuilt.failed));
+      const failed = rebuilt.failed;
+      if (failed) {
+        setProblem(() => describeFailure(draft.blocks, failed));
         return;
       }
       await onSave(
@@ -110,8 +112,9 @@ const HeadingEditor: React.FC<Props> = ({ paper, blockId, afterBlockId, readFile
     void run(async () => {
       const draft: ResultPaper = { ...paper, blocks: paper.blocks.filter((item) => item.id !== id) };
       const rebuilt = await rebuildWith(draft, await loadAttachments(paper, readFile));
-      if (rebuilt.failed) {
-        setProblem(t('{problem}。先修好再删除。', { problem: describeFailure(draft.blocks, rebuilt.failed, 'delete') }));
+      const failed = rebuilt.failed;
+      if (failed) {
+        setProblem(() => t('{problem}。先修好再删除。', { problem: describeFailure(draft.blocks, failed, 'delete') }));
         return;
       }
       await onSave(

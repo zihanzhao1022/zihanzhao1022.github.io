@@ -101,19 +101,19 @@ const CollaboratorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
   const open = useCallback(
     (next: EditRequest) => {
       if (isExpiringSoon(session)) {
-        setToast({ message: t(EXPIRING), relogin: true });
+        setToast({ message: () => t(EXPIRING), relogin: true });
         return;
       }
       if ((next.kind !== 'block' && next.kind !== 'paperSettings') || !canEditShared(access, next.paperId)) {
-        setToast({ message: t('你只能编辑作者允许你编辑的论文') });
+        setToast({ message: () => t('你只能编辑作者允许你编辑的论文') });
         return;
       }
       if (access.state !== 'private') {
-        setToast({ message: access.state === 'loading' ? t('论文还在加载，请稍后再试') : t('暂时读不到共享的论文，请刷新页面重试') });
+        setToast({ message: () => access.state === 'loading' ? t('论文还在加载，请稍后再试') : t('暂时读不到共享的论文，请刷新页面重试') });
         return;
       }
       if (isReordering(next.paperId)) {
-        setToast({ message: t('正在保存新的顺序并更新编号，请几秒后再编辑') });
+        setToast({ message: () => t('正在保存新的顺序并更新编号，请几秒后再编辑') });
         return;
       }
       setRequest(next);

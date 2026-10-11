@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useMessage } from '../../lib/i18n';
 import { X } from 'lucide-react';
 import { describeSaveError } from '../../editor/backend';
 import { useT } from '../../lib/phrases/site';
@@ -16,7 +17,7 @@ const SiteViewersDialog: React.FC<Props> = ({ names, onSave, onClose }) => {
   const t = useT();
   const [text, setText] = useState(names.join('\n'));
   const [saving, setSaving] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
+  const [problem, setProblem] = useMessage();
 
   const save = async () => {
     const lines = text
@@ -25,7 +26,7 @@ const SiteViewersDialog: React.FC<Props> = ({ names, onSave, onClose }) => {
       .filter(Boolean);
     const wrong = lines.find((line) => !LOGIN.test(line));
     if (wrong) {
-      setProblem(t('"{name}" 不是 GitHub 用户名：每行一个，只能包含字母、数字和连字符', { name: wrong }));
+      setProblem(() => t('"{name}" 不是 GitHub 用户名：每行一个，只能包含字母、数字和连字符', { name: wrong }));
       return;
     }
     const unique = lines
@@ -37,7 +38,7 @@ const SiteViewersDialog: React.FC<Props> = ({ names, onSave, onClose }) => {
       await onSave(unique);
       onClose();
     } catch (error) {
-      setProblem(describeSaveError(error));
+      setProblem(() => describeSaveError(error));
     } finally {
       setSaving(false);
     }

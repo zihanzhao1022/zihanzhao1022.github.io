@@ -3,7 +3,7 @@ import {
   AlignCenter, AlignLeft, AlignRight, Bold, ChevronDown, Columns as Columns3,
   Grid2X2, Merge, Plus, Rows as Rows3, Split, Trash2,
 } from 'lucide-react';
-import { N_ } from '../../../lib/i18n';
+import { N_, useMessage } from '../../../lib/i18n';
 import { useT } from '../../../lib/phrases/table';
 import type { BorderPreset, CellBorders, CellPosition, CellSelection, TableCell, TableModel } from './types';
 import {
@@ -62,8 +62,8 @@ const TableVisualEditor: React.FC<Props> = ({ value, onChange, disabled = false 
   const [selection, setSelection] = useState<CellSelection>({ start: { row: 0, col: 0 }, end: { row: 0, col: 0 } });
   const [rowCount, setRowCount] = useState('1');
   const [columnCount, setColumnCount] = useState('1');
-  const [problem, setProblem] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [problem, setProblem] = useMessage();
+  const [notice, setNotice] = useMessage();
   const [referenceMode, setReferenceMode] = useState<ReferenceMode>('value');
   const [referenceValue, setReferenceValue] = useState('0');
   const [referenceRow, setReferenceRow] = useState('1');
@@ -101,7 +101,7 @@ const TableVisualEditor: React.FC<Props> = ({ value, onChange, disabled = false 
       setProblem(null);
       setNotice(null);
     } catch (error) {
-      setProblem(error instanceof Error ? error.message : t('暂时无法完成这个操作，请调整选区后重试。'));
+      setProblem(() => error instanceof Error ? error.message : t('暂时无法完成这个操作，请调整选区后重试。'));
       setNotice(null);
     }
   };
@@ -136,7 +136,7 @@ const TableVisualEditor: React.FC<Props> = ({ value, onChange, disabled = false 
     const maximum = dimension === 'row' ? MAX_ROWS : MAX_COLS;
     if (!Number.isInteger(count) || count < 1 || current + count > maximum) {
       const limit = { maximum, left: maximum - current };
-      setProblem(dimension === 'row'
+      setProblem(() => dimension === 'row'
         ? t('请输入正整数，表格最多支持 {maximum} 行；当前还能添加 {left} 行。', limit)
         : t('请输入正整数，表格最多支持 {maximum} 列；当前还能添加 {left} 列。', limit));
       setNotice(null);
@@ -178,11 +178,11 @@ const TableVisualEditor: React.FC<Props> = ({ value, onChange, disabled = false 
     const fixedReference = Number(referenceValue);
     const referenceIndex = Number(referenceMode === 'row' ? referenceRow : referenceColumn) - 1;
     if (referenceMode === 'value' && (referenceValue.trim() === '' || !Number.isFinite(fixedReference))) {
-      setProblem(t('请填写一个有效的参考数值。'));
+      setProblem(() => t('请填写一个有效的参考数值。'));
       return;
     }
     if (referenceMode !== 'value' && (!Number.isInteger(referenceIndex) || referenceIndex < 0 || referenceIndex >= (referenceMode === 'row' ? rows : cols))) {
-      setProblem(referenceMode === 'row' ? t('请选择有效的参考行。') : t('请选择有效的参考列。'));
+      setProblem(() => referenceMode === 'row' ? t('请选择有效的参考行。') : t('请选择有效的参考列。'));
       return;
     }
     let changed = 0;
@@ -204,7 +204,7 @@ const TableVisualEditor: React.FC<Props> = ({ value, onChange, disabled = false 
       changed += 1;
     }
     if (changed === 0) {
-      setProblem(t('选区里没有可与参考值比较的数字。文字单元格会保留原样。'));
+      setProblem(() => t('选区里没有可与参考值比较的数字。文字单元格会保留原样。'));
       setNotice(null);
       return;
     }
@@ -212,7 +212,7 @@ const TableVisualEditor: React.FC<Props> = ({ value, onChange, disabled = false 
       const name = positionName({ row, col });
       return cell && colors.has(name) ? { ...cell, background: colors.get(name) ?? null } : cell;
     })) }));
-    setNotice(skipped
+    setNotice(() => skipped
       ? t('已为 {changed} 个数值单元格设置配色，跳过 {skipped} 个文字或无有效参考值的单元格。', { changed, skipped })
       : t('已为 {changed} 个数值单元格设置配色。', { changed }));
   };

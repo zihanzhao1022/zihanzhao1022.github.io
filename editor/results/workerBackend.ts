@@ -1,4 +1,4 @@
-import { N_ } from '../../lib/i18n';
+import { Message, N_, PhraseError } from '../../lib/i18n';
 import { t } from '../../lib/phrases/results';
 import { EDITOR_CONFIG } from '../config';
 import { ConflictError } from '../errors';
@@ -12,10 +12,10 @@ export const COLLABORATOR_UPLOAD_LIMIT = 1024 * 1024;
 const PARALLEL_UPLOADS = 3;
 
 /** A refusal or failure from the worker, with a message for the collaborator. */
-export class WorkerError extends Error {
+export class WorkerError extends PhraseError {
   readonly status: number;
 
-  constructor(message: string, status: number) {
+  constructor(message: Message, status: number) {
     super(message);
     this.status = status;
   }
@@ -29,7 +29,7 @@ const MESSAGES: Record<number, string> = {
 };
 
 export const tooLarge = (path: string): WorkerError =>
-  new WorkerError(t('{name} 超过 1 MB，协作者暂时不能上传这么大的文件', { name: path.split('/').pop() ?? path }), 413);
+  new WorkerError(() => t('{name} 超过 1 MB，协作者暂时不能上传这么大的文件', { name: path.split('/').pop() ?? path }), 413);
 
 /** A collaborator's results backend: every read and write goes through the worker with their session. */
 export function createWorkerResultsBackend(session: string, fetchImpl: typeof fetch = (input, init) => fetch(input, init)): ResultsBackend {
@@ -44,14 +44,14 @@ export function createWorkerResultsBackend(session: string, fetchImpl: typeof fe
         body: JSON.stringify(body),
       });
     } catch {
-      throw new WorkerError(t(MESSAGES[0]), 0);
+      throw new WorkerError(() => t(MESSAGES[0]), 0);
     }
     if (res.ok) return res;
     if (res.status === 409) throw new ConflictError();
     const detail = (await res.json().catch(() => ({}))) as { message?: unknown };
     // The worker's messages are Chinese phrases (lib/phrases/results.ts); one without a translation stays as sent.
     const message = typeof detail.message === 'string' ? detail.message : MESSAGES[res.status];
-    throw new WorkerError(message === undefined ? t('请求失败（{status}），请稍后重试', { status: res.status }) : t(message), res.status);
+    throw new WorkerError(() => (message === undefined ? t('请求失败（{status}），请稍后重试', { status: res.status }) : t(message)), res.status);
   }
 
   const files = new Map<string, Promise<Uint8Array>>();
@@ -75,7 +75,7 @@ export function createWorkerResultsBackend(session: string, fetchImpl: typeof fe
 
     async save(op, writes, deletes, message) {
       const [paperId, ...others] = touchedPapers(op);
-      if (!paperId || others.length > 0) throw new Error(t('一次只能修改一篇论文'));
+      if (!paperId || others.length > 0) throw new PhraseError(() => t('一次只能修改一篇论文'));
       const big = writes.find((write) => write.data.length > COLLABORATOR_UPLOAD_LIMIT);
       if (big) throw tooLarge(big.path);
       // The worker answers each upload with a receipt; the save commits only files that have one.

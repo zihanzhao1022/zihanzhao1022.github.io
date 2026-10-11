@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { useMessage } from '../../lib/i18n';
 import { ArrowDown, ArrowUp, ImagePlus, Trash2 } from 'lucide-react';
 import { resolveImage } from '../../lib/localImages';
 import { useT } from '../../lib/phrases/editor';
@@ -43,7 +44,7 @@ const ImageInput: React.FC<{
 }> = ({ value, onChange, compact = false, choices = [] }) => {
   const t = useT();
   const fileInput = useRef<HTMLInputElement>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useMessage();
   const [busy, setBusy] = useState(false);
   const [browsing, setBrowsing] = useState(false);
   const current = typeof value === 'string' ? value : '';
@@ -54,14 +55,15 @@ const ImageInput: React.FC<{
   const pick = async (file: File | undefined) => {
     if (!file) return;
     const problem = validateImage(file);
-    setError(problem);
+    // Checked again when shown, so the message follows the language switch.
+    setError(problem ? () => validateImage(file) ?? problem : null);
     if (problem) return;
     setBusy(true);
     try {
       onChange(await prepareImage(file));
       setBrowsing(false);
     } catch {
-      setError(t('图片处理失败，请换一张试试'));
+      setError(() => t('图片处理失败，请换一张试试'));
     } finally {
       setBusy(false);
       if (fileInput.current) fileInput.current.value = '';

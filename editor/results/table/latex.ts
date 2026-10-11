@@ -1,3 +1,4 @@
+import { Message, PhraseError } from '../../../lib/i18n';
 import type { CellAlign, ParseTableResult, TableCell, TableModel } from './types';
 import { stripComments } from '../../tex/document';
 import { t } from '../../../lib/phrases/table';
@@ -13,7 +14,7 @@ type ParsedCell = { cell: TableCell; colSpan: number; signedRows: number; ownSid
 type Column = { spec: string; align: CellAlign; left: boolean; right: boolean };
 type ColorMap = Record<string, string>;
 
-function fail(message: string): never { throw new Error(message); }
+function fail(message: Message): never { throw new PhraseError(message); }
 function hash(text: string): string {
   let h = 2166136261;
   for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
@@ -38,7 +39,7 @@ function skip(text: string, at: number): number {
 }
 function group(text: string, at: number, open = '{', close = '}'): { value: string; end: number } {
   at = skip(text, at);
-  if (text[at] !== open) fail(t('LaTeX 参数不完整，请先检查括号。'));
+  if (text[at] !== open) fail(() => t('LaTeX 参数不完整，请先检查括号。'));
   const start = ++at;
   let depth = 1;
   while (at < text.length) {
@@ -53,7 +54,7 @@ function group(text: string, at: number, open = '{', close = '}'): { value: stri
     }
     at++;
   }
-  return fail(t('LaTeX 参数括号未闭合，原始源码已保留。'));
+  return fail(() => t('LaTeX 参数括号未闭合，原始源码已保留。'));
 }
 function command(text: string, name: string): { args: string[]; end: number; start: number } | null {
   const start = skip(text, 0);
@@ -118,7 +119,7 @@ function readColorCommand(text: string, name: string, colors: ColorMap): { value
   if (text[at] === '[') { const g = group(text, at, '[', ']'); model = g.value; at = g.end; }
   const g = group(text, at);
   const value = colorValue(g.value, model, colors);
-  if (!value) fail(t('无法识别表格颜色；请提供对应的 \\definecolor 定义，或使用 HTML/RGB 颜色。'));
+  if (!value) fail(() => t('无法识别表格颜色；请提供对应的 \\definecolor 定义，或使用 HTML/RGB 颜色。'));
   return { value, end: g.end };
 }
 
@@ -129,7 +130,7 @@ function columns(source: string): Column[] {
   while ((at = skip(source, at)) < source.length) {
     const ch = source[at];
     if (ch === '|') {
-      if (pendingLeft || result[result.length - 1]?.right) fail(t('双重竖线暂不支持可视化转换，请保留 LaTeX 模式。'));
+      if (pendingLeft || result[result.length - 1]?.right) fail(() => t('双重竖线暂不支持可视化转换，请保留 LaTeX 模式。'));
       if (result.length) result[result.length - 1].right = true;
       pendingLeft = true; at++; continue;
     }
@@ -137,9 +138,9 @@ function columns(source: string): Column[] {
       const count = group(source, at + 1);
       const spec = group(source, count.end);
       const n = Number(count.value);
-      if (!Number.isInteger(n) || n < 1 || n > 100) fail(t('列重复参数无效。'));
+      if (!Number.isInteger(n) || n < 1 || n > 100) fail(() => t('列重复参数无效。'));
       const expanded = columns(spec.value.repeat(n));
-      if (!expanded.length) fail(t('表格缺少列定义。'));
+      if (!expanded.length) fail(() => t('表格缺少列定义。'));
       expanded[0].left ||= pendingLeft;
       result.push(...expanded); pendingLeft = false; at = spec.end; continue;
     }
@@ -151,18 +152,18 @@ function columns(source: string): Column[] {
       if (definition === '\\centering\\arraybackslash') align = 'c';
       else if (definition === '\\raggedleft\\arraybackslash') align = 'r';
       else if (definition === '\\raggedright\\arraybackslash') align = 'l';
-      else fail(t('此列包含自定义格式，暂不支持无损可视化转换。'));
+      else fail(() => t('此列包含自定义格式，暂不支持无损可视化转换。'));
       prefix = source.slice(at, g.end); at = skip(source, g.end);
     }
     const start = at;
     if (/[lcr]/.test(source[at] || '')) at++;
     else if (/[pmb]/.test(source[at] || '')) at = group(source, at + 1).end;
-    else return fail(t('目前支持 l/c/r、p/m/b 列和常见重复列；此列格式请继续用 LaTeX 编辑。'));
+    else return fail(() => t('目前支持 l/c/r、p/m/b 列和常见重复列；此列格式请继续用 LaTeX 编辑。'));
     result.push({ spec: prefix + source.slice(start, at), align, left: pendingLeft, right: false });
     pendingLeft = false;
-    if (result.length > 100) fail(t('可视化编辑最多支持 100 列。'));
+    if (result.length > 100) fail(() => t('可视化编辑最多支持 100 列。'));
   }
-  if (!result.length) fail(t('表格缺少列定义。'));
+  if (!result.length) fail(() => t('表格缺少列定义。'));
   return result;
 }
 
@@ -177,7 +178,7 @@ function splitBody(source: string, kind: 'row' | 'cell'): string[] {
       if (!depth && !math && kind === 'row' && source[i + 1] === '\\') {
         pieces.push(source.slice(start, i)); i++;
         const next = skip(source, i + 1);
-        if (source[next] === '[' || source[next] === '*') fail(t('自定义行高或分页控制暂不支持可视化转换，请保留 LaTeX 模式。'));
+        if (source[next] === '[' || source[next] === '*') fail(() => t('自定义行高或分页控制暂不支持可视化转换，请保留 LaTeX 模式。'));
         start = i + 1;
       } else if (!depth && !math && kind === 'row' && source.slice(i).startsWith('\\tabularnewline')) {
         pieces.push(source.slice(start, i)); i += '\\tabularnewline'.length - 1; start = i + 1;
@@ -186,10 +187,10 @@ function splitBody(source: string, kind: 'row' | 'cell'): string[] {
     }
     if (ch === '$') math = !math;
     if (ch === '{') depth++;
-    if (ch === '}' && --depth < 0) fail(t('表格中存在未配对的括号。'));
+    if (ch === '}' && --depth < 0) fail(() => t('表格中存在未配对的括号。'));
     if (!depth && !math && ch === '&' && kind === 'cell') { pieces.push(source.slice(start, i)); start = i + 1; }
   }
-  if (depth || math) fail(t('表格中存在未闭合的括号或数学公式。'));
+  if (depth || math) fail(() => t('表格中存在未闭合的括号或数学公式。'));
   pieces.push(source.slice(start));
   return pieces;
 }
@@ -215,29 +216,29 @@ function parseCell(source: string, colors: ColorMap): ParsedCell {
     if (color) { cell.background = color.value; text = text.slice(color.end).trim(); continue; }
     const multiCol = command(text, 'multicolumn');
     if (multiCol) {
-      if (ownSides) fail(t('嵌套跨列暂不支持可视化转换。'));
+      if (ownSides) fail(() => t('嵌套跨列暂不支持可视化转换。'));
       const n = group(text, multiCol.end), format = group(text, n.end), content = group(text, format.end);
-      if (skip(text, content.end) !== text.length) fail(t('跨列命令外含有额外内容，请保留 LaTeX 模式。'));
+      if (skip(text, content.end) !== text.length) fail(() => t('跨列命令外含有额外内容，请保留 LaTeX 模式。'));
       colSpan = Number(n.value);
       const col = columns(format.value);
-      if (!Number.isInteger(colSpan) || colSpan < 1 || colSpan > 100 || col.length !== 1) fail(t('跨列参数无效。'));
+      if (!Number.isInteger(colSpan) || colSpan < 1 || colSpan > 100 || col.length !== 1) fail(() => t('跨列参数无效。'));
       cell.align = col[0].align; cell.borders.left = col[0].left; cell.borders.right = col[0].right;
       text = text.slice(0, multiCol.start) + content.value; ownSides = true; continue;
     }
     const multiRow = command(text, 'multirow');
     if (multiRow) {
-      if (signedRows !== 1) fail(t('嵌套跨行暂不支持可视化转换。'));
+      if (signedRows !== 1) fail(() => t('嵌套跨行暂不支持可视化转换。'));
       let at = skip(text, multiRow.end);
       if (text[at] === '[') {
         const placement = group(text, at, '[', ']');
-        if (placement.value !== 'c') fail(t('可视化模式目前只支持垂直居中的跨行单元格。'));
+        if (placement.value !== 'c') fail(() => t('可视化模式目前只支持垂直居中的跨行单元格。'));
         at = placement.end;
       }
       const n = group(text, at), width = group(text, n.end), content = group(text, width.end);
-      if (width.value.trim() !== '*') fail(t('指定宽度的跨行单元格暂不支持可视化转换。'));
-      if (skip(text, content.end) !== text.length) fail(t('跨行命令外含有额外内容，请保留 LaTeX 模式。'));
+      if (width.value.trim() !== '*') fail(() => t('指定宽度的跨行单元格暂不支持可视化转换。'));
+      if (skip(text, content.end) !== text.length) fail(() => t('跨行命令外含有额外内容，请保留 LaTeX 模式。'));
       signedRows = Number(n.value);
-      if (!Number.isInteger(signedRows) || signedRows === 0 || Math.abs(signedRows) > 500) fail(t('跨行参数无效。'));
+      if (!Number.isInteger(signedRows) || signedRows === 0 || Math.abs(signedRows) > 500) fail(() => t('跨行参数无效。'));
       text = text.slice(0, multiRow.start) + content.value; continue;
     }
     const bold = command(text, 'textbf');
@@ -250,7 +251,7 @@ function parseCell(source: string, colors: ColorMap): ParsedCell {
       let at = skip(text, stack.end);
       if (text[at] === '[') {
         const option = group(text, at, '[', ']');
-        if (!['l', 'c', 'r'].includes(option.value)) fail(t('无法识别多行单元格的对齐设置。'));
+        if (!['l', 'c', 'r'].includes(option.value)) fail(() => t('无法识别多行单元格的对齐设置。'));
         at = option.end;
       }
       const content = group(text, at);
@@ -273,7 +274,7 @@ function parseCell(source: string, colors: ColorMap): ParsedCell {
     break;
   }
   if (/\\(?:multicolumn|multirow|cellcolor|rowcolor|hline|cline|hhline|toprule|midrule|bottomrule|cmidrule)\b/.test(stripComments(text))) {
-    fail(t('单元格中含有无法安全拆解的表格命令，请继续用 LaTeX 编辑。'));
+    fail(() => t('单元格中含有无法安全拆解的表格命令，请继续用 LaTeX 编辑。'));
   }
   cell.text = text.trim().replace(/^\\strut\s*$/, '');
   cell.rowSpan = Math.abs(signedRows); cell.colSpan = colSpan;
@@ -283,7 +284,7 @@ function parseCell(source: string, colors: ColorMap): ParsedCell {
 function extractField(text: string, name: 'caption' | 'label'): { text: string; value: string; short?: string; found: boolean } {
   const clean = stripComments(text);
   const count = [...clean.matchAll(new RegExp('\\\\' + name + '\\b', 'g'))].length;
-  if (count > 1) fail(t('多个标题或标签无法安全合并，请保留 LaTeX 模式。'));
+  if (count > 1) fail(() => t('多个标题或标签无法安全合并，请保留 LaTeX 模式。'));
   if (!count) return { text, value: '', found: false };
   let start = -1;
   for (let i = 0; i < text.length; i++) {
@@ -328,7 +329,7 @@ export function parseTable(source: string, preamble = ''): ParseTableResult {
     if (text.startsWith(META) || footer >= 0) {
       const legacy = text.startsWith(META);
       const newline = legacy ? text.indexOf('\n') : footer;
-      if (newline < 0) fail(t('表格源码不完整。'));
+      if (newline < 0) fail(() => t('表格源码不完整。'));
       const footerEnd = legacy ? -1 : text.indexOf('\n', footer + 1);
       const body = legacy ? text.slice(newline + 1) : text.slice(0, footer) + (footerEnd < 0 ? '' : text.slice(footerEnd));
       const encoded = legacy ? text.slice(META.length, newline) : text.slice(footer + 1 + META.length, footerEnd < 0 ? undefined : footerEnd).trim();
@@ -339,9 +340,9 @@ export function parseTable(source: string, preamble = ''): ParseTableResult {
       text = body;
     }
     const clean = stripComments(text);
-    if (/\\(?:rowcolors|newcolumntype|noalign|specialrule|addlinespace|omit|span|verb)\b/.test(clean)) fail(t('该表格含有暂不支持的排版命令；原始 LaTeX 已保留。'));
+    if (/\\(?:rowcolors|newcolumntype|noalign|specialrule|addlinespace|omit|span|verb)\b/.test(clean)) fail(() => t('该表格含有暂不支持的排版命令；原始 LaTeX 已保留。'));
     const starts = [...clean.matchAll(/\\begin\s*\{tabular\}/g)];
-    if (starts.length !== 1 || /\\begin\s*\{(?:tabularx|tabular\*|longtable|tblr|array)\}/.test(clean)) fail(t('请提供一个普通 tabular 表格；嵌套表格及复杂环境请继续用 LaTeX 编辑。'));
+    if (starts.length !== 1 || /\\begin\s*\{(?:tabularx|tabular\*|longtable|tblr|array)\}/.test(clean)) fail(() => t('请提供一个普通 tabular 表格；嵌套表格及复杂环境请继续用 LaTeX 编辑。'));
     // Locate using original offsets; comments may contain arbitrary fake environments.
     let begin = -1, end = -1;
     for (let i = 0; i < text.length; i++) {
@@ -349,12 +350,12 @@ export function parseTable(source: string, preamble = ''): ParseTableResult {
       if (/^\\begin\s*\{tabular\}/.test(text.slice(i))) begin = i;
       if (/^\\end\s*\{tabular\}/.test(text.slice(i))) { end = i; break; }
     }
-    if (begin < 0 || end < begin) fail(t('tabular 环境未完整闭合。'));
+    if (begin < 0 || end < begin) fail(() => t('tabular 环境未完整闭合。'));
     const beginToken = text.slice(begin).match(/^\\begin\s*\{tabular\}/)![0];
     let at = skip(text, begin + beginToken.length);
     if (text[at] === '[') {
       const pos = group(text, at, '[', ']');
-      if (!['c', 't', 'b'].includes(pos.value)) fail(t('无法识别表格对齐参数。'));
+      if (!['c', 't', 'b'].includes(pos.value)) fail(() => t('无法识别表格对齐参数。'));
       at = pos.end;
     }
     const spec = group(text, at), cols = columns(spec.value), width = cols.length;
@@ -364,8 +365,8 @@ export function parseTable(source: string, preamble = ''): ParseTableResult {
     const managedStyle = before.lastIndexOf(STYLE_START);
     if (managedStyle >= 0) {
       const style = before.slice(managedStyle);
-      if (!/^% portfolio-table-style\s*\\begingroup\s*\\setlength\{\\arrayrulewidth\}\{[\d.]+pt\}\s*\\arrayrulecolor\[HTML\]\{[A-Fa-f\d]{6}\}\s*$/.test(style)) fail(t('表格样式包装已更改，请保留 LaTeX 模式以避免丢失自定义内容。'));
-      if (!/^\s*\\endgroup\s*% portfolio-table-end(?:\r?\n|$)/.test(after)) fail(t('表格样式包装未闭合。'));
+      if (!/^% portfolio-table-style\s*\\begingroup\s*\\setlength\{\\arrayrulewidth\}\{[\d.]+pt\}\s*\\arrayrulecolor\[HTML\]\{[A-Fa-f\d]{6}\}\s*$/.test(style)) fail(() => t('表格样式包装已更改，请保留 LaTeX 模式以避免丢失自定义内容。'));
+      if (!/^\s*\\endgroup\s*% portfolio-table-end(?:\r?\n|$)/.test(after)) fail(() => t('表格样式包装未闭合。'));
       before = before.slice(0, managedStyle);
       after = after.replace(/^\s*\\endgroup\s*% portfolio-table-end(?:\r?\n|$)/, '');
     }
@@ -376,7 +377,7 @@ export function parseTable(source: string, preamble = ''): ParseTableResult {
     const colors = readColors(preamble + '\n' + text);
     const widthMatches = [...clean.matchAll(/\\setlength\s*\{\\arrayrulewidth\}\s*\{\s*([\d.]+)pt\s*\}/g)];
     const borderWidth = widthMatches.length ? Number(widthMatches[widthMatches.length - 1][1]) : 0.4;
-    if (!Number.isFinite(borderWidth) || borderWidth < 0 || borderWidth > 10) fail(t('框线粗细需要在 0–10 pt 范围内。'));
+    if (!Number.isFinite(borderWidth) || borderWidth < 0 || borderWidth > 10) fail(() => t('框线粗细需要在 0–10 pt 范围内。'));
     const borderMatches = [...clean.matchAll(/\\arrayrulecolor(?:\[[^\]]*\])?\s*\{[^{}]*\}/g)];
     const borderColor = borderMatches.length ? readColorCommand(borderMatches[borderMatches.length - 1][0], 'arrayrulecolor', colors)!.value : '#000000';
     const rows: ParsedCell[][] = [], boundaries: boolean[][] = [Array(width).fill(false)];
@@ -392,9 +393,9 @@ export function parseTable(source: string, preamble = ''): ParseTableResult {
           const boundary = boundaries[rows.length];
           if (line[1] === 'cline' || line[1] === 'cmidrule') {
             next = skip(rest, next);
-            if (rest[next] === '(' || rest[next] === '[') fail(t('带裁切或独立线宽的横线暂不支持可视化转换。'));
+            if (rest[next] === '(' || rest[next] === '[') fail(() => t('带裁切或独立线宽的横线暂不支持可视化转换。'));
             const range = group(rest, next), m = range.value.match(/^\s*(\d+)\s*-\s*(\d+)\s*$/);
-            if (!m || +m[1] < 1 || +m[2] > width || +m[1] > +m[2]) fail(t('横线范围无效。'));
+            if (!m || +m[1] < 1 || +m[2] > width || +m[1] > +m[2]) fail(() => t('横线范围无效。'));
             for (let c = +m[1] - 1; c < +m[2]; c++) boundary[c] = true;
             next = range.end;
           } else if (line[1] === 'hhline') {
@@ -404,26 +405,26 @@ export function parseTable(source: string, preamble = ''): ParseTableResult {
               if (pattern[index] === '|') { index++; continue; }
               if (pattern[index] === '>') {
                 const style = group(pattern, index + 1), color = readColorCommand(style.value, 'arrayrulecolor', colors);
-                if (!color) fail(t('此 hhline 样式暂不支持可视化转换。'));
+                if (!color) fail(() => t('此 hhline 样式暂不支持可视化转换。'));
                 const tail = stripComments(style.value.slice(color.end)).trim();
-                if (tail && tail !== '\\relax') fail(t('此 hhline 样式暂不支持可视化转换。'));
+                if (tail && tail !== '\\relax') fail(() => t('此 hhline 样式暂不支持可视化转换。'));
                 ruleColor = color.value; spanFill = tail === '\\relax'; index = style.end; continue;
               }
-              if (!['-', '~'].includes(pattern[index]) || col >= width) fail(t('此 hhline 样式暂不支持可视化转换。'));
+              if (!['-', '~'].includes(pattern[index]) || col >= width) fail(() => t('此 hhline 样式暂不支持可视化转换。'));
               if (spanFill) {
-                if (pattern[index] !== '-') fail(t('合并单元格的填色横线格式无效。'));
+                if (pattern[index] !== '-') fail(() => t('合并单元格的填色横线格式无效。'));
                 spanFills.push({ row: rows.length, col, color: ruleColor });
               } else if (pattern[index] === '-') {
-                if (ruleColor !== borderColor) fail(t('不同颜色的独立横线暂不支持可视化转换。'));
+                if (ruleColor !== borderColor) fail(() => t('不同颜色的独立横线暂不支持可视化转换。'));
                 boundary[col] = true;
               }
               col++; index++;
             }
-            if (col !== width) fail(t('hhline 的列数与表格不一致。'));
+            if (col !== width) fail(() => t('hhline 的列数与表格不一致。'));
             next = g.end;
           } else {
-            if (rest[skip(rest, next)] === '[') fail(t('独立设置横线粗细的表格请继续用 LaTeX 编辑。'));
-            if (boundary.every(Boolean)) fail(t('双重横线暂不支持可视化转换。'));
+            if (rest[skip(rest, next)] === '[') fail(() => t('独立设置横线粗细的表格请继续用 LaTeX 编辑。'));
+            if (boundary.every(Boolean)) fail(() => t('双重横线暂不支持可视化转换。'));
             boundary.fill(true);
           }
           rest = rest.slice(next); continue;
@@ -434,11 +435,11 @@ export function parseTable(source: string, preamble = ''): ParseTableResult {
       }
       if (skip(rest, 0) === rest.length) continue;
       const cells = splitBody(rest, 'cell').map(v => parseCell(v, colors));
-      if (cells.reduce((n, c) => n + c.colSpan, 0) !== width) fail(t('某一行的单元格数量与列定义不一致，请先检查 & 和跨列参数。'));
+      if (cells.reduce((n, c) => n + c.colSpan, 0) !== width) fail(() => t('某一行的单元格数量与列定义不一致，请先检查 & 和跨列参数。'));
       rows.push(cells); rowColors.push(rowColor); boundaries.push(Array(width).fill(false));
-      if (rows.length > 500) fail(t('可视化编辑最多支持 500 行。'));
+      if (rows.length > 500) fail(() => t('可视化编辑最多支持 500 行。'));
     }
-    if (!rows.length) fail(t('表格没有可编辑的行。'));
+    if (!rows.length) fail(() => t('表格没有可编辑的行。'));
     const cells: (TableCell | null)[][] = rows.map(() => Array(width).fill(null));
     const owners: ({ r: number; c: number } | null)[][] = rows.map(() => Array(width).fill(null));
     for (let r = 0; r < rows.length; r++) {
@@ -449,16 +450,16 @@ export function parseTable(source: string, preamble = ''): ParseTableResult {
         if (!entry.ownSides) { cell.align = cols[c].align; cell.borders.left = cols[c].left; cell.borders.right = cols[c + cell.colSpan - 1].right; }
         if (entry.signedRows > 0 && owners[r][c]) {
           const owner = owners[r][c]!, parent = cells[owner.r][owner.c]!;
-          if (cell.text || entry.signedRows !== 1 || c + cell.colSpan > owner.c + parent.colSpan || cell.background && cell.background !== parent.background) fail(t('跨行占位区含有独立内容或不同背景，无法无损转换。'));
+          if (cell.text || entry.signedRows !== 1 || c + cell.colSpan > owner.c + parent.colSpan || cell.background && cell.background !== parent.background) fail(() => t('跨行占位区含有独立内容或不同背景，无法无损转换。'));
           c += cell.colSpan; continue;
         }
         const startRow = entry.signedRows < 0 ? r + entry.signedRows + 1 : r;
-        if (startRow < 0 || startRow + cell.rowSpan > rows.length) fail(t('跨行范围超出了表格。'));
+        if (startRow < 0 || startRow + cell.rowSpan > rows.length) fail(() => t('跨行范围超出了表格。'));
         for (let rr = startRow; rr < startRow + cell.rowSpan; rr++) for (let cc = c; cc < c + cell.colSpan; cc++) {
           const owner = owners[rr][cc];
           if (owner) {
             const old = cells[owner.r][owner.c]!;
-            if (entry.signedRows >= 0 || old.text || old.rowSpan !== 1 || old.background !== cell.background || owner.c < c || owner.c + old.colSpan > c + cell.colSpan) fail(t('合并范围与现有内容重叠，无法无损转换。'));
+            if (entry.signedRows >= 0 || old.text || old.rowSpan !== 1 || old.background !== cell.background || owner.c < c || owner.c + old.colSpan > c + cell.colSpan) fail(() => t('合并范围与现有内容重叠，无法无损转换。'));
           }
         }
         for (let rr = startRow; rr < startRow + cell.rowSpan; rr++) for (let cc = c; cc < c + cell.colSpan; cc++) {
@@ -470,19 +471,19 @@ export function parseTable(source: string, preamble = ''): ParseTableResult {
     for (let r = 0; r < cells.length; r++) for (let c = 0; c < width; c++) {
       const cell = cells[r][c]; if (!cell) continue;
       const top = boundaries[r].slice(c, c + cell.colSpan), bottom = boundaries[r + cell.rowSpan].slice(c, c + cell.colSpan);
-      if (top.some(Boolean) && !top.every(Boolean) || bottom.some(Boolean) && !bottom.every(Boolean)) fail(t('横线只覆盖合并单元格的一部分，暂不支持无损可视化转换。'));
-      for (let rr = r + 1; rr < r + cell.rowSpan; rr++) if (boundaries[rr].slice(c, c + cell.colSpan).some(Boolean)) fail(t('横线穿过跨行单元格，暂不支持无损可视化转换。'));
+      if (top.some(Boolean) && !top.every(Boolean) || bottom.some(Boolean) && !bottom.every(Boolean)) fail(() => t('横线只覆盖合并单元格的一部分，暂不支持无损可视化转换。'));
+      for (let rr = r + 1; rr < r + cell.rowSpan; rr++) if (boundaries[rr].slice(c, c + cell.colSpan).some(Boolean)) fail(() => t('横线穿过跨行单元格，暂不支持无损可视化转换。'));
       cell.borders.top = top.every(Boolean); cell.borders.bottom = bottom.every(Boolean);
     }
     for (const fill of spanFills) {
       const above = owners[fill.row - 1]?.[fill.col], below = owners[fill.row]?.[fill.col];
       if (!above || !below || above.r !== below.r || above.c !== below.c || hex(cells[above.r][above.c]?.background || '') !== fill.color) {
-        fail(t('合并单元格的填色横线已被修改，请继续用 LaTeX 编辑以保留样式。'));
+        fail(() => t('合并单元格的填色横线已被修改，请继续用 LaTeX 编辑以保留样式。'));
       }
     }
     const table: StoredModel = { cells, caption: caption.value, label: label.value, borderWidth, borderColor, before, after, columnSpecs: cols.map(c => c.spec) };
     if (caption.short !== undefined) table.captionShort = caption.short;
-    if (!validatedModel(table)) fail(t('表格结构不完整，请保留 LaTeX 模式。'));
+    if (!validatedModel(table)) fail(() => t('表格结构不完整，请保留 LaTeX 模式。'));
     return { ok: true, table };
   } catch (error) { return { ok: false, reason: error instanceof Error ? error.message : t('无法安全转换此表格，原始 LaTeX 已保留。') }; }
 }
@@ -509,7 +510,7 @@ function multilineContent(text: string, align: CellAlign): string {
   return '\\shortstack[' + align + ']{' + text.split('\n').map(v => v || '\\strut').join(' \\\\ ') + '\n}';
 }
 export function serializeTable(input: TableModel): string {
-  if (!validatedModel(input)) throw new Error(t('表格结构无效，无法生成 LaTeX。'));
+  if (!validatedModel(input)) throw new PhraseError(() => t('表格结构无效，无法生成 LaTeX。'));
   const table = input as StoredModel;
   const height = table.cells.length, width = table.cells[0].length;
   const owner: { cell: TableCell; row: number; col: number }[][] = Array.from({ length: height }, () => Array(width));

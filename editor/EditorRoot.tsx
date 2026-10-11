@@ -2,7 +2,7 @@ import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useStat
 import { useContent, useUpdateContent } from '../components/ContentContext';
 import { EditModeContext, EditModeValue, Toast } from '../components/EditMode';
 import { ResultsAccessContext } from '../components/results/access';
-import { N_ } from '../lib/i18n';
+import { N_, PhraseError } from '../lib/i18n';
 import { registerLocalImage } from '../lib/localImages';
 import { useT } from '../lib/phrases/editor';
 import { Session, clearSession, isExpiringSoon } from '../lib/session';
@@ -129,7 +129,7 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
   const open = useCallback(
     (next: EditRequest) => {
       if (isExpiringSoon(session)) {
-        setToast({ message: t(EXPIRING), relogin: true });
+        setToast({ message: () => t(EXPIRING), relogin: true });
         return;
       }
       const results =
@@ -139,11 +139,11 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
         next.kind === 'references' ||
         ((next.kind === 'add' || next.kind === 'edit') && next.collection === 'results');
       if (results && access.state !== 'private') {
-        setToast({ message: access.state === 'loading' ? t('论文结果还在加载，请稍后再试') : t('私有仓库不可用，暂时不能编辑论文结果') });
+        setToast({ message: () => access.state === 'loading' ? t('论文结果还在加载，请稍后再试') : t('私有仓库不可用，暂时不能编辑论文结果') });
         return;
       }
       if ((next.kind === 'block' || next.kind === 'heading' || next.kind === 'paperSettings' || next.kind === 'references') && isReordering(next.paperId)) {
-        setToast({ message: t('正在保存新的顺序并更新编号，请几秒后再编辑') });
+        setToast({ message: () => t('正在保存新的顺序并更新编号，请几秒后再编辑') });
         return;
       }
       setRequest(next);
@@ -155,7 +155,7 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
     (op: ContentOp, uploads: ImageUpload[], message: string): Promise<void> => {
       // Papers of the results pages live in the private repository.
       if (op.collection === 'results') return saveContentOp(op);
-      if (!backend) return Promise.reject(new Error(t('编辑器还在加载，请稍后再试')));
+      if (!backend) return Promise.reject(new PhraseError(() => t('编辑器还在加载，请稍后再试')));
       pending.current.push(op);
       const run = queue.current.then(async () => {
         try {
@@ -183,13 +183,13 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
   const reorder = useCallback(
     (collection: ListCollection, ids: string[]) => {
       if (isExpiringSoon(session)) {
-        setToast({ message: t(EXPIRING), relogin: true });
+        setToast({ message: () => t(EXPIRING), relogin: true });
         return;
       }
       const op: ContentOp = { kind: 'reorder', collection, ids };
       setContent((current) => applyOp(current, op));
       save(op, [], commitMessage('reorder', collection)).catch((error: unknown) => {
-        setToast({ message: describeSaveError(error) });
+        setToast({ message: () => describeSaveError(error) });
         // Put the page back in step with GitHub.
         if (collection === 'results') {
           reload();
@@ -208,13 +208,13 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
   const approveRequest = useCallback(
     async (request: AccessRequest) => {
       try {
-        if (!access.saveSiteViewers) throw new Error(t('私有仓库不可用，暂时不能保存'));
+        if (!access.saveSiteViewers) throw new PhraseError(() => t('私有仓库不可用，暂时不能保存'));
         const names = [...(access.siteViewers ?? []).filter((name) => name.toLowerCase() !== request.login.toLowerCase()), request.login];
         await access.saveSiteViewers(names, { [request.login.toLowerCase()]: request.id });
         presence.resolveRequest(request.login);
-        setToast({ message: t('已同意 @{login}：对方重新登录后就能看到所有论文', { login: request.login }) });
+        setToast({ message: () => t('已同意 @{login}：对方重新登录后就能看到所有论文', { login: request.login }) });
       } catch (error) {
-        setToast({ message: describeSaveError(error) });
+        setToast({ message: () => describeSaveError(error) });
       }
     },
     [access, presence],

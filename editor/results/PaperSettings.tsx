@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMessage } from '../../lib/i18n';
 import { FileText, Loader2, Play, RotateCcw, Trash2, Upload, X } from 'lucide-react';
 import PdfView from '../../components/results/PdfView';
 import { pdfPageSize } from '../../components/results/pdfjs';
@@ -57,7 +58,7 @@ const PaperSettings: React.FC<Props> = ({ paper, readFile, onSave, onClose }) =>
   const [test, setTest] = useState<BlockCompileResult | null>(null);
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
+  const [problem, setProblem] = useMessage();
   const upload = React.useRef<HTMLInputElement>(null);
   const busy = React.useRef(false);
 
@@ -68,7 +69,7 @@ const PaperSettings: React.FC<Props> = ({ paper, readFile, onSave, onClose }) =>
         if (!cancelled) setStored(loaded);
       })
       .catch(() => {
-        if (!cancelled) setProblem(t('读取论文附件失败，请关闭后重试'));
+        if (!cancelled) setProblem(() => t('读取论文附件失败，请关闭后重试'));
       });
     return () => {
       cancelled = true;
@@ -112,7 +113,7 @@ const PaperSettings: React.FC<Props> = ({ paper, readFile, onSave, onClose }) =>
       const engine = await getTexEngine();
       setTest(await compileBlock(engine, { preamble, source: SAMPLE, kind: 'text', counters: {}, labels: {}, files }, pdfPageSize));
     } catch (error) {
-      setProblem(error instanceof Error ? error.message : t('TeX 引擎出错，请重试'));
+      setProblem(() => error instanceof Error ? error.message : t('TeX 引擎出错，请重试'));
     } finally {
       setTesting(false);
     }
@@ -124,7 +125,7 @@ const PaperSettings: React.FC<Props> = ({ paper, readFile, onSave, onClose }) =>
     for (const file of Array.from(list)) {
       const reason = attachmentProblem(file);
       if (reason) {
-        setProblem(t('{name}：{reason}', { name: file.name, reason }));
+        setProblem(() => t('{name}：{reason}', { name: file.name, reason }));
         continue;
       }
       const data = new Uint8Array(await file.arrayBuffer());
@@ -149,8 +150,9 @@ const PaperSettings: React.FC<Props> = ({ paper, readFile, onSave, onClose }) =>
       gone.forEach((name) => delete fileHashes[name]);
       const draft: ResultPaper = { ...paper, preamble, files: kept, fileHashes };
       const rebuilt = await rebuildWith(draft, files);
-      if (rebuilt.failed) {
-        setProblem(describeFailure(paper.blocks, rebuilt.failed, 'change'));
+      const failed = rebuilt.failed;
+      if (failed) {
+        setProblem(() => describeFailure(paper.blocks, failed, 'change'));
         return;
       }
       const writes = [
@@ -173,7 +175,7 @@ const PaperSettings: React.FC<Props> = ({ paper, readFile, onSave, onClose }) =>
       );
       onClose();
     } catch (error) {
-      setProblem(describeSaveError(error));
+      setProblem(() => describeSaveError(error));
     } finally {
       busy.current = false;
       setSaving(false);

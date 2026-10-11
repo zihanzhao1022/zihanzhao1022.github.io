@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ClipboardPaste, Copy, Download, Eye, EyeOff, Loader2, Paperclip, Play, Redo2, Trash2, Undo2, Upload, X } from 'lucide-react';
 import PdfView from '../../components/results/PdfView';
 import { pdfPageSize } from '../../components/results/pdfjs';
-import { N_, useLang } from '../../lib/i18n';
+import { N_, useLang, useMessage } from '../../lib/i18n';
 import { useT } from '../../lib/phrases/results';
 import { PdfBlockKind, ResultBlock, ResultBlockKind, ResultPaper } from '../../types';
 import { describeSaveError } from '../backend';
@@ -82,9 +82,9 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
   const [compiled, setCompiled] = useState<Compiled | null>(null);
   const [lastPdf, setLastPdf] = useState<BlockCompileResult | null>(null);
   const [compiling, setCompiling] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
+  const [problem, setProblem] = useMessage();
   const [saving, setSaving] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useMessage();
   const [tab, setTab] = useState<'code' | 'preview'>('code');
   const [tableMode, setTableMode] = useState<'visual' | 'latex'>(() =>
     block.kind === 'table' && parseTable(original, preambleOf(paper)).ok ? 'visual' : 'latex',
@@ -149,7 +149,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
         if (!cancelled) setStored(loaded);
       })
       .catch(() => {
-        if (!cancelled) setProblem(t('读取论文附件失败，请关闭后重试'));
+        if (!cancelled) setProblem(() => t('读取论文附件失败，请关闭后重试'));
       });
     return () => {
       cancelled = true;
@@ -173,7 +173,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
         }
         return next;
       } catch (error) {
-        if (ticket === latest.current) setProblem(error instanceof Error ? error.message : t('TeX 引擎出错，请重试'));
+        if (ticket === latest.current) setProblem(() => error instanceof Error ? error.message : t('TeX 引擎出错，请重试'));
         return null;
       } finally {
         if (ticket === latest.current) setCompiling(false);
@@ -221,7 +221,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
     try {
       await work();
     } catch (error) {
-      setProblem(describeSaveError(error));
+      setProblem(() => describeSaveError(error));
     } finally {
       busy.current = false;
       setSaving(false);
@@ -234,7 +234,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
       const current = compiled && compiled.source === source && compiled.preview === preview ? compiled : await compile(source);
       if (!current) return;
       if (!current.result.ok) {
-        setProblem(t('编译有错误，修好后才能保存'));
+        setProblem(() => t('编译有错误，修好后才能保存'));
         setTab('preview');
         return;
       }
@@ -247,8 +247,9 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
         fileHashes: { ...paper.fileHashes, ...uploads.hashes },
       };
       const rebuilt = await rebuildWith(draft, files);
-      if (rebuilt.failed) {
-        setProblem(describeFailure(draft.blocks, rebuilt.failed));
+      const failed = rebuilt.failed;
+      if (failed) {
+        setProblem(() => describeFailure(draft.blocks, failed));
         return;
       }
       const ops: ResultsOp[] = [...uploads.ops, putBlock];
@@ -271,8 +272,9 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
     void run(async () => {
       const draft: ResultPaper = { ...paper, blocks: paper.blocks.filter((item) => item.id !== block.id) };
       const rebuilt = await rebuildWith(draft, files);
-      if (rebuilt.failed) {
-        setProblem(t('{problem}。先修好再删除。', { problem: describeFailure(draft.blocks, rebuilt.failed, 'delete') }));
+      const failed = rebuilt.failed;
+      if (failed) {
+        setProblem(() => t('{problem}。先修好再删除。', { problem: describeFailure(draft.blocks, failed, 'delete') }));
         return;
       }
       const deletes = [...(block.output ? [block.output.pdf] : []), ...rebuilt.deletes];
@@ -305,9 +307,9 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
   const copyTex = async () => {
     try {
       await navigator.clipboard.writeText(exportTex(source));
-      setNotice(t('LaTeX 已复制'));
+      setNotice(() => t('LaTeX 已复制'));
     } catch {
-      setNotice(t('复制失败，请改用"下载"'));
+      setNotice(() => t('复制失败，请改用"下载"'));
     }
   };
 
@@ -337,7 +339,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
       const merge = addBibEntries(existing, pasted);
       const keys = [...merge.added, ...merge.skipped];
       if (keys.length === 0) {
-        setProblem(t('剪贴板里没有 BibTeX 条目（应该以 @article{… 这样开头）'));
+        setProblem(() => t('剪贴板里没有 BibTeX 条目（应该以 @article{… 这样开头）'));
         return;
       }
       const created = !(paper.files ?? []).includes(REFERENCES_FILE);
@@ -364,7 +366,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
         merge.skipped.length > 0 ? t('{keys} 已经在参考文献里', { keys: merge.skipped.join(t('、')) }) : '',
         copied ? t('引用名已复制：{keys}', { keys: keys.join(',') }) : t('引用名：{keys}', { keys: keys.join(',') }),
       ];
-      setNotice(t('{parts}。在正文中引用后，预览会自动更新。', { parts: parts.filter(Boolean).join(t('；')) }));
+      setNotice(() => t('{parts}。在正文中引用后，预览会自动更新。', { parts: parts.filter(Boolean).join(t('；')) }));
     });
 
   const addFiles = async (list: FileList | null) => {
@@ -373,7 +375,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
     for (const file of Array.from(list)) {
       const reason = attachmentProblem(file);
       if (reason) {
-        setProblem(t('{name}：{reason}', { name: file.name, reason }));
+        setProblem(() => t('{name}：{reason}', { name: file.name, reason }));
         continue;
       }
       const data = new Uint8Array(await file.arrayBuffer());

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ClipboardPaste, Loader2, X } from 'lucide-react';
-import { N_ } from '../../lib/i18n';
+import { N_, useMessage } from '../../lib/i18n';
 import { t, useT } from '../../lib/phrases/results';
 import { ResultPaper } from '../../types';
 import { describeSaveError } from '../backend';
@@ -45,8 +45,8 @@ const ReferencesEditor: React.FC<Props> = ({ paper, readFile, onSave, onClose })
   const [original, setOriginal] = useState('');
   const [creating, setCreating] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [problem, setProblem] = useMessage();
+  const [notice, setNotice] = useMessage();
   const busy = useRef(false);
 
   useEffect(() => {
@@ -60,7 +60,7 @@ const ReferencesEditor: React.FC<Props> = ({ paper, readFile, onSave, onClose })
         setOriginal(loaded);
       })
       .catch(() => {
-        if (!cancelled) setProblem(t('读取 {file} 失败，请关闭后重试', { file: REFERENCES_FILE }));
+        if (!cancelled) setProblem(() => t('读取 {file} 失败，请关闭后重试', { file: REFERENCES_FILE }));
       });
     return () => {
       cancelled = true;
@@ -77,7 +77,7 @@ const ReferencesEditor: React.FC<Props> = ({ paper, readFile, onSave, onClose })
     const merge = addBibEntries(text, await readClipboard());
     const keys = [...merge.added, ...merge.skipped];
     if (keys.length === 0) {
-      setProblem(t('剪贴板里没有 BibTeX 条目（应该以 @article{… 这样开头）'));
+      setProblem(() => t('剪贴板里没有 BibTeX 条目（应该以 @article{… 这样开头）'));
       return;
     }
     setProblem(null);
@@ -86,8 +86,7 @@ const ReferencesEditor: React.FC<Props> = ({ paper, readFile, onSave, onClose })
       () => true,
       () => false,
     );
-    setNotice(
-      [
+    setNotice(() => [
         merge.added.length > 0 ? t('已加入 {n} 条，保存后生效', { n: merge.added.length }) : '',
         merge.skipped.length > 0 ? t('{keys} 已经有了', { keys: merge.skipped.join(t('、')) }) : '',
         copied ? t('引用名已复制：{keys}', { keys: keys.join(',') }) : t('引用名：{keys}', { keys: keys.join(',') }),
@@ -112,8 +111,9 @@ const ReferencesEditor: React.FC<Props> = ({ paper, readFile, onSave, onClose })
       };
       const files = { ...(await loadAttachments(paper, readFile)), [REFERENCES_FILE]: data };
       const rebuilt = await rebuildWith(draft, files);
-      if (rebuilt.failed) {
-        setProblem(describeFailure(paper.blocks, rebuilt.failed));
+      const failed = rebuilt.failed;
+      if (failed) {
+        setProblem(() => describeFailure(paper.blocks, failed));
         return;
       }
       await onSave(
@@ -125,7 +125,7 @@ const ReferencesEditor: React.FC<Props> = ({ paper, readFile, onSave, onClose })
       );
       onClose();
     } catch (error) {
-      setProblem(describeSaveError(error));
+      setProblem(() => describeSaveError(error));
     } finally {
       busy.current = false;
       setSaving(false);

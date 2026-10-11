@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Eye, EyeOff, Trash2 } from 'lucide-react';
+import { useT } from '../../lib/phrases/editor';
 import { EditRequest, SiteContent } from '../../types';
 import { ImageUpload, describeSaveError } from '../backend';
 import { existingImages } from '../existingImages';
@@ -27,6 +28,7 @@ export type FormRequest = Extract<EditRequest, { kind: 'edit' | 'add' | 'profile
 interface ResolvedForm {
   schema: FormSchema;
   item: Values;
+  /** A phrase, translated where it is shown. */
   title: string;
   isNew: boolean;
   /** The home page entry can be renamed, but not hidden or deleted. */
@@ -59,6 +61,7 @@ interface Props {
 }
 
 export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }) => {
+  const t = useT();
   // Resolved once: the form edits the item as it was when the dialog opened.
   const [form] = useState(() => resolveForm(request, content));
   const initial = useMemo(() => (form ? toFormState(form.schema, form.item) : {}), [form]);
@@ -70,15 +73,15 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
   if (!form) {
     return (
       <Modal
-        title="找不到这一条"
+        title={t('找不到这一条')}
         onClose={onClose}
         footer={
           <button type="button" className={`${BUTTON_SECONDARY} ml-auto`} onClick={onClose}>
-            关闭
+            {t('关闭')}
           </button>
         }
       >
-        <p className="text-sm text-gray-600">这一条可能已经在别处被删除了，刷新页面可以看到最新内容。</p>
+        <p className="text-sm text-gray-600">{t('这一条可能已经在别处被删除了，刷新页面可以看到最新内容。')}</p>
       </Modal>
     );
   }
@@ -88,7 +91,7 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
 
   const close = () => {
     if (saving) return;
-    if (dirty && !window.confirm('放弃未保存的修改？')) return;
+    if (dirty && !window.confirm(t('放弃未保存的修改？'))) return;
     onClose();
   };
 
@@ -122,7 +125,7 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
       ([key]) => item[key] !== undefined && others.some((entry) => entry[key] === item[key]),
     );
     if (taken) {
-      setErrors({ [taken[0]]: taken[1] });
+      setErrors({ [taken[0]]: t(taken[1]) });
       return;
     }
     void submit(
@@ -140,7 +143,7 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
 
   const remove = () => {
     if (request.kind !== 'edit') return;
-    if (!window.confirm('确定删除这一条吗？删除后会立即发布。')) return;
+    if (!window.confirm(t('确定删除这一条吗？删除后会立即发布。'))) return;
     void submit(
       { kind: 'delete', collection: request.collection, id: request.id },
       [],
@@ -151,7 +154,7 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
   // Hiding acts on the stored item, like delete; unsaved form changes are dropped after confirmation.
   const toggleHidden = () => {
     if (request.kind !== 'edit') return;
-    if (dirty && !window.confirm('放弃未保存的修改？')) return;
+    if (dirty && !window.confirm(t('放弃未保存的修改？'))) return;
     void submit(
       { kind: 'setHidden', collection: request.collection, id: request.id, hidden: !isHidden },
       [],
@@ -175,7 +178,7 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
 
   return (
     <Modal
-      title={form.title}
+      title={t(form.title)}
       onClose={close}
       footer={
         <>
@@ -187,7 +190,7 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
               className="inline-flex items-center gap-1 text-sm text-red-600 hover:text-red-700 disabled:opacity-50"
             >
               <Trash2 size={14} />
-              删除
+              {t('删除')}
             </button>
           )}
           {itemActions && (
@@ -198,15 +201,15 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
               className="ml-3 inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 disabled:opacity-50"
             >
               {isHidden ? <Eye size={14} /> : <EyeOff size={14} />}
-              {isHidden ? '取消隐藏' : '隐藏'}
+              {isHidden ? t('取消隐藏') : t('隐藏')}
             </button>
           )}
           <div className="ml-auto flex items-center gap-2">
             <button type="button" disabled={saving} onClick={close} className={BUTTON_SECONDARY}>
-              取消
+              {t('取消')}
             </button>
             <button type="button" disabled={saving} onClick={save} className={BUTTON_PRIMARY}>
-              {saving ? '保存中…' : '保存'}
+              {saving ? t('保存中…') : t('保存')}
             </button>
           </div>
         </>
@@ -217,7 +220,7 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
           {saveError}
         </div>
       )}
-      {isHidden && <div className="mb-4 p-3 rounded-md bg-gray-50 text-sm text-gray-600">这一条目前对访客隐藏。</div>}
+      {isHidden && <div className="mb-4 p-3 rounded-md bg-gray-50 text-sm text-gray-600">{t('这一条目前对访客隐藏。')}</div>}
       {visibleFields(form.schema, state).map((field) => (
         <FieldControl
           key={field.key}
@@ -228,7 +231,7 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
           imageChoices={field.type === 'image' ? existingImages(content, `${imageKind}.${field.key}`) : undefined}
         />
       ))}
-      <p className="text-xs text-gray-400">保存后会立即提交到 GitHub，网站约 1 分钟后更新。</p>
+      <p className="text-xs text-gray-400">{t('保存后会立即提交到 GitHub，网站约 1 分钟后更新。')}</p>
     </Modal>
   );
 };

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
+import { useT } from '../../lib/phrases/editor';
 
 export const BUTTON_PRIMARY =
   'inline-flex items-center gap-1 px-4 py-2 rounded-md bg-gray-900 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50';
@@ -15,6 +16,7 @@ interface ModalProps {
 
 /** Full screen on phones, a centred dialog elsewhere. Escape and the backdrop call onClose. */
 export const Modal: React.FC<ModalProps> = ({ title, onClose, footer, children }) => {
+  const t = useT();
   const close = useRef(onClose);
   close.current = onClose;
   const panel = useRef<HTMLDivElement>(null);
@@ -54,7 +56,7 @@ export const Modal: React.FC<ModalProps> = ({ title, onClose, footer, children }
           <button
             type="button"
             onClick={() => close.current()}
-            aria-label="关闭"
+            aria-label={t('关闭')}
             className="p-1 text-gray-400 hover:text-gray-700"
           >
             <X size={18} />

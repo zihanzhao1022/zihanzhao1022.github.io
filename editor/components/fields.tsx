@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, ImagePlus, Trash2 } from 'lucide-react';
 import { resolveImage } from '../../lib/localImages';
+import { useT } from '../../lib/phrases/editor';
 import { ImageChoice } from '../existingImages';
 import { isPendingImage, prepareImage, validateImage } from '../images';
 import { Column, Field, Option, Values } from '../schemas';
@@ -17,13 +18,14 @@ const SelectInput: React.FC<{
   required?: boolean;
   onChange: (value: string) => void;
 }> = ({ id, value, options, required, onChange }) => {
+  const t = useT();
   const current = typeof value === 'string' ? value : '';
   return (
     <select id={id} className={INPUT} value={current} onChange={(event) => onChange(event.target.value)}>
-      {(!required || current === '') && <option value="">{required ? '请选择' : '（无）'}</option>}
+      {(!required || current === '') && <option value="">{required ? t('请选择') : t('（无）')}</option>}
       {options.map((option) => (
         <option key={option.value} value={option.value}>
-          {option.label}
+          {t(option.label)}
         </option>
       ))}
     </select>
@@ -39,6 +41,7 @@ const ImageInput: React.FC<{
   /** Images already used on the site that can be picked instead of uploading. */
   choices?: ImageChoice[];
 }> = ({ value, onChange, compact = false, choices = [] }) => {
+  const t = useT();
   const fileInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -58,7 +61,7 @@ const ImageInput: React.FC<{
       onChange(await prepareImage(file));
       setBrowsing(false);
     } catch {
-      setError('图片处理失败，请换一张试试');
+      setError(t('图片处理失败，请换一张试试'));
     } finally {
       setBusy(false);
       if (fileInput.current) fileInput.current.value = '';
@@ -85,7 +88,7 @@ const ImageInput: React.FC<{
           onClick={() => fileInput.current?.click()}
           className={`${BUTTON_SECONDARY} ${compact ? '!px-2 !py-1 !text-xs' : ''}`}
         >
-          {busy ? '处理中…' : src ? '更换' : '上传图片'}
+          {busy ? t('处理中…') : src ? t('更换') : t('上传图片')}
         </button>
         {canChoose && !busy && (
           <button
@@ -94,12 +97,12 @@ const ImageInput: React.FC<{
             onClick={() => setBrowsing((open) => !open)}
             className={BUTTON_SECONDARY}
           >
-            {browsing ? '收起' : '选择已有图片'}
+            {browsing ? t('收起') : t('选择已有图片')}
           </button>
         )}
         {src && !busy && (
           <button type="button" onClick={() => onChange('')} className="text-xs text-gray-500 hover:text-red-600">
-            移除
+            {t('移除')}
           </button>
         )}
         <input
@@ -132,7 +135,7 @@ const ImageInput: React.FC<{
           ))}
         </div>
       )}
-      {!compact && <p className="mt-1 text-xs text-gray-400">PNG、JPG、WebP 或 GIF，最大 5MB；超过 1600 像素会自动缩小</p>}
+      {!compact && <p className="mt-1 text-xs text-gray-400">{t('PNG、JPG、WebP 或 GIF，最大 5MB；超过 1600 像素会自动缩小')}</p>}
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>
   );
@@ -143,15 +146,16 @@ const CellInput: React.FC<{ column: Column; value: unknown; onChange: (value: un
   value,
   onChange,
 }) => {
+  const t = useT();
   if (column.type === 'image') return <ImageInput value={value} onChange={onChange} compact />;
   if (column.type === 'select') {
     return <SelectInput value={value} options={column.options ?? []} required={column.required} onChange={onChange} />;
   }
   return (
     <input
-      aria-label={column.label}
+      aria-label={t(column.label)}
       className={INPUT}
-      placeholder={column.placeholder ?? column.label}
+      placeholder={t(column.placeholder ?? column.label)}
       value={typeof value === 'string' ? value : ''}
       onChange={(event) => onChange(event.target.value)}
     />
@@ -181,6 +185,7 @@ const RowsInput: React.FC<{ field: Field; value: unknown; onChange: (value: unkn
   value,
   onChange,
 }) => {
+  const t = useT();
   const rows = Array.isArray(value) ? (value as Values[]) : [];
   const columns = field.columns ?? [];
   // Text columns share the free width; selects and images only take what they need.
@@ -214,13 +219,13 @@ const RowsInput: React.FC<{ field: Field; value: unknown; onChange: (value: unkn
             ))}
           </div>
           <div className="flex flex-col">
-            <IconButton label="上移" disabled={index === 0} onClick={() => move(index, -1)}>
+            <IconButton label={t('上移')} disabled={index === 0} onClick={() => move(index, -1)}>
               <ArrowUp size={14} />
             </IconButton>
-            <IconButton label="下移" disabled={index === rows.length - 1} onClick={() => move(index, 1)}>
+            <IconButton label={t('下移')} disabled={index === rows.length - 1} onClick={() => move(index, 1)}>
               <ArrowDown size={14} />
             </IconButton>
-            <IconButton label="删除这一行" onClick={() => onChange(rows.filter((_, i) => i !== index))}>
+            <IconButton label={t('删除这一行')} onClick={() => onChange(rows.filter((_, i) => i !== index))}>
               <Trash2 size={14} />
             </IconButton>
           </div>
@@ -231,7 +236,7 @@ const RowsInput: React.FC<{ field: Field; value: unknown; onChange: (value: unkn
         onClick={() => onChange([...rows, {}])}
         className="text-xs font-medium text-purple-600 hover:underline"
       >
-        + {field.addLabel ?? '添加一行'}
+        + {field.addLabel ? t(field.addLabel) : t('添加一行')}
       </button>
     </div>
   );
@@ -245,8 +250,10 @@ export const FieldControl: React.FC<{
   /** For image fields: images already used on the site. */
   imageChoices?: ImageChoice[];
 }> = ({ field, value, error, onChange, imageChoices }) => {
+  const t = useT();
   const id = `field-${field.key.replace(/\W/g, '-')}`;
   const textValue = typeof value === 'string' ? value : '';
+  const placeholder = field.placeholder && t(field.placeholder);
   let control: React.ReactNode;
   switch (field.type) {
     case 'select':
@@ -269,7 +276,7 @@ export const FieldControl: React.FC<{
           id={id}
           className={`${INPUT} leading-relaxed`}
           rows={field.rows ?? TEXTAREA_ROWS[field.type]}
-          placeholder={field.placeholder}
+          placeholder={placeholder}
           value={textValue}
           onChange={(event) => onChange(event.target.value)}
         />
@@ -282,7 +289,7 @@ export const FieldControl: React.FC<{
           className={INPUT}
           inputMode={field.type === 'year' ? 'numeric' : undefined}
           maxLength={field.type === 'year' ? 4 : undefined}
-          placeholder={field.placeholder}
+          placeholder={placeholder}
           value={textValue}
           onChange={(event) => onChange(event.target.value)}
         />
@@ -292,11 +299,11 @@ export const FieldControl: React.FC<{
   return (
     <div className="mb-4">
       <label htmlFor={id} className="block mb-1 text-xs font-medium text-gray-600">
-        {field.label}
+        {t(field.label)}
         {field.required && <span className="text-red-500"> *</span>}
       </label>
       {control}
-      {field.help && <p className="mt-1 text-xs text-gray-400">{field.help}</p>}
+      {field.help && <p className="mt-1 text-xs text-gray-400">{t(field.help)}</p>}
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>
   );

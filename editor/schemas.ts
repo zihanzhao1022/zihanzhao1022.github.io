@@ -1,3 +1,5 @@
+import { N_ } from '../lib/i18n';
+import { t } from '../lib/phrases/editor';
 import { ListCollection, NavItem, Profile, ProfileSection, Rank } from '../types';
 import { DEFAULT_PREAMBLE } from './tex/document';
 import { ImageUpload } from './backend';
@@ -58,17 +60,18 @@ export interface ListSchema extends FormSchema {
   unique?: Record<string, string>;
 }
 
-const LINK_HELP = '支持 [文字](链接) 和 **加粗**';
-const YEAR_IN_TEXT = { regex: /\d{4}/, message: '需要包含四位数字的年份' };
+// Titles, labels, help texts and messages are phrases (N_), translated where the form shows them.
+const LINK_HELP = N_('支持 [文字](链接) 和 **加粗**');
+const YEAR_IN_TEXT = { regex: /\d{4}/, message: N_('需要包含四位数字的年份') };
 const RANKS: Rank[] = ['Q1', 'Q2', 'Q3', 'Q4', 'CORE-A*', 'CORE-A', 'CORE-B', 'CORE-C', 'Unranked'];
 
 const text = (value: unknown): string => (typeof value === 'string' ? value : '');
-const SLUG = { regex: /^[a-z0-9]+(?:-[a-z0-9]+)*$/, message: '只能用小写字母、数字和连字符，例如 teaching' };
+const SLUG = { regex: /^[a-z0-9]+(?:-[a-z0-9]+)*$/, message: N_('只能用小写字母、数字和连字符，例如 teaching') };
 const isEducation = (state: FormState): boolean => state.category === 'education';
 // One GitHub user name per line (blank lines are fine). Written so that no input makes it backtrack badly.
 const GITHUB_LOGINS = {
   regex: /^[ \t]*(?:@?[A-Za-z0-9][A-Za-z0-9-]{0,38}[ \t]*)?(?:\r?\n[ \t]*(?:@?[A-Za-z0-9][A-Za-z0-9-]{0,38}[ \t]*)?)*$/,
-  message: '每行一个 GitHub 用户名，只能包含字母、数字和连字符',
+  message: N_('每行一个 GitHub 用户名，只能包含字母、数字和连字符'),
 };
 
 /** User names without "@", each once (GitHub ignores case); undefined for an empty list. */
@@ -90,173 +93,173 @@ function withLists(item: Values, lists: Record<string, string[] | undefined>): V
 
 export const LIST_SCHEMAS: Record<Exclude<ListCollection, 'navigation'>, ListSchema> = {
   news: {
-    addTitle: '添加新闻',
-    editTitle: '编辑新闻',
+    addTitle: N_('添加新闻'),
+    editTitle: N_('编辑新闻'),
     idPrefix: 'n',
     label: (item) => text(item.content),
     fields: [
-      { key: 'date', label: '日期', type: 'text', required: true, placeholder: 'Oct 6, 2026' },
-      { key: 'content', label: '内容', type: 'markdown', required: true, help: LINK_HELP },
+      { key: 'date', label: N_('日期'), type: 'text', required: true, placeholder: 'Oct 6, 2026' },
+      { key: 'content', label: N_('内容'), type: 'markdown', required: true, help: LINK_HELP },
     ],
   },
   experiences: {
-    addTitle: '添加经历',
-    editTitle: '编辑经历',
+    addTitle: N_('添加经历'),
+    editTitle: N_('编辑经历'),
     idPrefix: 'exp',
     label: (item) => text(item.title),
     defaults: () => ({ category: 'education' }),
     fields: [
       {
         key: 'category',
-        label: '分类',
+        label: N_('分类'),
         type: 'select',
         required: true,
         options: [
-          { value: 'education', label: '教育' },
-          { value: 'work', label: '工作' },
-          { value: 'volunteer', label: '志愿与服务' },
+          { value: 'education', label: N_('教育') },
+          { value: 'work', label: N_('工作') },
+          { value: 'volunteer', label: N_('志愿与服务') },
         ],
       },
-      { key: 'title', label: '学位 / 职位', type: 'text', required: true },
-      { key: 'institution', label: '机构', type: 'text', required: true },
-      { key: 'department', label: '院系', type: 'text', showIf: isEducation },
-      { key: 'location', label: '地点', type: 'text', required: true, placeholder: 'Tokyo, Japan' },
-      { key: 'date', label: '时间', type: 'text', required: true, placeholder: 'Sep. 2023 - Present' },
+      { key: 'title', label: N_('学位 / 职位'), type: 'text', required: true },
+      { key: 'institution', label: N_('机构'), type: 'text', required: true },
+      { key: 'department', label: N_('院系'), type: 'text', showIf: isEducation },
+      { key: 'location', label: N_('地点'), type: 'text', required: true, placeholder: 'Tokyo, Japan' },
+      { key: 'date', label: N_('时间'), type: 'text', required: true, placeholder: 'Sep. 2023 - Present' },
       { key: 'gpa', label: 'GPA', type: 'text', showIf: isEducation, placeholder: '3.5/4.0' },
-      { key: 'rank', label: '排名', type: 'text', showIf: isEducation, placeholder: 'Top 5%' },
-      { key: 'description', label: '描述', type: 'textarea', showIf: (state) => !isEducation(state) },
+      { key: 'rank', label: N_('排名'), type: 'text', showIf: isEducation, placeholder: 'Top 5%' },
+      { key: 'description', label: N_('描述'), type: 'textarea', showIf: (state) => !isEducation(state) },
       { key: 'image', label: 'Logo', type: 'image' },
     ],
   },
   publications: {
-    addTitle: '添加论文',
-    editTitle: '编辑论文',
+    addTitle: N_('添加论文'),
+    editTitle: N_('编辑论文'),
     idPrefix: 'p',
     label: (item) => text(item.title),
     defaults: () => ({ type: 'journal', rank: 'Q1', year: new Date().getFullYear(), authors: ['**Zihan Zhao**'] }),
     fields: [
-      { key: 'title', label: '标题', type: 'textarea', required: true },
+      { key: 'title', label: N_('标题'), type: 'textarea', required: true },
       {
         key: 'authors',
-        label: '作者',
+        label: N_('作者'),
         type: 'lines',
         required: true,
-        help: '每行一位；用 **名字** 加粗并加下划线（本人或共同一作）',
+        help: N_('每行一位；用 **名字** 加粗并加下划线（本人或共同一作）'),
       },
-      { key: 'year', label: '年份', type: 'year', required: true },
-      { key: 'venue', label: '期刊 / 会议', type: 'text', required: true },
+      { key: 'year', label: N_('年份'), type: 'year', required: true },
+      { key: 'venue', label: N_('期刊 / 会议'), type: 'text', required: true },
       {
         key: 'type',
-        label: '类型',
+        label: N_('类型'),
         type: 'select',
         required: true,
         options: [
-          { value: 'journal', label: '期刊' },
-          { value: 'conference', label: '会议' },
+          { value: 'journal', label: N_('期刊') },
+          { value: 'conference', label: N_('会议') },
         ],
       },
       {
         key: 'rank',
-        label: '等级',
+        label: N_('等级'),
         type: 'select',
         required: true,
-        options: RANKS.map((rank) => ({ value: rank, label: rank === 'Unranked' ? '其他（显示为 Else）' : rank })),
+        options: RANKS.map((rank) => ({ value: rank, label: rank === 'Unranked' ? N_('其他（显示为 Else）') : rank })),
       },
       {
         key: 'impactFactor',
-        label: '影响因子',
+        label: N_('影响因子'),
         type: 'text',
         placeholder: '6.9',
         showIf: (state) => state.type === 'journal',
       },
-      { key: 'image', label: '缩略图', type: 'image' },
-      { key: 'links.abs', label: 'Abstract 链接', type: 'text', placeholder: 'https://' },
-      { key: 'links.pdf', label: 'PDF 链接', type: 'text', placeholder: 'https://' },
-      { key: 'links.doi', label: 'DOI 链接', type: 'text', placeholder: 'https://doi.org/…' },
-      { key: 'links.code', label: '代码链接', type: 'text', placeholder: 'https://github.com/…' },
+      { key: 'image', label: N_('缩略图'), type: 'image' },
+      { key: 'links.abs', label: N_('Abstract 链接'), type: 'text', placeholder: 'https://' },
+      { key: 'links.pdf', label: N_('PDF 链接'), type: 'text', placeholder: 'https://' },
+      { key: 'links.doi', label: N_('DOI 链接'), type: 'text', placeholder: 'https://doi.org/…' },
+      { key: 'links.code', label: N_('代码链接'), type: 'text', placeholder: 'https://github.com/…' },
     ],
   },
   projects: {
-    addTitle: '添加项目',
-    editTitle: '编辑项目',
+    addTitle: N_('添加项目'),
+    editTitle: N_('编辑项目'),
     idPrefix: 'prj',
     label: (item) => text(item.title),
     fields: [
-      { key: 'title', label: '项目名称', type: 'textarea', required: true },
-      { key: 'role', label: '角色', type: 'text', required: true, placeholder: 'Project Leader' },
-      { key: 'description', label: '简介', type: 'textarea', required: true },
+      { key: 'title', label: N_('项目名称'), type: 'textarea', required: true },
+      { key: 'role', label: N_('角色'), type: 'text', required: true, placeholder: 'Project Leader' },
+      { key: 'description', label: N_('简介'), type: 'textarea', required: true },
       {
         key: 'year',
-        label: '时间',
+        label: N_('时间'),
         type: 'text',
         required: true,
         placeholder: 'Mar. 2023 - May 2023',
         pattern: YEAR_IN_TEXT,
-        help: '按其中第一个年份分组排序',
+        help: N_('按其中第一个年份分组排序'),
       },
-      { key: 'level', label: '级别', type: 'text', required: true, placeholder: 'National Key R&D Program' },
-      { key: 'image', label: '图片', type: 'image' },
+      { key: 'level', label: N_('级别'), type: 'text', required: true, placeholder: 'National Key R&D Program' },
+      { key: 'image', label: N_('图片'), type: 'image' },
     ],
   },
   talks: {
-    addTitle: '添加报告',
-    editTitle: '编辑报告',
+    addTitle: N_('添加报告'),
+    editTitle: N_('编辑报告'),
     idPrefix: 't',
     label: (item) => text(item.title),
     fields: [
-      { key: 'title', label: '题目', type: 'textarea', required: true },
-      { key: 'event', label: '活动名称', type: 'text', placeholder: 'AI Seminar Series' },
-      { key: 'date', label: '日期', type: 'text', required: true, placeholder: 'Dec 2024' },
-      { key: 'host', label: '主办方', type: 'text', required: true },
-      { key: 'location', label: '地点', type: 'text', required: true },
-      { key: 'collaborators', label: '合作方', type: 'text' },
+      { key: 'title', label: N_('题目'), type: 'textarea', required: true },
+      { key: 'event', label: N_('活动名称'), type: 'text', placeholder: 'AI Seminar Series' },
+      { key: 'date', label: N_('日期'), type: 'text', required: true, placeholder: 'Dec 2024' },
+      { key: 'host', label: N_('主办方'), type: 'text', required: true },
+      { key: 'location', label: N_('地点'), type: 'text', required: true },
+      { key: 'collaborators', label: N_('合作方'), type: 'text' },
     ],
   },
   awards: {
-    addTitle: '添加奖项',
-    editTitle: '编辑奖项',
+    addTitle: N_('添加奖项'),
+    editTitle: N_('编辑奖项'),
     idPrefix: 'aw',
     label: (item) => text(item.title),
     defaults: () => ({ type: 'international' }),
     finalize: (item) => ({ ...item, year: Number(text(item.date).match(/\d{4}/)?.[0] ?? item.year) }),
     fields: [
-      { key: 'title', label: '奖项名称', type: 'textarea', required: true },
-      { key: 'issuer', label: '颁发机构', type: 'text', required: true },
+      { key: 'title', label: N_('奖项名称'), type: 'textarea', required: true },
+      { key: 'issuer', label: N_('颁发机构'), type: 'text', required: true },
       {
         key: 'date',
-        label: '日期',
+        label: N_('日期'),
         type: 'text',
         required: true,
         placeholder: 'Sep 2025',
         pattern: YEAR_IN_TEXT,
-        help: '按其中的年份分组',
+        help: N_('按其中的年份分组'),
       },
       {
         key: 'type',
-        label: '类型',
+        label: N_('类型'),
         type: 'select',
         required: true,
         options: [
-          { value: 'international', label: '国际' },
-          { value: 'national', label: '国家级（中国）' },
-          { value: 'provincial', label: '省级（中国）' },
-          { value: 'scholarship', label: '奖学金' },
+          { value: 'international', label: N_('国际') },
+          { value: 'national', label: N_('国家级（中国）') },
+          { value: 'provincial', label: N_('省级（中国）') },
+          { value: 'scholarship', label: N_('奖学金') },
         ],
       },
       {
         key: 'level',
-        label: '等级',
+        label: N_('等级'),
         type: 'text',
         placeholder: 'First Prize',
-        help: '含 Gold / First、Silver / Second、Bronze / Third 时自动配色',
+        help: N_('含 Gold / First、Silver / Second、Bronze / Third 时自动配色'),
       },
-      { key: 'prize', label: '奖金', type: 'text', placeholder: 'JPY 200,000' },
-      { key: 'image', label: '图片', type: 'image' },
+      { key: 'prize', label: N_('奖金'), type: 'text', placeholder: 'JPY 200,000' },
+      { key: 'image', label: N_('图片'), type: 'image' },
     ],
   },
   results: {
-    addTitle: '添加论文',
-    editTitle: '编辑论文信息',
+    addTitle: N_('添加论文'),
+    editTitle: N_('编辑论文信息'),
     idPrefix: 'res',
     label: (item) => text(item.title),
     // New papers stay private until the owner unhides (publishes) them.
@@ -268,7 +271,7 @@ export const LIST_SCHEMAS: Record<Exclude<ListCollection, 'navigation'>, ListSch
       files: [],
       blocks: [],
     }),
-    unique: { slug: '这个地址已被其他论文使用' },
+    unique: { slug: N_('这个地址已被其他论文使用') },
     finalize: (item) =>
       withLists(
         {
@@ -279,19 +282,19 @@ export const LIST_SCHEMAS: Record<Exclude<ListCollection, 'navigation'>, ListSch
         { viewers: logins(item.viewers), editors: logins(item.editors) },
       ),
     fields: [
-      { key: 'title', label: '标题', type: 'textarea', required: true },
-      { key: 'slug', label: '页面地址', type: 'text', pattern: SLUG, help: '网址为 #/results/<地址>；留空则根据标题生成' },
-      { key: 'authors', label: '作者', type: 'lines', help: '每行一位；用 **名字** 加粗（本人或共同一作）' },
-      { key: 'venue', label: '会议 / 状态', type: 'text', placeholder: 'ICLR 2027 · under review' },
-      { key: 'year', label: '年份', type: 'year' },
-      { key: 'summary', label: '简介', type: 'textarea', help: '显示在目录页的卡片上' },
+      { key: 'title', label: N_('标题'), type: 'textarea', required: true },
+      { key: 'slug', label: N_('页面地址'), type: 'text', pattern: SLUG, help: N_('网址为 #/results/<地址>；留空则根据标题生成') },
+      { key: 'authors', label: N_('作者'), type: 'lines', help: N_('每行一位；用 **名字** 加粗（本人或共同一作）') },
+      { key: 'venue', label: N_('会议 / 状态'), type: 'text', placeholder: 'ICLR 2027 · under review' },
+      { key: 'year', label: N_('年份'), type: 'year' },
+      { key: 'summary', label: N_('简介'), type: 'textarea', help: N_('显示在目录页的卡片上') },
       {
         key: 'viewers',
-        label: '可以查看的人',
+        label: N_('可以查看的人'),
         type: 'lines',
         pattern: GITHUB_LOGINS,
         rows: 3,
-        help: '每行一个 GitHub 用户名。论文隐藏时他们用 GitHub 登录后也能看到，但只看到可见块的结果，看不到 LaTeX 代码',
+        help: N_('每行一个 GitHub 用户名。论文隐藏时他们用 GitHub 登录后也能看到，但只看到可见块的结果，看不到 LaTeX 代码'),
       },
     ],
   },
@@ -302,57 +305,57 @@ const PLATFORMS: Option[] = [
   { value: 'github', label: 'GitHub' },
   { value: 'linkedin', label: 'LinkedIn' },
   { value: 'orcid', label: 'ORCID' },
-  { value: 'wechat', label: '微信' },
-  { value: 'overwatch', label: '守望先锋' },
+  { value: 'wechat', label: N_('微信') },
+  { value: 'overwatch', label: N_('守望先锋') },
 ];
 
 export const PROFILE_SCHEMAS: Record<ProfileSection, FormSchema> = {
   basics: {
-    editTitle: '编辑基本信息',
+    editTitle: N_('编辑基本信息'),
     label: () => 'basics',
     fields: [
-      { key: 'name.first', label: '名（First name）', type: 'text', required: true },
-      { key: 'name.last', label: '姓（Last name）', type: 'text', required: true },
-      { key: 'name.chinese', label: '中文名', type: 'text' },
-      { key: 'title', label: '职位', type: 'text', required: true, placeholder: 'PhD Candidate' },
-      { key: 'affiliation', label: '单位', type: 'text', required: true },
-      { key: 'email', label: '邮箱', type: 'text', required: true },
+      { key: 'name.first', label: N_('名（First name）'), type: 'text', required: true },
+      { key: 'name.last', label: N_('姓（Last name）'), type: 'text', required: true },
+      { key: 'name.chinese', label: N_('中文名'), type: 'text' },
+      { key: 'title', label: N_('职位'), type: 'text', required: true, placeholder: 'PhD Candidate' },
+      { key: 'affiliation', label: N_('单位'), type: 'text', required: true },
+      { key: 'email', label: N_('邮箱'), type: 'text', required: true },
       {
         key: 'languages',
-        label: '语言',
+        label: N_('语言'),
         type: 'rows',
-        addLabel: '添加语言',
+        addLabel: N_('添加语言'),
         columns: [
-          { key: 'language', label: '语言', type: 'text', required: true },
-          { key: 'proficiency', label: '水平', type: 'text', required: true },
+          { key: 'language', label: N_('语言'), type: 'text', required: true },
+          { key: 'proficiency', label: N_('水平'), type: 'text', required: true },
         ],
       },
     ],
   },
   bio: {
-    editTitle: '编辑简介',
+    editTitle: N_('编辑简介'),
     label: () => 'bio',
-    fields: [{ key: 'bio', label: '简介', type: 'paragraphs', required: true, help: `段落之间空一行；${LINK_HELP}` }],
+    fields: [{ key: 'bio', label: N_('简介'), type: 'paragraphs', required: true, help: N_('段落之间空一行；支持 [文字](链接) 和 **加粗**') }],
   },
   avatar: {
-    editTitle: '更换头像',
+    editTitle: N_('更换头像'),
     label: () => 'avatar',
-    fields: [{ key: 'avatar', label: '头像', type: 'image', required: true }],
+    fields: [{ key: 'avatar', label: N_('头像'), type: 'image', required: true }],
   },
   socials: {
-    editTitle: '编辑联系方式',
+    editTitle: N_('编辑联系方式'),
     label: () => 'socials',
     fields: [
       {
         key: 'socials',
-        label: '联系方式',
+        label: N_('联系方式'),
         type: 'rows',
-        addLabel: '添加联系方式',
-        help: '微信的链接可以填 #，并上传二维码；访客点图标时会显示二维码。守望先锋的链接填 #，点图标会在简介第二段下面显示段位',
+        addLabel: N_('添加联系方式'),
+        help: N_('微信的链接可以填 #，并上传二维码；访客点图标时会显示二维码。守望先锋的链接填 #，点图标会在简介第二段下面显示段位'),
         columns: [
-          { key: 'platform', label: '平台', type: 'select', options: PLATFORMS, required: true },
-          { key: 'url', label: '链接', type: 'text', required: true, placeholder: 'https://' },
-          { key: 'qrCode', label: '二维码', type: 'image' },
+          { key: 'platform', label: N_('平台'), type: 'select', options: PLATFORMS, required: true },
+          { key: 'url', label: N_('链接'), type: 'text', required: true, placeholder: 'https://' },
+          { key: 'qrCode', label: N_('二维码'), type: 'image' },
         ],
       },
     ],
@@ -369,48 +372,48 @@ export const slugify = (value: string): string =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
-const WEB_ADDRESS = { regex: /^https?:\/\/\S+$/i, message: '请填写以 http:// 或 https:// 开头的网址' };
+const WEB_ADDRESS = { regex: /^https?:\/\/\S+$/i, message: N_('请填写以 http:// 或 https:// 开头的网址') };
 const BODY_HELP =
-  '支持 ## 小标题、- 列表、1. 编号列表、[文字](链接)、**加粗**；单独一行的 ![说明](图片地址) 会显示图片；空行分段';
+  N_('支持 ## 小标题、- 列表、1. 编号列表、[文字](链接)、**加粗**；单独一行的 ![说明](图片地址) 会显示图片；空行分段');
 
 export const NAV_SCHEMAS: Record<NavItem['type'], ListSchema> = {
   builtin: {
-    addTitle: '恢复页面',
-    editTitle: '编辑导航项',
+    addTitle: N_('恢复页面'),
+    editTitle: N_('编辑导航项'),
     idPrefix: 'nav',
     label: (item) => text(item.label),
-    fields: [{ key: 'label', label: '导航名称', type: 'text', required: true }],
+    fields: [{ key: 'label', label: N_('导航名称'), type: 'text', required: true }],
   },
   page: {
-    addTitle: '新增页面',
-    editTitle: '编辑页面',
+    addTitle: N_('新增页面'),
+    editTitle: N_('编辑页面'),
     idPrefix: 'page',
     label: (item) => text(item.label),
     defaults: () => ({ type: 'page', body: '' }),
-    unique: { slug: '这个地址已被其他页面使用' },
+    unique: { slug: N_('这个地址已被其他页面使用') },
     finalize: (item) => ({
       ...item,
       slug: text(item.slug) || slugify(text(item.label)) || String(item.id),
       body: text(item.body),
     }),
     fields: [
-      { key: 'label', label: '导航名称', type: 'text', required: true, placeholder: 'teaching' },
-      { key: 'title', label: '页面标题', type: 'text', required: true, placeholder: 'teaching' },
-      { key: 'slug', label: '页面地址', type: 'text', pattern: SLUG, help: '网址为 #/p/<地址>；留空则根据导航名称生成' },
-      { key: 'body', label: '正文', type: 'markdown', rows: 14, help: BODY_HELP },
+      { key: 'label', label: N_('导航名称'), type: 'text', required: true, placeholder: 'teaching' },
+      { key: 'title', label: N_('页面标题'), type: 'text', required: true, placeholder: 'teaching' },
+      { key: 'slug', label: N_('页面地址'), type: 'text', pattern: SLUG, help: N_('网址为 #/p/<地址>；留空则根据导航名称生成') },
+      { key: 'body', label: N_('正文'), type: 'markdown', rows: 14, help: BODY_HELP },
     ],
   },
   link: {
-    addTitle: '新增外部链接',
-    editTitle: '编辑外部链接',
+    addTitle: N_('新增外部链接'),
+    editTitle: N_('编辑外部链接'),
     idPrefix: 'link',
     label: (item) => text(item.label),
     defaults: () => ({ type: 'link' }),
     fields: [
-      { key: 'label', label: '导航名称', type: 'text', required: true, placeholder: 'scholar' },
+      { key: 'label', label: N_('导航名称'), type: 'text', required: true, placeholder: 'scholar' },
       {
         key: 'url',
-        label: '网址',
+        label: N_('网址'),
         type: 'text',
         required: true,
         pattern: WEB_ADDRESS,
@@ -480,9 +483,10 @@ const isBlank = (field: Field, value: unknown): boolean => {
 const isBlankCell = (column: Column, value: unknown): boolean => (column.type === 'image' ? !value : text(value).trim() === '');
 
 const requiredMessage = (field: Field): string => {
-  if (field.type === 'image') return `请上传${field.label}`;
-  if (field.type === 'select') return `请选择${field.label}`;
-  return `请填写${field.label}`;
+  const label = t(field.label);
+  if (field.type === 'image') return t('请上传{label}', { label });
+  if (field.type === 'select') return t('请选择{label}', { label });
+  return t('请填写{label}', { label });
 };
 
 export function validateForm(schema: FormSchema, state: FormState): Record<string, string> {
@@ -494,16 +498,16 @@ export function validateForm(schema: FormSchema, state: FormState): Record<strin
       continue;
     }
     if (field.type === 'year' && !/^\d{4}$/.test(text(value).trim())) {
-      errors[field.key] = '请填写四位数字的年份';
+      errors[field.key] = t('请填写四位数字的年份');
     } else if (field.pattern && !field.pattern.regex.test(text(value))) {
-      errors[field.key] = field.pattern.message;
+      errors[field.key] = t(field.pattern.message);
     } else if (field.type === 'rows') {
       const missing = (value as Values[]).flatMap((row, index) =>
         (field.columns ?? [])
           .filter((column) => column.required && isBlankCell(column, row[column.key]))
-          .map((column) => `第 ${index + 1} 行的${column.label}`),
+          .map((column) => ({ row: index + 1, label: t(column.label) })),
       );
-      if (missing.length > 0) errors[field.key] = `请填写${missing[0]}`;
+      if (missing.length > 0) errors[field.key] = t('请填写第 {row} 行的{label}', missing[0]);
     }
   }
   return errors;

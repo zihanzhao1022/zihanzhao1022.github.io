@@ -1,3 +1,4 @@
+import { t } from '../lib/phrases/editor';
 import { EDITOR_CONFIG } from './config';
 import { ConflictError } from './errors';
 import { GitHubApi, GitHubError, TreeEntry, createGitHubApi } from './github';
@@ -93,12 +94,13 @@ export function createGitHubBackend(api: GitHubApi): EditorBackend {
 export function describeSaveError(error: unknown): string {
   if (error instanceof ConflictError) return error.message;
   if (error instanceof GitHubError) {
-    if (error.status === 401) return '登录已过期，请先复制你的修改，再重新登录后保存';
-    if (error.status === 403 || error.status === 404) return '没有写入权限，请确认 GitHub App 已安装到这个仓库';
-    if (error.status === 0) return '网络连接失败，请检查网络后重试';
-    return `保存失败（GitHub 返回 ${error.status}），请稍后重试`;
+    if (error.status === 401) return t('登录已过期，请先复制你的修改，再重新登录后保存');
+    if (error.status === 403 || error.status === 404) return t('没有写入权限，请确认 GitHub App 已安装到这个仓库');
+    if (error.status === 0) return t('网络连接失败，请检查网络后重试');
+    return t('保存失败（GitHub 返回 {status}），请稍后重试', { status: error.status });
   }
-  return error instanceof Error ? error.message : '保存失败，请稍后重试';
+  // Other errors are translated where they are made, so their messages are shown as they are.
+  return error instanceof Error ? error.message : t('保存失败，请稍后重试');
 }
 
 export async function createBackend(session: Session): Promise<EditorBackend> {

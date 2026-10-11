@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PresenceValue, PresenceState, Reader, Viewer } from '../components/presence';
+import { changeComments } from '../lib/comments';
+import type { CommentOp, ResultComment } from '../types';
 import { MOCK_MODE, Session } from '../lib/session';
 import { mockUserId } from './auth';
 import { EDITOR_CONFIG } from './config';
@@ -8,6 +10,7 @@ interface Connection {
   setPaper(paperId: string | null): void;
   setBlock(blockId: string | null): void;
   resolve(login: string): void;
+  comment(op: CommentOp): void;
   close(): void;
 }
 
@@ -28,7 +31,11 @@ function connect(session: Session, onChange: (state: PresenceState) => void): Co
   let attempt = 0;
   let ping: ReturnType<typeof setInterval> | undefined;
   let retry: ReturnType<typeof setTimeout> | undefined;
-  let me: Viewer | undefined;
+  let state: PresenceState = { viewers: [] };
+  const update = (change: Partial<PresenceState>) => {
+    state = { ...state, ...change };
+    onChange(state);
+  };
 
   const send = (message: unknown) => {
     if (socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
@@ -49,20 +56,23 @@ function connect(session: Session, onChange: (state: PresenceState) => void): Co
       } catch {
         return;
       }
-      if (message.t === 'welcome') me = message.me as Viewer;
+      if (message.t === 'welcome') update({ me: message.me as Viewer, connected: true });
       if (message.t === 'error') closed = true;
       if (message.t === 'presence') {
-        onChange({
-          me,
+        update({
           viewers: (message.viewers as Reader[]) ?? [],
-          ...(message.online ? { online: message.online as PresenceState['online'] } : {}),
-          ...(message.recent ? { recent: message.recent as PresenceState['recent'] } : {}),
-          ...(message.requests ? { requests: message.requests as PresenceState['requests'] } : {}),
+          online: message.online as PresenceState['online'],
+          recent: message.recent as PresenceState['recent'],
+          requests: message.requests as PresenceState['requests'],
         });
+      }
+      if (message.t === 'comments' && typeof message.paper === 'string') {
+        update({ comments: { paper: message.paper, threads: (message.threads as ResultComment[]) ?? [] } });
       }
     };
     socket.onclose = () => {
       clearInterval(ping);
+      if (state.connected) update({ connected: false });
       if (closed) return;
       retry = setTimeout(open, RETRY_MS[Math.min(attempt, RETRY_MS.length - 1)]);
       attempt += 1;
@@ -84,6 +94,9 @@ function connect(session: Session, onChange: (state: PresenceState) => void): Co
     resolve(login) {
       send({ t: 'resolve', login });
     },
+    comment(op) {
+      send({ t: 'comment', op });
+    },
     close() {
       closed = true;
       clearInterval(ping);
@@ -101,6 +114,15 @@ function connectMock(session: Session, onChange: (state: PresenceState) => void)
   let paper: string | null = null;
   let block: string | null = null;
   let requests: PresenceState['requests'] = [];
+  // Comments follow the room's rules (lib/comments) and stay in this browser.
+  const readComments = (): Record<string, ResultComment[]> => {
+    try {
+      return JSON.parse(localStorage.getItem('mock-comments') ?? '{}') as Record<string, ResultComment[]>;
+    } catch {
+      return {};
+    }
+  };
+  let comments = readComments();
   // The mock knows no paper's blocks, so alice reads the second one on the page.
   const aliceBlock = () => {
     const ids = Array.from(document.querySelectorAll<HTMLElement>('[data-result-block-id]'), (element) => element.dataset.resultBlockId);
@@ -110,6 +132,8 @@ function connectMock(session: Session, onChange: (state: PresenceState) => void)
   const emit = () =>
     onChange({
       me,
+      connected: true,
+      ...(paper ? { comments: { paper, threads: comments[paper] ?? [] } } : {}),
       viewers: paper ? [{ ...me, ...at(block) }, { ...alice, ...at(aliceBlock()) }] : [],
       ...(session.role === 'collaborator'
         ? {}
@@ -149,6 +173,25 @@ function connectMock(session: Session, onChange: (state: PresenceState) => void)
         return load();
       });
     },
+    comment(op) {
+      if (!paper) return;
+      const threads = comments[paper] ?? [];
+      const actor = { ...me, owner: session.role !== 'collaborator' };
+      const newId = (prefix: string) => `${prefix}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+      const change = changeComments(threads, op, actor, () => true, { paper, now: Date.now(), newId });
+      if (!change) return;
+      const next =
+        'put' in change
+          ? [...threads.filter((thread) => thread.id !== change.put.id), change.put].sort((a, b) => a.at - b.at)
+          : threads.filter((thread) => thread.id !== change.remove.id);
+      comments = { ...comments, [paper]: next };
+      try {
+        localStorage.setItem('mock-comments', JSON.stringify(comments));
+      } catch {
+        // Private windows may refuse; the comments still show until reload.
+      }
+      emit();
+    },
     close() {
       clearTimeout(timer);
     },
@@ -170,5 +213,6 @@ export function usePresence(session: Session): PresenceValue {
   const setPaper = useCallback((paperId: string | null) => connection.current?.setPaper(paperId), []);
   const setBlock = useCallback((blockId: string | null) => connection.current?.setBlock(blockId), []);
   const resolveRequest = useCallback((login: string) => connection.current?.resolve(login), []);
-  return useMemo(() => ({ ...state, setPaper, setBlock, resolveRequest }), [state, setPaper, setBlock, resolveRequest]);
+  const comment = useCallback((op: CommentOp) => connection.current?.comment(op), []);
+  return useMemo(() => ({ ...state, setPaper, setBlock, resolveRequest, comment }), [state, setPaper, setBlock, resolveRequest, comment]);
 }

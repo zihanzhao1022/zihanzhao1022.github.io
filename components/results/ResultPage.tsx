@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Check, Copy, ListTree, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Check, Copy, ListTree, MessageSquare, MessageSquarePlus, X } from 'lucide-react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { exportPaperTex, exportTex } from '../../editor/results/texNames';
 import { findPaper, shownBlocks } from '../../lib/results';
@@ -9,7 +10,9 @@ import { AddButton, EditButton, EditModeContext, HiddenBadge, useEditMode } from
 import { SortableGroup } from '../SortableGroup';
 import { ResultsAccess, canEditShared, isCollaborator, useResultsAccess } from './access';
 import Authors from './Authors';
-import BlockView from './BlockView';
+import BlockView, { QuoteMark } from './BlockView';
+import CommentsPanel, { DraftComment } from './comments/CommentsPanel';
+import { useSelectedQuote } from './comments/textLayer';
 import HeadingView from './HeadingView';
 import LoginPrompt from './LoginPrompt';
 import Outline from './Outline';
@@ -78,19 +81,59 @@ const BlockReaders: React.FC<{ blockId: string }> = ({ blockId }) => {
   );
 };
 
-const BlockItem: React.FC<{ paperId: string; block: ResultBlock }> = ({ paperId, block }) => {
+/** A block's comments, for its button, its badge and the highlights in its PDF. */
+interface BlockComments {
+  count: number;
+  /** The block's first open thread, for the badge. */
+  first?: string;
+  quotes: QuoteMark[];
+  active: string | null;
+  onAdd: () => void;
+  onOpen: (id: string) => void;
+}
+
+const BlockItem: React.FC<{ paperId: string; block: ResultBlock; comments?: BlockComments }> = ({ paperId, block, comments }) => {
   const { editing } = useEditMode();
   const heading = block.kind === 'heading';
+  const add = comments && (
+    <button
+      type="button"
+      onClick={comments.onAdd}
+      title="批注这一块"
+      aria-label="批注这一块"
+      className={
+        editing
+          ? 'inline-flex h-8 items-center gap-1 rounded-full border border-gray-300 bg-white px-2.5 text-xs text-gray-600 shadow-sm hover:border-purple-300 hover:text-purple-700'
+          : 'absolute right-1 top-1 z-10 rounded-full border border-gray-200 bg-white/90 p-1.5 text-gray-400 opacity-0 shadow-sm transition-opacity hover:text-purple-700 focus:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100'
+      }
+    >
+      <MessageSquarePlus size={14} />
+      {editing && '批注'}
+    </button>
+  );
   return (
     <div
       data-result-block-id={block.id}
-      className={`relative scroll-mt-24${editing ? ' result-block--editable' : ''}${block.hidden ? ' opacity-50' : ''}`}
+      className={`group relative scroll-mt-24${editing ? ' result-block--editable' : ''}${block.hidden ? ' opacity-50' : ''}`}
     >
       <BlockReaders blockId={block.id} />
+      {/* Below the width of the comments column, a block shows how many comments it has. */}
+      {comments && comments.count > 0 && comments.first && (
+        <button
+          type="button"
+          onClick={() => comments.onOpen(comments.first!)}
+          className="absolute -top-8 left-0 z-10 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800 xl:hidden"
+        >
+          <MessageSquare size={12} />
+          {comments.count}
+        </button>
+      )}
+      {!editing && add}
       {editing && (
         <div className="flex items-center justify-end gap-2 mb-1 text-xs text-gray-400">
           {KIND_LABEL[block.kind]}
           {block.hidden && <HiddenBadge />}
+          {add}
           {block.source && <CopyButton text={() => exportTex(block.source ?? '')} label="复制 LaTeX" title="复制 LaTeX 代码（开头注明需要的宏包）" />}
           <EditButton
             request={heading ? { kind: 'heading', paperId, blockId: block.id } : { kind: 'block', paperId, blockId: block.id }}
@@ -98,7 +141,11 @@ const BlockItem: React.FC<{ paperId: string; block: ResultBlock }> = ({ paperId,
           />
         </div>
       )}
-      {heading ? <HeadingView paperId={paperId} block={block} /> : <BlockView paperId={paperId} block={block} />}
+      {heading ? (
+        <HeadingView paperId={paperId} block={block} />
+      ) : (
+        <BlockView paperId={paperId} block={block} quotes={comments?.quotes} activeQuote={comments?.active} onQuoteClick={comments?.onOpen} />
+      )}
       {editing && (
         <div className="result-block-insert" role="group" aria-label="在当前块下方插入内容">
           <InsertButtons paperId={paperId} afterBlockId={block.id} />
@@ -182,6 +229,20 @@ const Viewers: React.FC<{ blocks: ResultBlock[] }> = ({ blocks }) => {
   );
 };
 
+/** Whether the window is wide enough for the comments column (Tailwind's xl). */
+function useWide(): boolean {
+  const query = '(min-width: 1280px)';
+  // Server rendering (the page tests) has no window.
+  const [wide, setWide] = useState(() => typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(query).matches);
+  useEffect(() => {
+    const list = window.matchMedia(query);
+    const update = () => setWide(list.matches);
+    list.addEventListener('change', update);
+    return () => list.removeEventListener('change', update);
+  }, []);
+  return wide;
+}
+
 /** One paper's results: its blocks of text, figures and tables, each compiled to a PDF. */
 const ResultPage: React.FC = () => {
   const { slug } = useParams();
@@ -215,16 +276,33 @@ const ResultPage: React.FC = () => {
   );
   const readingArea = useRef<HTMLDivElement>(null);
   useReportBlockInView(readingArea, onBlockInView, paperId);
-  // Below the width where the outline sits beside the text, it opens as a drawer.
+  // Below the width where the outline and the comments sit beside the text, they open as drawers.
+  const wide = useWide();
   const [drawer, setDrawer] = useState(false);
+  const [commentDrawer, setCommentDrawer] = useState(false);
   useEffect(() => {
-    if (!drawer) return undefined;
+    if (!drawer && !commentDrawer) return undefined;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setDrawer(false);
+      if (event.key !== 'Escape') return;
+      setDrawer(false);
+      setCommentDrawer(false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [drawer]);
+  }, [drawer, commentDrawer]);
+  // Comments: the one being written, the one looked at, and whether the column shows (by default when
+  // there are open threads).
+  const [draft, setDraft] = useState<DraftComment | null>(null);
+  const [focused, setFocused] = useState<string | null>(null);
+  const [showResolved, setShowResolved] = useState(false);
+  const [pinned, setPinned] = useState<boolean | null>(null);
+  const [contentColumn, setContentColumn] = useState<HTMLDivElement | null>(null);
+  const [commentColumn, setCommentColumn] = useState<HTMLElement | null>(null);
+  const [selected, clearSelected] = useSelectedQuote(readingArea, Boolean(presence));
+  useEffect(() => {
+    setDraft(null);
+    setFocused(null);
+  }, [paperId]);
 
   if (!paper) {
     // The private list may still be loading; only then is a missing paper really missing.
@@ -247,6 +325,77 @@ const ResultPage: React.FC = () => {
     setDrawer(false);
     goTo(blockId);
   };
+  const allThreads = presence?.comments?.paper === paper.id ? presence.comments.threads : [];
+  const openThreads = allThreads.filter((thread) => !thread.resolved);
+  const columnShown = Boolean(presence) && (draft !== null || (pinned ?? openThreads.length > 0));
+  const startDraft = (next: DraftComment) => {
+    setDraft(next);
+    setFocused(null);
+    // Once someone works with the comments, the column stays until they close it.
+    if (wide) setPinned(true);
+    else setCommentDrawer(true);
+  };
+  const post = (text: string) => {
+    if (!draft) return;
+    presence?.comment({ kind: 'add', block: draft.block, text, ...(draft.quote ? { quote: draft.quote, prefix: draft.prefix, suffix: draft.suffix } : {}) });
+    setDraft(null);
+  };
+  // From a card to what it discusses, and from highlighted text to its card.
+  const reveal = (id: string) => {
+    setFocused(id);
+    const thread = allThreads.find((item) => item.id === id);
+    if (!thread) return;
+    if (!wide) setCommentDrawer(false);
+    const target =
+      document.querySelector(`[data-comment-highlight="${CSS.escape(id)}"]`) ?? document.querySelector(`[data-result-block-id="${CSS.escape(thread.block)}"]`);
+    target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+  const openThread = (id: string) => {
+    setFocused(id);
+    if (wide) setPinned(true);
+    else setCommentDrawer(true);
+    requestAnimationFrame(() => document.getElementById(`comment-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }));
+  };
+  const blockComments = (blockId: string): BlockComments | undefined => {
+    if (!presence) return undefined;
+    const threads = openThreads.filter((thread) => thread.block === blockId);
+    return {
+      count: threads.length,
+      first: threads[0]?.id,
+      quotes: threads.flatMap((thread) => (thread.quote ? [{ id: thread.id, quote: thread.quote, prefix: thread.prefix, suffix: thread.suffix }] : [])),
+      active: focused,
+      onAdd: () => startDraft({ block: blockId }),
+      onOpen: openThread,
+    };
+  };
+  const panel = (aligned: boolean) => (
+    <CommentsPanel
+      threads={showResolved ? allThreads : openThreads}
+      order={order}
+      draft={draft}
+      focused={focused}
+      resolvedCount={allThreads.length - openThreads.length}
+      showResolved={showResolved}
+      onToggleResolved={() => setShowResolved((value) => !value)}
+      aligned={aligned ? { column: commentColumn, content: contentColumn } : undefined}
+      meId={presence?.me?.id}
+      owner={!collaborator}
+      connected={Boolean(presence?.connected)}
+      onFocus={reveal}
+      onPost={post}
+      onCancelDraft={() => setDraft(null)}
+      onClose={() => {
+        setDraft(null);
+        if (aligned) setPinned(false);
+        else setCommentDrawer(false);
+      }}
+      act={(op) => {
+        if (aligned) setPinned(true);
+        presence?.comment(op);
+      }}
+    />
+  );
+  const referencesComments = blockComments('references');
   const outline =
     items.length > 0 ? (
       <Outline items={items} active={itemAt(items, order, reading)} readers={readers} onGo={go} />
@@ -256,14 +405,24 @@ const ResultPage: React.FC = () => {
 
   return (
     <EditModeContext.Provider value={pageMode}>
-      {/* On wide screens the outline sits beside the text; the site widens a paper's page for it (SiteLayout). */}
-      <div className={`animate-fade-in pb-20 ${outline ? 'xl:grid xl:grid-cols-[14rem_minmax(0,1fr)] xl:gap-10' : 'xl:mx-auto xl:max-w-[58rem]'}`}>
+      {/* On wide screens the outline and the comments sit beside the text; the site widens a paper's page for them (SiteLayout). */}
+      <div
+        className={`animate-fade-in pb-20 ${
+          outline
+            ? columnShown
+              ? 'xl:grid xl:grid-cols-[14rem_minmax(0,1fr)_18rem] xl:gap-10'
+              : 'xl:grid xl:grid-cols-[14rem_minmax(0,1fr)] xl:gap-10'
+            : columnShown
+              ? 'xl:grid xl:grid-cols-[minmax(0,1fr)_18rem] xl:gap-10'
+              : 'xl:mx-auto xl:max-w-[58rem]'
+        }`}
+      >
         {outline && (
           <aside className="hidden xl:block">
             <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto pb-6">{outline}</div>
           </aside>
         )}
-        <div className="min-w-0">
+        <div ref={setContentColumn} className="min-w-0">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <Link to="/results" className="text-sm text-gray-500 hover:text-purple-600">
@@ -280,7 +439,19 @@ const ResultPage: React.FC = () => {
                 </button>
               )}
             </div>
-            <Viewers blocks={blocks} />
+            <div className="flex items-center gap-4">
+              <Viewers blocks={blocks} />
+              {presence && (
+                <button
+                  type="button"
+                  onClick={() => (wide ? setPinned(!columnShown) : setCommentDrawer((open) => !open))}
+                  className={`inline-flex items-center gap-1 text-sm ${columnShown && wide ? 'text-purple-700' : 'text-gray-500 hover:text-purple-600'}`}
+                >
+                  <MessageSquare size={16} />
+                  批注{openThreads.length > 0 ? ` ${openThreads.length}` : ''}
+                </button>
+              )}
+            </div>
           </div>
           <div className="mt-4 mb-10">
             <h1 className="text-3xl font-light text-gray-900 mb-3">
@@ -328,13 +499,20 @@ const ResultPage: React.FC = () => {
               items={blocks}
               className="space-y-10"
               onReorder={(ids) => reorderBlocks(paper.id, ids)}
-              renderItem={(block) => <BlockItem paperId={paper.id} block={block} />}
+              renderItem={(block) => <BlockItem paperId={paper.id} block={block} comments={blockComments(block.id)} />}
             />
             {/* "References": the entries the blocks cite from references.bib, typeset after them. */}
             {paper.references && (
               <div data-result-block-id="references" className="relative mt-10 scroll-mt-24">
                 <BlockReaders blockId="references" />
-                <BlockView paperId={paper.id} block={{ id: 'references', kind: 'text', output: paper.references }} references />
+                <BlockView
+                  paperId={paper.id}
+                  block={{ id: 'references', kind: 'text', output: paper.references }}
+                  references
+                  quotes={referencesComments?.quotes}
+                  activeQuote={focused}
+                  onQuoteClick={openThread}
+                />
               </div>
             )}
           </div>
@@ -350,7 +528,37 @@ const ResultPage: React.FC = () => {
             </div>
           )}
         </div>
+        {wide && columnShown && (
+          <aside ref={setCommentColumn} aria-label="批注">
+            {panel(true)}
+          </aside>
+        )}
       </div>
+      {!wide && commentDrawer && presence && (
+        <div role="dialog" aria-modal="true" aria-label="批注" className="fixed inset-0 z-[90]">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setCommentDrawer(false)} />
+          <div className="absolute inset-y-0 right-0 w-80 max-w-[90vw] overflow-y-auto bg-gray-50 p-4 shadow-xl">{panel(false)}</div>
+        </div>
+      )}
+      {/* Text selected in a block's PDF can be commented on. */}
+      {selected &&
+        createPortal(
+          <button
+            type="button"
+            // Keep the selection while the button is pressed.
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => {
+              startDraft({ block: selected.block, quote: selected.quote, prefix: selected.prefix, suffix: selected.suffix, y: selected.y });
+              clearSelected();
+            }}
+            style={{ position: 'absolute', left: Math.min(Math.max(selected.x, 48), document.documentElement.clientWidth - 48), top: selected.y + 8 }}
+            className="z-[60] inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-gray-900 px-3 py-1.5 text-xs font-medium text-white shadow-lg hover:bg-gray-700"
+          >
+            <MessageSquarePlus size={14} />
+            批注
+          </button>,
+          document.body,
+        )}
       {drawer && items.length > 0 && (
         <div role="dialog" aria-modal="true" aria-label="目录" className="fixed inset-0 z-[90] xl:hidden">
           <div className="absolute inset-0 bg-black/30" onClick={() => setDrawer(false)} />

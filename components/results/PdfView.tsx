@@ -31,16 +31,22 @@ interface Props {
   citationScope?: string;
   /** This PDF contains the actual bibliography destinations, rather than body citations. */
   citationTargets?: boolean;
+  /** Called with the selectable text layer each time the page is drawn. */
+  onTextLayer?: (layer: HTMLElement) => void;
+  /** Drawn over the page in its coordinates, e.g. comment highlights. */
+  children?: React.ReactNode;
 }
 
 /** The first page of a PDF, at PDF_SCALE or narrower to fit, with selectable text and links. */
-const PdfView: React.FC<Props> = ({ data, url, width, height, className = '', onError, citationScope, citationTargets = false }) => {
+const PdfView: React.FC<Props> = ({ data, url, width, height, className = '', onError, citationScope, citationTargets = false, onTextLayer, children }) => {
   const frame = useRef<HTMLDivElement>(null);
   const layers = useRef<HTMLDivElement>(null);
   const [available, setAvailable] = useState<number | null>(null);
   const [failed, setFailed] = useState(false);
   const errorRef = useRef(onError);
   errorRef.current = onError;
+  const textLayerRef = useRef(onTextLayer);
+  textLayerRef.current = onTextLayer;
 
   useEffect(() => {
     const element = frame.current;
@@ -148,6 +154,7 @@ const PdfView: React.FC<Props> = ({ data, url, width, height, className = '', on
       });
       if (!cancelled) {
         target.replaceChildren(canvas, text, destinations, links);
+        textLayerRef.current?.(text);
         if (citationTargets && citationScope) finishCitationNavigation(citationScope);
       }
     })().catch((error: unknown) => {
@@ -166,6 +173,7 @@ const PdfView: React.FC<Props> = ({ data, url, width, height, className = '', on
     <div ref={frame} id={citationTargets && citationScope ? referencesId(citationScope) : undefined} className={`w-full ${className}`}>
       <div className="relative mx-auto bg-white" style={{ width: width * scale, height: height * scale }}>
         <div ref={layers} className="absolute inset-0" />
+        {children}
         {failed && (
           <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-400">PDF 显示失败</div>
         )}

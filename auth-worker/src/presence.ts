@@ -1,12 +1,13 @@
 /**
  * Who is on the site right now, like the avatars in Overleaf. Every signed-in browser keeps a WebSocket to
  * one Durable Object and says which results paper it shows and which block of it is on screen. On a paper
- * page everyone sees who else is on that paper and where; only the owner sees who is online anywhere and who
- * came by in the last week. Visitors who are not signed in never connect. Nothing is stored except when each
- * person was last seen.
+ * page everyone sees who else is on that paper and where, and its comment threads; only the owner sees who is
+ * online anywhere and who came by in the last week. Visitors who are not signed in never connect. Stored here:
+ * when each person was last seen, access requests, and the comments.
  */
 import { papersFor, roleOf } from '../../editor/results/collaborators';
-import { ResultPaper, ResultsSiteAccess } from '../../types';
+import { changeComments } from '../../lib/comments';
+import { ResultComment, ResultPaper, ResultsSiteAccess } from '../../types';
 import { verifySession } from './crypto';
 import { githubHeaders } from './github-app';
 import { ResultsEnv, collaboratorsEnabled, editingEnabled, readShared } from './results';
@@ -53,6 +54,9 @@ const PAPERS_TTL_MS = 60_000;
 const OWNER_TTL_MS = 10 * 60_000;
 /** Block IDs as the site makes them, and "references". */
 const BLOCK_ID = /^[A-Za-z0-9_-]{1,64}$/;
+
+const commentKey = (paper: string, id: string): string => `comment:${paper}:${id}`;
+const newId = (prefix: string): string => `${prefix}${Date.now().toString(36)}${crypto.randomUUID().slice(0, 6)}`;
 
 async function sha256(text: string): Promise<string> {
   const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)));
@@ -119,6 +123,10 @@ export class Presence {
       await this.broadcast();
       return;
     }
+    if (message.t === 'comment' && attachment.user && attachment.paper) {
+      await this.comment(attachment.user, attachment.paper, message.op);
+      return;
+    }
     if (message.t === 'resolve' && attachment.user?.owner && typeof message.login === 'string') {
       // The owner answered (the site adds an approved person to the results-wide list itself).
       const requests = await this.requests();
@@ -134,6 +142,8 @@ export class Presence {
       const block = paper && typeof message.block === 'string' && BLOCK_ID.test(message.block) ? message.block : null;
       socket.serializeAttachment({ ...attachment, paper, block, at: Date.now() } satisfies Attachment);
       await this.broadcast();
+      // Whoever opens a paper gets its comments; moving within it does not send them again.
+      if (paper && paper !== attachment.paper) send(socket, { t: 'comments', paper, threads: await this.commentsFor(attachment.user, paper) });
     }
   }
 
@@ -201,6 +211,32 @@ export class Presence {
     const shown = new Set(view?.blocks.map((block) => block.id));
     if (view?.references) shown.add('references');
     return (block) => shown.has(block);
+  }
+
+  /** A paper's comment threads, oldest first. */
+  private async threads(paper: string): Promise<ResultComment[]> {
+    const stored = await this.state.storage.list<ResultComment>({ prefix: `comment:${paper}:` });
+    return [...stored.values()].sort((a, b) => a.at - b.at);
+  }
+
+  /** The threads `user` may see: those on the blocks the site gives them. */
+  private async commentsFor(user: Signed, paper: string, threads?: ResultComment[]): Promise<ResultComment[]> {
+    const mayHear = this.blocksFor(user, paper);
+    return (threads ?? (await this.threads(paper))).filter((thread) => mayHear(thread.block));
+  }
+
+  /** Adds, answers, resolves or deletes a comment on the paper this reader has open (see changeComments). */
+  private async comment(user: Signed, paper: string, raw: unknown): Promise<void> {
+    const change = changeComments(await this.threads(paper), raw, user, this.blocksFor(user, paper), { paper, now: Date.now(), newId });
+    if (!change) return;
+    if ('put' in change) await this.state.storage.put(commentKey(paper, change.put.id), change.put);
+    else await this.state.storage.delete(commentKey(paper, change.remove.id));
+    // Everyone on the paper sees the threads they may see.
+    const all = await this.threads(paper);
+    for (const socket of this.state.getWebSockets()) {
+      const { user: reader, paper: open } = socket.deserializeAttachment() as Attachment;
+      if (reader && open === paper) send(socket, { t: 'comments', paper, threads: await this.commentsFor(reader, paper, all) });
+    }
   }
 
   private async requests(): Promise<Record<string, AccessRequest>> {

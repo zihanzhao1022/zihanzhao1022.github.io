@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react';
+import type { CommentOp, ResultComment } from '../types';
 
 /** A signed-in person: GitHub user name and account ID (their avatar is at avatarUrl(id)). */
 export interface Viewer {
@@ -15,6 +16,10 @@ export interface Reader extends Viewer {
 export interface PresenceState {
   /** Who this browser is signed in as, once the worker has checked. */
   me?: Viewer;
+  /** The connection to the presence room is up (comments can be sent). */
+  connected?: boolean;
+  /** The comment threads of the paper this page shows, as the room sent them. */
+  comments?: { paper: string; threads: ResultComment[] };
   /** Everyone on the paper this page shows, including me, and where on it they are. */
   viewers: Reader[];
   /** The owner only: everyone signed in, with the papers they have open. */
@@ -37,6 +42,8 @@ export interface PresenceValue extends PresenceState {
   setBlock: (blockId: string | null) => void;
   /** The owner answered a request (approving also needs the results-wide list to be saved). */
   resolveRequest: (login: string) => void;
+  /** Adds, answers, resolves or deletes a comment on the paper this page shows. */
+  comment: (op: CommentOp) => void;
 }
 
 /** Who else is around, like the avatars in Overleaf; null for visitors, who are not signed in. */

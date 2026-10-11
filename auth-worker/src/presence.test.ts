@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ResultPaper } from '../../types';
+import { ResultComment, ResultPaper } from '../../types';
 import { signSession } from './crypto';
 import { Presence } from './presence';
 import { ResultsEnv } from './results';
@@ -64,6 +64,14 @@ function room() {
     storage: {
       get: async <T,>(key: string) => store.get(key) as T | undefined,
       put: async (key: string, value: unknown) => void store.set(key, structuredClone(value)),
+      delete: async (key: string) => store.delete(key),
+      list: async <T,>({ prefix = '' }: { prefix?: string } = {}) =>
+        new Map(
+          [...store]
+            .filter(([key]) => key.startsWith(prefix))
+            .sort(([a], [b]) => (a < b ? -1 : 1))
+            .map(([key, value]): [string, T] => [key, structuredClone(value) as T]),
+        ),
     },
   };
   const presence = new Presence(state, env, async () => [PAPERS, { viewers: ['carol'], collaboratorIds: { carol: 103 } }]);
@@ -263,3 +271,113 @@ describe('presence', () => {
     expect(alice.last('presence')).toEqual({ t: 'presence', viewers: [] });
   });
 });
+
+describe('comments', () => {
+  const threadsOf = (socket: FakeSocket) => (socket.last('comments') as { threads: ResultComment[] } | undefined)?.threads;
+  const add = (block: string, text: string, quote?: Record<string, string>) => ({ t: 'comment', op: { kind: 'add', block, text, ...quote } });
+
+  it('keeps threads for everyone reading the paper and sends them to whoever opens it', async () => {
+    ownerGitHub();
+    const { join, say } = room();
+    const owner = await join({ kind: 'owner', token: 'ghu_owner' });
+    const alice = await join(await collaborator('alice', 101));
+    const carol = await join(await collaborator('carol', 103));
+    await say(owner, { t: 'view', paper: 'A' });
+    await say(alice, { t: 'view', paper: 'A' });
+    await say(carol, { t: 'view', paper: 'B' });
+    await say(alice, add('a1', '  Why is A lower?  ', { quote: '0.0', prefix: 'Baseline ', suffix: ' 0.0' }));
+    const [thread] = threadsOf(owner)!;
+    expect(thread).toMatchObject({
+      paper: 'A',
+      block: 'a1',
+      author: { login: 'alice', id: 101 },
+      text: 'Why is A lower?',
+      quote: '0.0',
+      prefix: 'Baseline ',
+      suffix: ' 0.0',
+      replies: [],
+    });
+    expect(threadsOf(alice)).toEqual([thread]);
+    // carol reads paper B: she got its comments when she opened it, and nothing of A's.
+    expect(carol.last('comments')).toEqual({ t: 'comments', paper: 'B', threads: [] });
+    const bob = await join(await collaborator('bob', 102));
+    await say(bob, { t: 'view', paper: 'A' });
+    expect(threadsOf(bob)).toEqual([thread]);
+    // Moving within the paper does not send them again.
+    const sent = bob.sent.length;
+    await say(bob, { t: 'view', paper: 'A', block: 'a2' });
+    expect(bob.sent.filter((message) => message.t === 'comments')).toHaveLength(1);
+    expect(bob.sent.length).toBeGreaterThanOrEqual(sent);
+  });
+
+  it('lets readers reply, and only authors or the owner resolve or delete', async () => {
+    ownerGitHub();
+    const { join, say } = room();
+    const owner = await join({ kind: 'owner', token: 'ghu_owner' });
+    const alice = await join(await collaborator('alice', 101));
+    const bob = await join(await collaborator('bob', 102));
+    for (const socket of [owner, alice, bob]) await say(socket, { t: 'view', paper: 'A' });
+    await say(alice, add('a1', 'Check this'));
+    const id = threadsOf(owner)![0].id;
+    await say(bob, { t: 'comment', op: { kind: 'reply', thread: id, text: 'Agreed' } });
+    expect(threadsOf(alice)![0].replies).toMatchObject([{ author: { login: 'bob', id: 102 }, text: 'Agreed' }]);
+    const reply = threadsOf(alice)![0].replies[0].id;
+
+    // bob may not resolve or delete alice's thread.
+    await say(bob, { t: 'comment', op: { kind: 'resolve', thread: id, resolved: true } });
+    await say(bob, { t: 'comment', op: { kind: 'delete', thread: id } });
+    expect(threadsOf(owner)).toHaveLength(1);
+    expect(threadsOf(owner)![0].resolved).toBeUndefined();
+
+    await say(alice, { t: 'comment', op: { kind: 'resolve', thread: id, resolved: true } });
+    expect(threadsOf(bob)![0].resolved).toMatchObject({ login: 'alice' });
+    await say(alice, { t: 'comment', op: { kind: 'resolve', thread: id, resolved: false } });
+    expect(threadsOf(bob)![0]).not.toHaveProperty('resolved');
+
+    // Only bob or the owner may delete bob's reply.
+    await say(alice, { t: 'comment', op: { kind: 'delete', thread: id, reply } });
+    expect(threadsOf(owner)![0].replies).toHaveLength(1);
+    await say(owner, { t: 'comment', op: { kind: 'delete', thread: id, reply } });
+    expect(threadsOf(alice)![0].replies).toEqual([]);
+    await say(owner, { t: 'comment', op: { kind: 'delete', thread: id } });
+    expect(threadsOf(alice)).toEqual([]);
+  });
+
+  it('never shows or takes comments on blocks hidden from a reader', async () => {
+    ownerGitHub();
+    const { join, say } = room();
+    const owner = await join({ kind: 'owner', token: 'ghu_owner' });
+    const alice = await join(await collaborator('alice', 101));
+    await say(owner, { t: 'view', paper: 'A' });
+    await say(alice, { t: 'view', paper: 'A' });
+    await say(owner, add('a3', 'Private note on a hidden block'));
+    expect(threadsOf(owner)).toHaveLength(1);
+    expect(threadsOf(alice)).toEqual([]);
+    const id = threadsOf(owner)![0].id;
+    await say(alice, add('a3', 'Sneaky'));
+    await say(alice, { t: 'comment', op: { kind: 'reply', thread: id, text: 'Sneaky' } });
+    expect(threadsOf(owner)).toHaveLength(1);
+    expect(threadsOf(owner)![0].replies).toEqual([]);
+  });
+
+  it('ignores comments that are empty, malformed or not on an open paper, and shortens long ones', async () => {
+    const { join, say, store } = room();
+    const alice = await join(await collaborator('alice', 101));
+    await say(alice, add('a1', 'No paper open'));
+    await say(alice, { t: 'view', paper: 'A' });
+    for (const op of [
+      { kind: 'add', block: 'a1', text: '   ' },
+      { kind: 'add', block: '../a1', text: 'x' },
+      { kind: 'add', block: 'a1' },
+      { kind: 'reply', thread: 'missing', text: 'x' },
+      { kind: 'unknown' },
+      null,
+    ]) {
+      await say(alice, { t: 'comment', op });
+    }
+    expect([...store.keys()].filter((key) => key.startsWith('comment:'))).toEqual([]);
+    await say(alice, add('a1', 'x'.repeat(5000)));
+    expect(threadsOf(alice)![0].text).toHaveLength(2000);
+  });
+});
+

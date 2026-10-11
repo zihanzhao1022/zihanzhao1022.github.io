@@ -208,6 +208,47 @@ export interface ResultBlock extends Hideable {
   numbering?: HeadingNumbering;
 }
 
+/** Someone who wrote a comment: GitHub user name and account ID. */
+export interface CommentAuthor {
+  login: string;
+  id: number;
+}
+
+/**
+ * A comment thread on a results paper, on a block or on text selected in it. The presence room keeps them
+ * (Cloudflare storage, not the repositories) and shows them only to people who may view the paper.
+ */
+export interface ResultComment {
+  id: string;
+  paper: string;
+  /** A block ID, or "references" for the bibliography. */
+  block: string;
+  /** The selected text and a little of what surrounds it, to find it again after a recompile. */
+  quote?: string;
+  prefix?: string;
+  suffix?: string;
+  author: CommentAuthor;
+  /** Epoch milliseconds. */
+  at: number;
+  text: string;
+  replies: ResultCommentReply[];
+  resolved?: { login: string; at: number };
+}
+
+export interface ResultCommentReply {
+  id: string;
+  author: CommentAuthor;
+  at: number;
+  text: string;
+}
+
+/** What a reader asks the presence room to do with the comments of the paper they have open. */
+export type CommentOp =
+  | { kind: 'add'; block: string; text: string; quote?: string; prefix?: string; suffix?: string }
+  | { kind: 'reply'; thread: string; text: string }
+  | { kind: 'delete'; thread: string; reply?: string }
+  | { kind: 'resolve'; thread: string; resolved: boolean };
+
 /** A paper on the results pages. Unpublished papers exist only in the private repository. */
 export interface ResultPaper extends Hideable {
   id: string;

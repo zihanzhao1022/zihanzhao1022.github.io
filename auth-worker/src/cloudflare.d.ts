@@ -20,6 +20,9 @@ declare class WebSocketPair {
 interface DurableObjectStorage {
   get<T>(key: string): Promise<T | undefined>;
   put(key: string, value: unknown): Promise<void>;
+  delete(key: string): Promise<boolean>;
+  /** The stored values whose keys start with `prefix`, in key order. */
+  list<T>(options?: { prefix?: string }): Promise<Map<string, T>>;
 }
 
 interface DurableObjectState {

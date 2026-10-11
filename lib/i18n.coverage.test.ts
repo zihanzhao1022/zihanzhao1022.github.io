@@ -19,7 +19,7 @@ const SOURCES = import.meta.glob<string>(
 /** Files that show Chinese as such: the language names, and the made-up data of `npm run dev:mock`. */
 const AS_WRITTEN = ['lib/i18n.ts', 'components/LangSwitch.tsx', 'editor/mockBackend.ts', 'editor/results/mockBackend.ts'];
 /** Code the worker runs too: messages it sends stay in Chinese and the site translates them, so each must be a phrase. */
-const SERVER = ['auth-worker/src/', 'editor/results/collaborators.ts'];
+const SERVER = ['auth-worker/src/', 'editor/results/collaborators.ts', 'editor/errors.ts', 'editor/github.ts'];
 
 const CJK = /[　-〿぀-ヿ㐀-鿿＀-￯]/;
 // t('…') and N_('…'), the phrase on the same line as the call.

@@ -135,8 +135,7 @@ const CommentsPanel: React.FC<Props> = ({
 
   const header = (
     <div className={`flex items-center gap-2 text-xs text-gray-500 ${column ? 'sticky top-24 z-10 -mx-1 rounded-md bg-white/90 px-1 py-1 backdrop-blur-sm' : 'mb-3'}`}>
-      <span className="font-medium text-gray-700">{t('批注')}</span>
-      <span>{threads.filter((thread) => !thread.resolved).length}</span>
+      <span className="font-medium text-gray-700">{t('批注 {n}', { n: threads.filter((thread) => !thread.resolved).length })}</span>
       {resolvedCount > 0 && (
         <button type="button" onClick={onToggleResolved} className="ml-2 hover:text-purple-700">
           {showResolved ? t('隐藏已解决') : t('显示已解决（{n}）', { n: resolvedCount })}

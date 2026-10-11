@@ -467,8 +467,7 @@ const ResultPage: React.FC = () => {
                   className={`inline-flex items-center gap-1 text-sm ${columnShown && wide ? 'text-purple-700' : 'text-gray-500 hover:text-purple-600'}`}
                 >
                   <MessageSquare size={16} />
-                  {t('批注')}
-                  {openThreads.length > 0 ? ` ${openThreads.length}` : ''}
+                  {openThreads.length > 0 ? t('批注 {n}', { n: openThreads.length }) : t('批注')}
                 </button>
               )}
             </div>

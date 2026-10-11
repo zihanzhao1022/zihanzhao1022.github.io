@@ -2,6 +2,8 @@ import { phrases } from '../i18n';
 
 /** Japanese and English for the site: what visitors and invited collaborators see, and the owner's buttons on the public pages. */
 export const { t, useT, table } = phrases({
+  // A count of comments: the plural, unlike the button that adds one.
+  '批注 {n}': { ja: 'コメント {n}', en: 'Comments {n}' },
   // The owner's buttons on the public pages, and signing in
   '已隐藏': { ja: '非公開', en: 'Hidden' },
   '编辑页面': { ja: 'ページを編集', en: 'Edit page' },

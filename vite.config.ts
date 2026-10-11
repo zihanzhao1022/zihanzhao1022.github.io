@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { isContentListFile, stripHiddenItems } from './lib/hiddenContent';
@@ -25,5 +26,8 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     outDir: 'dist',
+  },
+  test: {
+    setupFiles: ['./lib/i18n.testSetup.ts'],
   },
 }));

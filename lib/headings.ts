@@ -76,7 +76,7 @@ export function blockNumber(blocks: ResultBlock[], index: number): string | unde
     .filter((groups) => groups[3]?.startsWith(`${block.kind}.`))
     .map((groups) => plainNumber(groups[0]))
     .filter(Boolean);
-  if (labelled.length > 0) return [...new Set(labelled)].join('、');
+  if (labelled.length > 0) return [...new Set(labelled)].join(', ');
   const end = output.counters?.[block.kind];
   const start = countersBefore(blocks, index)[block.kind] ?? 0;
   if (end === undefined || end <= start) return undefined;

@@ -7,6 +7,7 @@ import { SocialLink } from '../types';
 import OverwatchRanks from '../components/OverwatchRanks';
 import { resolveImage } from '../lib/localImages';
 import { renderInlineMarkdown } from '../lib/markdown';
+import { useT } from '../lib/phrases/site';
 
 /**
  * Each icon turns its brand's colour on hover and while its QR code is open (the Overwatch icon colours
@@ -24,6 +25,7 @@ const BRAND: Record<SocialLink['platform'], { hover: string; active: string }> =
 const About: React.FC = () => {
   const { profile, news: allNews } = useContent();
   const news = useVisibleItems(allNews);
+  const t = useT();
   // The social icon whose QR code or Overwatch ranks are showing.
   const [activeQr, setActiveQr] = useState<string | null>(null);
 
@@ -39,7 +41,7 @@ const About: React.FC = () => {
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-gray-900 mb-1">
           {profile.name.first} <span className="font-light">{profile.name.last}</span>
-          <EditButton request={{ kind: 'profile', section: 'basics' }} label="编辑基本信息" className="ml-3 align-middle" />
+          <EditButton request={{ kind: 'profile', section: 'basics' }} label={t('编辑基本信息')} className="ml-3 align-middle" />
         </h1>
         <p className="text-sm text-gray-500 mb-4">
           {profile.title} at <span className="text-purple-600">{profile.affiliation}</span>
@@ -65,7 +67,7 @@ const About: React.FC = () => {
         {/* Left: Bio */}
         <div className="flex-1 order-2 md:order-1">
           <div className="text-gray-700 space-y-4 text-justify font-light mb-8">
-            <EditButton request={{ kind: 'profile', section: 'bio' }} label="编辑简介" className="float-right ml-3" />
+            <EditButton request={{ kind: 'profile', section: 'bio' }} label={t('编辑简介')} className="float-right ml-3" />
             {profile.bio.map((paragraph, idx) => (
               <React.Fragment key={idx}>
                 <p dangerouslySetInnerHTML={{ __html: renderInlineMarkdown(paragraph) }} />
@@ -89,8 +91,8 @@ const About: React.FC = () => {
             />
             <EditButton
               request={{ kind: 'profile', section: 'avatar' }}
-              label="更换头像"
-              text="更换照片"
+              label={t('更换头像')}
+              text={t('更换照片')}
               className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 shadow"
             />
           </div>
@@ -147,7 +149,7 @@ const About: React.FC = () => {
                 </div>
               );
             })}
-            <EditButton request={{ kind: 'profile', section: 'socials' }} label="编辑联系方式" />
+            <EditButton request={{ kind: 'profile', section: 'socials' }} label={t('编辑联系方式')} />
           </div>
         </div>
       </div>
@@ -156,7 +158,7 @@ const About: React.FC = () => {
       <div className="border-t border-gray-100 pt-6">
         <h2 className="text-2xl font-light text-gray-900 mb-6">
           news
-          <AddButton request={{ kind: 'add', collection: 'news' }} text="添加新闻" className="ml-3" />
+          <AddButton request={{ kind: 'add', collection: 'news' }} text={t('添加新闻')} className="ml-3" />
         </h2>
         <SortableGroup
           collection="news"
@@ -169,7 +171,7 @@ const About: React.FC = () => {
               {item.hidden && <HiddenBadge />}
               <EditButton
                 request={{ kind: 'edit', collection: 'news', id: item.id }}
-                label="编辑这条新闻"
+                label={t('编辑这条新闻')}
                 className="flex-shrink-0 sm:ml-auto"
               />
             </div>

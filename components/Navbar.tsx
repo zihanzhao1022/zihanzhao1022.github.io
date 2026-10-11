@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { ExternalLink, EyeOff } from 'lucide-react';
+import { useT } from '../lib/phrases/site';
 import { NavItem } from '../types';
 import { useContent } from './ContentContext';
 import { EditButton, useEditMode } from './EditMode';
@@ -14,6 +15,7 @@ const Navbar: React.FC = () => {
   const { navigation } = useContent();
   const { editing, loggedIn } = useEditMode();
   const access = useResultsAccess();
+  const t = useT();
   // Hidden items show while editing. The results page stays hidden from the public, but whoever signs in to
   // it (the owner, or people a paper is shared with) always finds it in the navigation.
   const signedIn = loggedIn && access !== null;
@@ -60,7 +62,7 @@ const Navbar: React.FC = () => {
               </NavLink>
             ),
           )}
-          <EditButton request={{ kind: 'navigation' }} label="编辑导航" text="编辑导航" className="-my-1" />
+          <EditButton request={{ kind: 'navigation' }} label={t('编辑导航')} text={t('编辑导航')} className="-my-1" />
         </div>
       </div>
     </nav>

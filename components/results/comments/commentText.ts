@@ -1,3 +1,6 @@
+import { LOCALES, getLang } from '../../../lib/i18n';
+import { t } from '../../../lib/phrases/site';
+
 /** How much text on each side of a quote is kept to find it again. */
 const CONTEXT = 32;
 
@@ -64,14 +67,15 @@ export function placeCards(cards: { id: string; top: number; height: number }[],
   return tops;
 }
 
-/** "刚刚", "5 分钟前"… then the date. */
+/** "刚刚", "5 分钟前"… then the date, in the interface's language. */
 export function timeAgo(at: number, now: number): string {
   const seconds = Math.max(0, (now - at) / 1000);
-  if (seconds < 60) return '刚刚';
-  if (seconds < 3600) return `${Math.floor(seconds / 60)} 分钟前`;
-  if (seconds < 86_400) return `${Math.floor(seconds / 3600)} 小时前`;
-  if (seconds < 7 * 86_400) return `${Math.floor(seconds / 86_400)} 天前`;
+  if (seconds < 60) return t('刚刚');
+  if (seconds < 3600) return t('{n} 分钟前', { n: Math.floor(seconds / 60) });
+  if (seconds < 86_400) return t('{n} 小时前', { n: Math.floor(seconds / 3600) });
+  if (seconds < 7 * 86_400) return t('{n} 天前', { n: Math.floor(seconds / 86_400) });
   const date = new Date(at);
-  const day = `${date.getMonth() + 1}月${date.getDate()}日`;
-  return date.getFullYear() === new Date(now).getFullYear() ? day : `${date.getFullYear()}年${day}`;
+  // "7月1日" in Chinese and Japanese, "Jul 1" in English; the year only when it is not this one.
+  const year = date.getFullYear() === new Date(now).getFullYear() ? undefined : 'numeric';
+  return new Intl.DateTimeFormat(LOCALES[getLang()], { year, month: 'short', day: 'numeric' }).format(date);
 }

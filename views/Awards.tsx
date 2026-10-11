@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useContent } from '../components/ContentContext';
 import { AddButton, useVisibleItems } from '../components/EditMode';
 import { SortableGroup } from '../components/SortableGroup';
+import { useT } from '../lib/phrases/site';
 import { AwardType } from '../types';
 import ListItem from '../components/ListItem';
 
@@ -52,6 +53,7 @@ const getBadgeStyle = (level: string) => {
 
 const Awards: React.FC = () => {
   const awards = useVisibleItems(useContent().awards);
+  const t = useT();
   const [filter, setFilter] = useState('');
   const [selectedType, setSelectedType] = useState<AwardType | 'all'>('all');
 
@@ -83,7 +85,7 @@ const Awards: React.FC = () => {
       <div className="mb-10">
         <h1 className="text-3xl font-light text-gray-900 mb-2">
           honors & awards
-          <AddButton request={{ kind: 'add', collection: 'awards' }} text="添加奖项" className="ml-3" />
+          <AddButton request={{ kind: 'add', collection: 'awards' }} text={t('添加奖项')} className="ml-3" />
         </h1>
         <p className="text-sm text-gray-500">
           competitions, scholarships, and recognitions.

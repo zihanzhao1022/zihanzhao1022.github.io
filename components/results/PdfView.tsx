@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { PDFDocumentLoadingTask, RenderTask } from 'pdfjs-dist';
+import { useT } from '../../lib/phrases/site';
 import { loadPdfjs } from './pdfjs';
 import { renderPdfLinks } from './pdfLinks';
 import {
@@ -47,6 +48,8 @@ const PdfView: React.FC<Props> = ({ data, url, width, height, className = '', on
   errorRef.current = onError;
   const textLayerRef = useRef(onTextLayer);
   textLayerRef.current = onTextLayer;
+  // The page is drawn again when the language changes, for the labels of its links.
+  const t = useT();
 
   useEffect(() => {
     const element = frame.current;
@@ -109,7 +112,7 @@ const PdfView: React.FC<Props> = ({ data, url, width, height, className = '', on
           marker.id = id;
           marker.className = 'resultsPdfDestination';
           marker.tabIndex = -1;
-          if (name.startsWith('cite.')) marker.setAttribute('aria-label', `参考文献 ${name.slice(5)}`);
+          if (name.startsWith('cite.')) marker.setAttribute('aria-label', t('参考文献 {key}', { key: name.slice(5) }));
           marker.style.top = `${destinationPoint(destination, viewport).top}px`;
           destinations.append(marker);
         }
@@ -160,14 +163,14 @@ const PdfView: React.FC<Props> = ({ data, url, width, height, className = '', on
     })().catch((error: unknown) => {
       if (cancelled || (error instanceof Error && error.name === 'RenderingCancelledException')) return;
       setFailed(true);
-      errorRef.current?.('PDF 显示失败');
+      errorRef.current?.(t('PDF 显示失败'));
     });
     return () => {
       cancelled = true;
       task?.cancel();
       void loading?.destroy();
     };
-  }, [data, url, scale, available, citationScope, citationTargets]);
+  }, [data, url, scale, available, citationScope, citationTargets, t]);
 
   return (
     <div ref={frame} id={citationTargets && citationScope ? referencesId(citationScope) : undefined} className={`w-full ${className}`}>
@@ -175,7 +178,7 @@ const PdfView: React.FC<Props> = ({ data, url, width, height, className = '', on
         <div ref={layers} className="absolute inset-0" />
         {children}
         {failed && (
-          <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-400">PDF 显示失败</div>
+          <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-400">{t('PDF 显示失败')}</div>
         )}
       </div>
     </div>

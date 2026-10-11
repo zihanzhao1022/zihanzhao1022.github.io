@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { setLang } from '../../../lib/i18n';
 import { contextAround, findQuote, placeCards, timeAgo } from './commentText';
 
 describe('findQuote', () => {
@@ -46,6 +47,7 @@ describe('placeCards', () => {
 
 describe('timeAgo', () => {
   const now = Date.UTC(2026, 9, 11, 12, 0, 0);
+  afterEach(() => setLang('zh'));
 
   it('says how long ago, then the date', () => {
     expect(timeAgo(now - 20_000, now)).toBe('刚刚');
@@ -54,5 +56,13 @@ describe('timeAgo', () => {
     expect(timeAgo(now - 2 * 86_400_000, now)).toBe('2 天前');
     expect(timeAgo(Date.UTC(2026, 6, 1, 12), now)).toBe('7月1日');
     expect(timeAgo(Date.UTC(2025, 6, 1, 12), now)).toBe('2025年7月1日');
+  });
+
+  it('speaks the interface language', () => {
+    setLang('en');
+    expect(timeAgo(now - 20_000, now)).toBe('just now');
+    expect(timeAgo(now - 5 * 60_000, now)).toBe('5 min ago');
+    expect(timeAgo(Date.UTC(2026, 6, 1, 12), now)).toBe('Jul 1');
+    expect(timeAgo(Date.UTC(2025, 6, 1, 12), now)).toBe('Jul 1, 2025');
   });
 });

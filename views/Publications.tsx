@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useContent } from '../components/ContentContext';
 import { AddButton, useVisibleItems } from '../components/EditMode';
 import { SortableGroup } from '../components/SortableGroup';
+import { useT } from '../lib/phrases/site';
 import { Rank } from '../types';
 import ListItem from '../components/ListItem';
 
@@ -66,6 +67,7 @@ const AuthorList: React.FC<{ authors: string[] }> = ({ authors }) => {
 
 const Publications: React.FC = () => {
   const publications = useVisibleItems(useContent().publications);
+  const t = useT();
   const [filter, setFilter] = useState('');
   const [selectedType, setSelectedType] = useState<'all' | 'journal' | 'conference'>('all');
   const [selectedRanks, setSelectedRanks] = useState<Rank[]>([]);
@@ -109,7 +111,7 @@ const Publications: React.FC = () => {
       <div className="mb-10">
         <h1 className="text-3xl font-light text-gray-900 mb-2">
           publications
-          <AddButton request={{ kind: 'add', collection: 'publications' }} text="添加论文" className="ml-3" />
+          <AddButton request={{ kind: 'add', collection: 'publications' }} text={t('添加论文')} className="ml-3" />
         </h1>
         <p className="text-sm text-gray-500">
           publications by categories in reversed chronological order.

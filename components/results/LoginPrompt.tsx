@@ -1,14 +1,20 @@
 import React from 'react';
 import { Github } from 'lucide-react';
+import { useLang } from '../../lib/i18n';
+import { useT } from '../../lib/phrases/site';
 import { useEditMode } from '../EditMode';
+import LangSwitch from '../LangSwitch';
 
 /** Shown on a results address to someone signed out: they may have been sent a link to a paper shared with them. */
 const LoginPrompt: React.FC = () => {
   const { canLogin, login } = useEditMode();
+  const t = useT();
+  // The English line comes first in every language; in Chinese or Japanese a second line says it again.
+  const english = useLang() === 'en';
   return (
     <div className="animate-fade-in py-20 text-center">
-      <p className="text-gray-700 mb-1">Sign in with GitHub to see the results shared with you.</p>
-      <p className="text-sm text-gray-500 mb-6">登录 GitHub 后查看作者共享给你的论文结果。</p>
+      <p className={`text-gray-700 ${english ? 'mb-6' : 'mb-1'}`}>Sign in with GitHub to see the results shared with you.</p>
+      {!english && <p className="text-sm text-gray-500 mb-6">{t('登录 GitHub 后查看作者共享给你的论文结果。')}</p>}
       {canLogin && (
         <button
           type="button"
@@ -19,6 +25,9 @@ const LoginPrompt: React.FC = () => {
           Sign in with GitHub
         </button>
       )}
+      <div className="mt-8">
+        <LangSwitch />
+      </div>
     </div>
   );
 };

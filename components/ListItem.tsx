@@ -1,6 +1,7 @@
 import React from 'react';
 import { EditButton, HiddenBadge } from './EditMode';
 import { resolveImage } from '../lib/localImages';
+import { useT } from '../lib/phrases/site';
 import { EditRequest } from '../types';
 
 interface ListItemProps {
@@ -26,6 +27,7 @@ const ListItem: React.FC<ListItemProps> = ({
   editRequest,
   hidden
 }) => {
+  const t = useT();
   return (
     <div className={`group relative flex flex-col sm:flex-row gap-6 p-4 mb-6 hover:bg-gray-50 rounded-lg transition-colors duration-300${hidden ? ' opacity-50' : ''}`}>
       {/* Side Content (e.g. Year) - Visible on larger screens primarily */}
@@ -49,7 +51,7 @@ const ListItem: React.FC<ListItemProps> = ({
       {/* Content */}
       <div className="flex-grow z-10 relative">
         <h3 className="text-lg font-bold text-gray-900 leading-tight mb-2">
-          {editRequest && <EditButton request={editRequest} label="编辑" className="float-right ml-3" />}
+          {editRequest && <EditButton request={editRequest} label={t('编辑')} className="float-right ml-3" />}
           {title}
           {hidden && <HiddenBadge />}
         </h3>

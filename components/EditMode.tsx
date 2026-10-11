@@ -1,6 +1,7 @@
 import React, { Suspense, createContext, lazy, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { EyeOff, Pencil, Plus, X } from 'lucide-react';
 import { loginConfigured } from '../editor/config';
+import { t, useT } from '../lib/phrases/site';
 import { LoginCallback, MOCK_MODE, Session, loadSession } from '../lib/session';
 import { EditRequest, ListCollection } from '../types';
 import type { AccessDenied } from '../editor/auth';
@@ -42,12 +43,15 @@ export function useVisibleItems<T extends { hidden?: boolean }>(items: T[]): T[]
   return useMemo(() => (editing ? items : items.filter((item) => !item.hidden)), [editing, items]);
 }
 
-export const HiddenBadge: React.FC = () => (
-  <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 align-middle text-[10px] font-medium normal-case tracking-normal text-gray-500">
-    <EyeOff size={11} />
-    已隐藏
-  </span>
-);
+export const HiddenBadge: React.FC = () => {
+  const t = useT();
+  return (
+    <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 align-middle text-[10px] font-medium normal-case tracking-normal text-gray-500">
+      <EyeOff size={11} />
+      {t('已隐藏')}
+    </span>
+  );
+};
 
 // Loaded only once someone signs in, so visitors never download the editor.
 const EditorRoot = lazy(() => import('../editor/EditorRoot'));
@@ -59,6 +63,7 @@ export const Toast: React.FC<{
   onClose: () => void;
   action?: { label: string; onClick: () => void };
 }> = ({ message, onClose, action }) => {
+  const t = useT();
   const close = useRef(onClose);
   close.current = onClose;
   useEffect(() => {
@@ -76,7 +81,7 @@ export const Toast: React.FC<{
           {action.label}
         </button>
       )}
-      <button type="button" onClick={onClose} aria-label="关闭" className="shrink-0 text-gray-400 hover:text-white">
+      <button type="button" onClick={onClose} aria-label={t('关闭')} className="shrink-0 text-gray-400 hover:text-white">
         <X size={14} />
       </button>
     </div>
@@ -103,10 +108,10 @@ export const EditModeProvider: React.FC<{ loginCallback: LoginCallback | null; c
           setSession(await auth.completeLogin(loginCallback));
         } catch (error) {
           if (error instanceof auth.AccessDenied) setDenied(error);
-          else setToast(error instanceof Error ? error.message : '登录失败，请重新登录');
+          else setToast(error instanceof Error ? error.message : t('登录失败，请重新登录'));
         }
       })
-      .catch(() => setToast('登录失败，请重新登录'));
+      .catch(() => setToast(t('登录失败，请重新登录')));
   }, [loginCallback]);
 
   const login = useCallback(() => {
@@ -117,10 +122,10 @@ export const EditModeProvider: React.FC<{ loginCallback: LoginCallback | null; c
           if (started) setSession(started);
         } catch (error) {
           if (error instanceof auth.AccessDenied) setDenied(error);
-          else setToast('无法开始登录，请稍后重试');
+          else setToast(t('无法开始登录，请稍后重试'));
         }
       })
-      .catch(() => setToast('无法开始登录，请稍后重试'));
+      .catch(() => setToast(t('无法开始登录，请稍后重试')));
   }, []);
 
   const handleLogout = useCallback((message?: string) => {

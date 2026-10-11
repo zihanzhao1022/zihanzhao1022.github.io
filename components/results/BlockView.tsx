@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useT } from '../../lib/phrases/site';
 import { publicFilePath } from '../../lib/results';
 import { ResultBlock } from '../../types';
 import { readsPrivately, useResultsAccess } from './access';
@@ -28,6 +29,7 @@ interface Props {
 /** A block's compiled PDF: read privately by the signed-in editor, or from the site for visitors. */
 const BlockView: React.FC<Props> = ({ paperId, block, references = false, quotes, activeQuote, onQuoteClick }) => {
   const access = useResultsAccess();
+  const t = useT();
   const output = block.output;
   const isPrivate = readsPrivately(access, paperId);
   const [data, setData] = useState<Uint8Array | undefined>(undefined);
@@ -81,10 +83,10 @@ const BlockView: React.FC<Props> = ({ paperId, block, references = false, quotes
   }, [isPrivate, output, access]);
 
   if (!output) {
-    return <div className="py-8 text-center text-sm text-gray-400 border border-dashed border-gray-200 rounded">还没有编译</div>;
+    return <div className="py-8 text-center text-sm text-gray-400 border border-dashed border-gray-200 rounded">{t('还没有编译')}</div>;
   }
   if (failed) {
-    return <div className="py-8 text-center text-sm text-red-500 border border-dashed border-red-200 rounded">读取 PDF 失败，请刷新页面重试</div>;
+    return <div className="py-8 text-center text-sm text-red-500 border border-dashed border-red-200 rounded">{t('读取 PDF 失败，请刷新页面重试')}</div>;
   }
   return (
     <div onClick={clickMark}>

@@ -1,4 +1,5 @@
 import { blockNumber, headingText } from '../../lib/headings';
+import { t } from '../../lib/phrases/site';
 import { HeadingLevel, ResultBlock } from '../../types';
 
 export interface OutlineItem {
@@ -11,6 +12,12 @@ export interface OutlineItem {
 }
 
 const DEPTH: Record<HeadingLevel, number> = { section: 0, subsection: 1, subsubsection: 2, paragraph: 3 };
+
+/** "图 3", "表 2", or just "图" / "表" without a number, in the interface's language. */
+function caption(kind: 'figure' | 'table', number: string | undefined): string {
+  if (kind === 'figure') return number ? t('图 {n}', { n: number }) : t('图');
+  return number ? t('表 {n}', { n: number }) : t('表');
+}
 
 /**
  * The outline of a page: its headings, the figures and tables under them, and the bibliography last.
@@ -27,9 +34,7 @@ export function outlineItems(blocks: ResultBlock[], shown: (block: ResultBlock) 
       const title = headingText(block.heading.title);
       items.push({ blockId: block.id, kind: 'heading', depth, text: number ? `${number} ${title}` : title });
     } else if (block.kind === 'figure' || block.kind === 'table') {
-      const number = blockNumber(blocks, index);
-      const name = block.kind === 'figure' ? '图' : '表';
-      items.push({ blockId: block.id, kind: block.kind, depth: depth + 1, text: number ? `${name} ${number}` : name });
+      items.push({ blockId: block.id, kind: block.kind, depth: depth + 1, text: caption(block.kind, blockNumber(blocks, index)) });
     }
   });
   if (references) items.push({ blockId: 'references', kind: 'references', depth: 0, text: 'References' });

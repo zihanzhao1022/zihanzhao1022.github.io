@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { setLang } from '../../lib/i18n';
 import { ResultBlock } from '../../types';
 import { itemAt, outlineItems } from './outlineItems';
 
@@ -35,6 +36,23 @@ describe('outlineItems', () => {
     const shownAll = outlineItems(blocks, () => true, false);
     expect(shownAll.find((item) => item.blockId === 'h2')).toEqual({ blockId: 'h2', kind: 'heading', depth: 1, text: '1.1 Hidden' });
     expect(shownAll.find((item) => item.blockId === 't2')?.depth).toBe(2);
+  });
+
+  describe('in English', () => {
+    afterEach(() => setLang('zh'));
+
+    it('names figures and tables in the interface language, and keeps the bibliography its own title', () => {
+      setLang('en');
+      expect(outlineItems(blocks, visible, true).map((item) => item.text)).toEqual([
+        'Table 1',
+        '1 Results & more',
+        'Figure 1',
+        'Table 2',
+        'Appendix',
+        'Figure',
+        'References',
+      ]);
+    });
   });
 });
 

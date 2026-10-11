@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { COMMENT_LIMITS } from '../../../lib/comments';
+import { useT } from '../../../lib/phrases/site';
 import { CommentAuthor, CommentOp, ResultComment } from '../../../types';
 import { avatarUrl } from '../../presence';
 import { timeAgo } from './commentText';
@@ -12,6 +13,7 @@ export const CommentBox: React.FC<{
   onSubmit: (text: string) => void;
   onCancel: () => void;
 }> = ({ placeholder, submit, connected, onSubmit, onCancel }) => {
+  const t = useT();
   const [text, setText] = useState('');
   const send = () => {
     if (!text.trim() || !connected) return;
@@ -34,9 +36,9 @@ export const CommentBox: React.FC<{
         className="w-full resize-y rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:border-purple-500 focus:outline-none"
       />
       <div className="mt-1 flex items-center justify-end gap-2 text-xs">
-        {!connected && <span className="mr-auto text-gray-400">正在连接…</span>}
+        {!connected && <span className="mr-auto text-gray-400">{t('正在连接…')}</span>}
         <button type="button" onClick={onCancel} className="rounded px-2 py-1 text-gray-500 hover:bg-gray-100">
-          取消
+          {t('取消')}
         </button>
         <button
           type="button"
@@ -73,6 +75,7 @@ interface CardProps {
 
 /** One thread: who wrote it and when, the quoted text, the comment, its replies and what can be done. */
 export const CommentCard: React.FC<CardProps> = ({ thread, meId, owner, focused, connected, now, onFocus, act }) => {
+  const t = useT();
   const [replying, setReplying] = useState(false);
   const mine = (author: CommentAuthor) => owner || author.id === meId;
   const action = 'text-xs text-gray-400 hover:text-purple-700';
@@ -89,21 +92,21 @@ export const CommentCard: React.FC<CardProps> = ({ thread, meId, owner, focused,
         {mine(thread.author) && (
           <div className="flex shrink-0 gap-2" onClick={(event) => event.stopPropagation()}>
             <button type="button" className={action} onClick={() => act({ kind: 'resolve', thread: thread.id, resolved: !thread.resolved })}>
-              {thread.resolved ? '重新打开' : '解决'}
+              {thread.resolved ? t('重新打开') : t('解决')}
             </button>
             <button
               type="button"
               className="text-xs text-gray-400 hover:text-red-600"
-              onClick={() => window.confirm('删除这条批注和它的所有回复？') && act({ kind: 'delete', thread: thread.id })}
+              onClick={() => window.confirm(t('删除这条批注和它的所有回复？')) && act({ kind: 'delete', thread: thread.id })}
             >
-              删除
+              {t('删除')}
             </button>
           </div>
         )}
       </div>
       {thread.quote && <blockquote className="mt-2 line-clamp-3 border-l-2 border-amber-300 pl-2 text-xs text-gray-500">{thread.quote}</blockquote>}
       <p className="mt-2 whitespace-pre-wrap break-words text-gray-800">{thread.text}</p>
-      {thread.resolved && <p className="mt-1 text-xs text-gray-400">@{thread.resolved.login} 标记为已解决</p>}
+      {thread.resolved && <p className="mt-1 text-xs text-gray-400">{t('@{login} 标记为已解决', { login: thread.resolved.login })}</p>}
       {thread.replies.length > 0 && (
         <ul className="mt-3 space-y-3 border-t border-gray-100 pt-3">
           {thread.replies.map((reply) => (
@@ -116,10 +119,10 @@ export const CommentCard: React.FC<CardProps> = ({ thread, meId, owner, focused,
                     className="shrink-0 text-xs text-gray-400 hover:text-red-600"
                     onClick={(event) => {
                       event.stopPropagation();
-                      if (window.confirm('删除这条回复？')) act({ kind: 'delete', thread: thread.id, reply: reply.id });
+                      if (window.confirm(t('删除这条回复？'))) act({ kind: 'delete', thread: thread.id, reply: reply.id });
                     }}
                   >
-                    删除
+                    {t('删除')}
                   </button>
                 )}
               </div>
@@ -131,8 +134,8 @@ export const CommentCard: React.FC<CardProps> = ({ thread, meId, owner, focused,
       {!thread.resolved &&
         (replying ? (
           <CommentBox
-            placeholder="回复…"
-            submit="回复"
+            placeholder={t('回复…')}
+            submit={t('回复')}
             connected={connected}
             onSubmit={(text) => {
               act({ kind: 'reply', thread: thread.id, text });
@@ -149,7 +152,7 @@ export const CommentCard: React.FC<CardProps> = ({ thread, meId, owner, focused,
               setReplying(true);
             }}
           >
-            回复
+            {t('回复')}
           </button>
         ))}
     </article>

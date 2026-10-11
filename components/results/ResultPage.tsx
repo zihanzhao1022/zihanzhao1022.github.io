@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { Check, Copy, ListTree, MessageSquare, MessageSquarePlus, X } from 'lucide-react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { exportPaperTex, exportTex } from '../../editor/results/texNames';
+import { N_, Translate } from '../../lib/i18n';
+import { useT } from '../../lib/phrases/site';
 import { findPaper, shownBlocks } from '../../lib/results';
 import { ResultBlock, ResultPaper } from '../../types';
 import { useContent } from '../ContentContext';
@@ -22,19 +24,25 @@ import './resultPage.css';
 import { Reader, avatarUrl, usePresence } from '../presence';
 import { useReportBlockInView } from './readingPosition';
 
-const KIND_LABEL = { text: '文字', figure: '图', table: '表格', heading: '小节标题' } as const;
+// Translated where shown.
+const KIND_LABEL = { text: N_('文字'), figure: N_('图'), table: N_('表格'), heading: N_('小节标题') } as const;
+const EDIT_LABEL = { text: N_('编辑文字'), figure: N_('编辑图'), table: N_('编辑表格'), heading: N_('编辑小节标题') } as const;
 
-const InsertButtons: React.FC<{ paperId: string; afterBlockId?: string }> = ({ paperId, afterBlockId }) => (
-  <>
-    <AddButton request={{ kind: 'block', paperId, blockKind: 'text', afterBlockId }} text="文字" />
-    <AddButton request={{ kind: 'block', paperId, blockKind: 'figure', afterBlockId }} text="图" />
-    <AddButton request={{ kind: 'block', paperId, blockKind: 'table', afterBlockId }} text="表格" />
-    <AddButton request={{ kind: 'heading', paperId, afterBlockId }} text="小节标题" />
-  </>
-);
+const InsertButtons: React.FC<{ paperId: string; afterBlockId?: string }> = ({ paperId, afterBlockId }) => {
+  const t = useT();
+  return (
+    <>
+      <AddButton request={{ kind: 'block', paperId, blockKind: 'text', afterBlockId }} text={t('文字')} />
+      <AddButton request={{ kind: 'block', paperId, blockKind: 'figure', afterBlockId }} text={t('图')} />
+      <AddButton request={{ kind: 'block', paperId, blockKind: 'table', afterBlockId }} text={t('表格')} />
+      <AddButton request={{ kind: 'heading', paperId, afterBlockId }} text={t('小节标题')} />
+    </>
+  );
+};
 
 /** Copies LaTeX to the clipboard without opening an editor. */
 const CopyButton: React.FC<{ text: () => string; label: string; title: string; className?: string }> = ({ text, label, title, className = '' }) => {
+  const t = useT();
   const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle');
   useEffect(() => {
     if (state === 'idle') return undefined;
@@ -55,7 +63,7 @@ const CopyButton: React.FC<{ text: () => string; label: string; title: string; c
       className={`inline-flex items-center gap-1 h-8 px-2.5 rounded-full border border-gray-300 bg-white text-xs text-gray-600 shadow-sm hover:border-purple-300 hover:text-purple-700 ${className}`}
     >
       {state === 'copied' ? <Check size={14} /> : <Copy size={14} />}
-      {{ idle: label, copied: '已复制', failed: '复制失败' }[state]}
+      {{ idle: label, copied: t('已复制'), failed: t('复制失败') }[state]}
     </button>
   );
 };
@@ -63,17 +71,18 @@ const CopyButton: React.FC<{ text: () => string; label: string; title: string; c
 /** The others looking at a block, beside it like collaborators' cursors in Overleaf. */
 const BlockReaders: React.FC<{ blockId: string }> = ({ blockId }) => {
   const presence = usePresence();
+  const t = useT();
   const here = presence?.viewers.filter((viewer) => viewer.block === blockId && viewer.login !== presence.me?.login) ?? [];
   if (here.length === 0) return null;
   return (
     // In the right margin: the left one holds the drag handles while editing.
-    <div className="absolute z-10 -top-8 right-0 flex gap-1 md:top-0 md:-right-10 md:flex-col" aria-label="正在看这一块的人">
+    <div className="absolute z-10 -top-8 right-0 flex gap-1 md:top-0 md:-right-10 md:flex-col" aria-label={t('正在看这一块的人')}>
       {here.map((viewer) => (
         <img
           key={viewer.login}
           src={avatarUrl(viewer.id, 48)}
           alt={viewer.login}
-          title={`@${viewer.login} 正在看这里`}
+          title={t('@{login} 正在看这里', { login: viewer.login })}
           className="w-6 h-6 rounded-full ring-2 ring-white bg-gray-200 shadow-sm"
         />
       ))}
@@ -94,13 +103,14 @@ interface BlockComments {
 
 const BlockItem: React.FC<{ paperId: string; block: ResultBlock; comments?: BlockComments }> = ({ paperId, block, comments }) => {
   const { editing } = useEditMode();
+  const t = useT();
   const heading = block.kind === 'heading';
   const add = comments && (
     <button
       type="button"
       onClick={comments.onAdd}
-      title="批注这一块"
-      aria-label="批注这一块"
+      title={t('批注这一块')}
+      aria-label={t('批注这一块')}
       className={
         editing
           ? 'inline-flex h-8 items-center gap-1 rounded-full border border-gray-300 bg-white px-2.5 text-xs text-gray-600 shadow-sm hover:border-purple-300 hover:text-purple-700'
@@ -108,7 +118,7 @@ const BlockItem: React.FC<{ paperId: string; block: ResultBlock; comments?: Bloc
       }
     >
       <MessageSquarePlus size={14} />
-      {editing && '批注'}
+      {editing && t('批注')}
     </button>
   );
   return (
@@ -131,13 +141,13 @@ const BlockItem: React.FC<{ paperId: string; block: ResultBlock; comments?: Bloc
       {!editing && add}
       {editing && (
         <div className="flex items-center justify-end gap-2 mb-1 text-xs text-gray-400">
-          {KIND_LABEL[block.kind]}
+          {t(KIND_LABEL[block.kind])}
           {block.hidden && <HiddenBadge />}
           {add}
-          {block.source && <CopyButton text={() => exportTex(block.source ?? '')} label="复制 LaTeX" title="复制 LaTeX 代码（开头注明需要的宏包）" />}
+          {block.source && <CopyButton text={() => exportTex(block.source ?? '')} label={t('复制 LaTeX')} title={t('复制 LaTeX 代码（开头注明需要的宏包）')} />}
           <EditButton
             request={heading ? { kind: 'heading', paperId, blockId: block.id } : { kind: 'block', paperId, blockId: block.id }}
-            label={`编辑${KIND_LABEL[block.kind]}`}
+            label={t(EDIT_LABEL[block.kind])}
           />
         </div>
       )}
@@ -147,7 +157,7 @@ const BlockItem: React.FC<{ paperId: string; block: ResultBlock; comments?: Bloc
         <BlockView paperId={paperId} block={block} quotes={comments?.quotes} activeQuote={comments?.active} onQuoteClick={comments?.onOpen} />
       )}
       {editing && (
-        <div className="result-block-insert" role="group" aria-label="在当前块下方插入内容">
+        <div className="result-block-insert" role="group" aria-label={t('在当前块下方插入内容')}>
           <InsertButtons paperId={paperId} afterBlockId={block.id} />
         </div>
       )}
@@ -157,6 +167,7 @@ const BlockItem: React.FC<{ paperId: string; block: ResultBlock; comments?: Bloc
 
 /** Who can see a paper while it is hidden, and how the site gets edits to it. */
 const Notices: React.FC<{ paper: ResultPaper; access: ResultsAccess | null; editing: boolean }> = ({ paper, access, editing }) => {
+  const t = useT();
   const collaborator = isCollaborator(access);
   const shared = (paper.viewers?.length ?? 0) + (paper.editors?.length ?? 0) > 0;
   const pending = paper.pendingReview ?? [];
@@ -166,18 +177,20 @@ const Notices: React.FC<{ paper: ResultPaper; access: ResultsAccess | null; edit
       {paper.hidden && (
         <div className={`${note} bg-gray-50 text-gray-600`}>
           {collaborator
-            ? '这篇论文目前不公开，只有作者和受邀的协作者能看到。'
-            : `这篇论文目前不公开，只有你${shared ? '和共享名单里的人' : ''}登录后能看到。在"编辑论文信息"里取消隐藏，才会发布到网站。`}
+            ? t('这篇论文目前不公开，只有作者和受邀的协作者能看到。')
+            : shared
+              ? t('这篇论文目前不公开，只有你和共享名单里的人登录后能看到。在"编辑论文信息"里取消隐藏，才会发布到网站。')
+              : t('这篇论文目前不公开，只有你登录后能看到。在"编辑论文信息"里取消隐藏，才会发布到网站。')}
         </div>
       )}
       {collaborator && editing && !paper.hidden && (
-        <div className={`${note} bg-gray-50 text-gray-600`}>这篇论文已经公开。你的修改会先保存，作者确认后才会更新到公开的网站上。</div>
+        <div className={`${note} bg-gray-50 text-gray-600`}>{t('这篇论文已经公开。你的修改会先保存，作者确认后才会更新到公开的网站上。')}</div>
       )}
       {!paper.hidden && pending.length > 0 && access?.approveEdits && (
         <div role="alert" className={`${note} bg-amber-50 text-amber-800`}>
-          {pending.map((login) => `@${login}`).join('、')} 修改过这篇已公开的论文，网站上仍是修改前的版本。
+          {t('{logins} 修改过这篇已公开的论文，网站上仍是修改前的版本。', { logins: pending.map((login) => `@${login}`).join(t('、')) })}
           <button type="button" onClick={() => access.approveEdits?.(paper.id)} className="ml-2 font-medium underline hover:text-amber-900">
-            发布这些修改
+            {t('发布这些修改')}
           </button>
         </div>
       )}
@@ -186,11 +199,11 @@ const Notices: React.FC<{ paper: ResultPaper; access: ResultsAccess | null; edit
 };
 
 /** Where on the page a block is, for the tooltip of someone's avatar. */
-function placeOf(blockId: string | undefined, blocks: ResultBlock[]): string {
-  if (!blockId) return '开头';
-  if (blockId === 'references') return '参考文献';
+function placeOf(blockId: string | undefined, blocks: ResultBlock[], t: Translate): string {
+  if (!blockId) return t('开头');
+  if (blockId === 'references') return t('参考文献');
   const index = blocks.findIndex((block) => block.id === blockId);
-  return index < 0 ? '这篇论文' : `第 ${index + 1} 块（${KIND_LABEL[blocks[index].kind]}）`;
+  return index < 0 ? t('这篇论文') : t('第 {n} 块（{kind}）', { n: index + 1, kind: t(KIND_LABEL[blocks[index].kind]) });
 }
 
 /** Scrolls to a block of this page, or to the top for none. */
@@ -205,19 +218,20 @@ function goTo(blockId: string | undefined): void {
 /** Who else has this paper open right now, like the avatars in Overleaf; clicking one goes to where they are. */
 const Viewers: React.FC<{ blocks: ResultBlock[] }> = ({ blocks }) => {
   const presence = usePresence();
+  const t = useT();
   const others = presence?.viewers.filter((viewer) => viewer.login !== presence.me?.login) ?? [];
   if (others.length === 0) return null;
   const shown = others.slice(0, 6);
   return (
-    <div className="flex items-center gap-2 text-xs text-gray-500" aria-label="正在看这篇论文的人">
-      <span className="hidden sm:inline">正在看</span>
+    <div className="flex items-center gap-2 text-xs text-gray-500" aria-label={t('正在看这篇论文的人')}>
+      <span className="hidden sm:inline">{t('正在看')}</span>
       <div className="flex -space-x-2">
         {shown.map((viewer) => (
           <button
             key={viewer.login}
             type="button"
             onClick={() => goTo(viewer.block)}
-            title={`@${viewer.login} 正在看${placeOf(viewer.block, blocks)}，点击跳过去`}
+            title={t('@{login} 正在看{place}，点击跳过去', { login: viewer.login, place: placeOf(viewer.block, blocks, t) })}
             className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
           >
             <img src={avatarUrl(viewer.id)} alt={viewer.login} className="w-7 h-7 rounded-full ring-2 ring-white bg-gray-200" />
@@ -247,6 +261,7 @@ function useWide(): boolean {
 const ResultPage: React.FC = () => {
   const { slug } = useParams();
   const { results } = useContent();
+  const t = useT();
   const editMode = useEditMode();
   const { loggedIn, ready, reorderBlocks } = editMode;
   const access = useResultsAccess();
@@ -404,7 +419,7 @@ const ResultPage: React.FC = () => {
     items.length > 0 ? (
       <Outline items={items} active={itemAt(items, order, reading)} readers={readers} onGo={go} />
     ) : editing && !collaborator ? (
-      <p className="px-2 text-xs text-gray-400">添加小节标题后，这里会出现目录。</p>
+      <p className="px-2 text-xs text-gray-400">{t('添加小节标题后，这里会出现目录。')}</p>
     ) : null;
 
   return (
@@ -439,7 +454,7 @@ const ResultPage: React.FC = () => {
                   className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-purple-600 xl:hidden"
                 >
                   <ListTree size={16} />
-                  目录
+                  {t('目录')}
                 </button>
               )}
             </div>
@@ -452,7 +467,8 @@ const ResultPage: React.FC = () => {
                   className={`inline-flex items-center gap-1 text-sm ${columnShown && wide ? 'text-purple-700' : 'text-gray-500 hover:text-purple-600'}`}
                 >
                   <MessageSquare size={16} />
-                  批注{openThreads.length > 0 ? ` ${openThreads.length}` : ''}
+                  {t('批注')}
+                  {openThreads.length > 0 ? ` ${openThreads.length}` : ''}
                 </button>
               )}
             </div>
@@ -464,7 +480,7 @@ const ResultPage: React.FC = () => {
               {!collaborator && (
                 <EditButton
                   request={{ kind: 'edit', collection: 'results', id: paper.id }}
-                  label="编辑论文信息"
+                  label={t('编辑论文信息')}
                   className="ml-3 align-middle"
                 />
               )}
@@ -481,16 +497,16 @@ const ResultPage: React.FC = () => {
             {paper.summary && <p className="text-sm text-gray-600">{paper.summary}</p>}
             <EditButton
               request={{ kind: 'paperSettings', paperId: paper.id }}
-              label="导言区与附件"
-              text="导言区与附件"
+              label={t('导言区与附件')}
+              text={t('导言区与附件')}
               className="mt-3"
             />
-            <EditButton request={{ kind: 'references', paperId: paper.id }} label="参考文献" text="参考文献" className="mt-3 ml-2" />
+            <EditButton request={{ kind: 'references', paperId: paper.id }} label={t('参考文献')} text={t('参考文献')} className="mt-3 ml-2" />
             {editing && !collaborator && (
               <CopyButton
                 text={() => exportPaperTex(paper.blocks)}
-                label="导出全文 LaTeX"
-                title="按顺序复制所有块（包括隐藏的）和小节标题，开头注明需要的宏包，不含 References"
+                label={t('导出全文 LaTeX')}
+                title={t('按顺序复制所有块（包括隐藏的）和小节标题，开头注明需要的宏包，不含 References')}
                 className="mt-3 ml-2 align-top"
               />
             )}
@@ -521,10 +537,10 @@ const ResultPage: React.FC = () => {
             )}
           </div>
           {!paper.references && editing && (paper.files ?? []).includes('references.bib') && (
-            <p className="mt-10 text-sm italic text-gray-400">References：正文里还没有用 \cite 引用 references.bib 里的文献。</p>
+            <p className="mt-10 text-sm italic text-gray-400">{t('References：正文里还没有用 \\cite 引用 references.bib 里的文献。')}</p>
           )}
           {blocks.length === 0 && (
-            <div className="text-center text-gray-500 py-12 italic">{editing ? '用下面的按钮添加文字、图、表格或小节标题。' : 'Nothing here yet.'}</div>
+            <div className="text-center text-gray-500 py-12 italic">{editing ? t('用下面的按钮添加文字、图、表格或小节标题。') : 'Nothing here yet.'}</div>
           )}
           {editing && (
             <div className="mt-10 flex flex-wrap items-center gap-2">
@@ -533,13 +549,13 @@ const ResultPage: React.FC = () => {
           )}
         </div>
         {wide && columnShown && (
-          <aside ref={setCommentColumn} aria-label="批注">
+          <aside ref={setCommentColumn} aria-label={t('批注')}>
             {panel(true)}
           </aside>
         )}
       </div>
       {!wide && commentDrawer && presence && (
-        <div role="dialog" aria-modal="true" aria-label="批注" className="fixed inset-0 z-[90]">
+        <div role="dialog" aria-modal="true" aria-label={t('批注')} className="fixed inset-0 z-[90]">
           <div className="absolute inset-0 bg-black/30" onClick={() => setCommentDrawer(false)} />
           <div className="absolute inset-y-0 right-0 w-80 max-w-[90vw] overflow-y-auto bg-gray-50 p-4 shadow-xl">{panel(false)}</div>
         </div>
@@ -559,16 +575,16 @@ const ResultPage: React.FC = () => {
             className="z-[60] inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-gray-900 px-3 py-1.5 text-xs font-medium text-white shadow-lg hover:bg-gray-700"
           >
             <MessageSquarePlus size={14} />
-            批注
+            {t('批注')}
           </button>,
           document.body,
         )}
       {drawer && items.length > 0 && (
-        <div role="dialog" aria-modal="true" aria-label="目录" className="fixed inset-0 z-[90] xl:hidden">
+        <div role="dialog" aria-modal="true" aria-label={t('目录')} className="fixed inset-0 z-[90] xl:hidden">
           <div className="absolute inset-0 bg-black/30" onClick={() => setDrawer(false)} />
           <div className="absolute inset-y-0 left-0 w-72 max-w-[85vw] overflow-y-auto bg-white p-4 shadow-xl">
             <div className="mb-1 flex justify-end">
-              <button type="button" onClick={() => setDrawer(false)} aria-label="关闭目录" className="p-1 text-gray-400 hover:text-gray-700">
+              <button type="button" onClick={() => setDrawer(false)} aria-label={t('关闭目录')} className="p-1 text-gray-400 hover:text-gray-700">
                 <X size={18} />
               </button>
             </div>

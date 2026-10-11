@@ -2,7 +2,10 @@ import React, { Suspense, lazy, useCallback, useMemo, useRef, useState } from 'r
 import { Loader2, LogOut } from 'lucide-react';
 import { useContent, useUpdateContent } from '../components/ContentContext';
 import { EditModeContext, EditModeValue, Toast } from '../components/EditMode';
+import LangSwitch from '../components/LangSwitch';
 import { ResultsAccessContext, canEditShared } from '../components/results/access';
+import { N_ } from '../lib/i18n';
+import { useT } from '../lib/phrases/site';
 import { Session, clearSession, isExpiringSoon } from '../lib/session';
 import { EditRequest } from '../types';
 import { logout, startLogin } from './auth';
@@ -14,7 +17,7 @@ import { PresenceContext } from '../components/presence';
 const BlockEditor = lazy(() => import('./results/BlockEditor'));
 const PaperSettings = lazy(() => import('./results/PaperSettings'));
 
-const EXPIRING = '登录即将过期，请重新登录后再编辑';
+const EXPIRING = N_('登录即将过期，请重新登录后再编辑');
 const noop = (): void => {};
 
 interface Props {
@@ -23,43 +26,48 @@ interface Props {
   children: React.ReactNode;
 }
 
-const CollaboratorBar: React.FC<{ session: Session; loading: boolean; onLogout: () => void }> = ({ session, loading, onLogout }) => (
-  <div className="bg-gray-900 text-xs text-gray-300">
-    <div className="max-w-5xl mx-auto px-6 md:px-12 py-2 flex flex-wrap items-center gap-x-4 gap-y-1">
-      <span className="flex items-center gap-2">
-        {session.avatarUrl ? (
-          <img src={session.avatarUrl} alt="" className="w-5 h-5 rounded-full" />
-        ) : (
-          <span className="flex items-center justify-center w-5 h-5 rounded-full bg-purple-600 text-[10px] font-semibold text-white">
-            {session.login.charAt(0).toUpperCase()}
+const CollaboratorBar: React.FC<{ session: Session; loading: boolean; onLogout: () => void }> = ({ session, loading, onLogout }) => {
+  const t = useT();
+  return (
+    <div className="bg-gray-900 text-xs text-gray-300">
+      <div className="max-w-5xl mx-auto px-6 md:px-12 py-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+        <span className="flex items-center gap-2">
+          {session.avatarUrl ? (
+            <img src={session.avatarUrl} alt="" className="w-5 h-5 rounded-full" />
+          ) : (
+            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-purple-600 text-[10px] font-semibold text-white">
+              {session.login.charAt(0).toUpperCase()}
+            </span>
+          )}
+          <span className="font-medium text-white">{session.login}</span>
+          <span className="text-gray-400">{t('协作者')}</span>
+        </span>
+        {/* The bar sits outside the router (like the owner's), so this is a plain link to the hash route. */}
+        <a href="#/results" className="text-purple-300 hover:text-purple-200">
+          {t('共享给你的论文')} →
+        </a>
+        {loading && (
+          <span className="ml-auto flex items-center gap-1 text-gray-400">
+            <Loader2 size={12} className="animate-spin" />
+            {t('正在读取…')}
           </span>
         )}
-        <span className="font-medium text-white">{session.login}</span>
-        <span className="text-gray-400">协作者</span>
-      </span>
-      {/* The bar sits outside the router (like the owner's), so this is a plain link to the hash route. */}
-      <a href="#/results" className="text-purple-300 hover:text-purple-200">
-        共享给你的论文 →
-      </a>
-      {loading && (
-        <span className="ml-auto flex items-center gap-1 text-gray-400">
-          <Loader2 size={12} className="animate-spin" />
-          正在读取…
-        </span>
-      )}
-      <button type="button" onClick={onLogout} className={`${loading ? '' : 'ml-auto '}flex items-center gap-1 text-gray-400 hover:text-white`}>
-        <LogOut size={12} />
-        退出
-      </button>
+        <LangSwitch dark className={loading ? '' : 'ml-auto'} />
+        <button type="button" onClick={onLogout} className="flex items-center gap-1 text-gray-400 hover:text-white">
+          <LogOut size={12} />
+          {t('退出')}
+        </button>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 /**
  * The site for someone the owner shared results papers with: everything stays read-only except the papers
  * they may edit, whose blocks, preamble and attachments they edit like the owner (through the worker).
  */
 const CollaboratorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
+  const t = useT();
   const content = useContent();
   const setContent = useUpdateContent();
   const contentRef = useRef(content);
@@ -93,24 +101,24 @@ const CollaboratorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
   const open = useCallback(
     (next: EditRequest) => {
       if (isExpiringSoon(session)) {
-        setToast({ message: EXPIRING, relogin: true });
+        setToast({ message: t(EXPIRING), relogin: true });
         return;
       }
       if ((next.kind !== 'block' && next.kind !== 'paperSettings') || !canEditShared(access, next.paperId)) {
-        setToast({ message: '你只能编辑作者允许你编辑的论文' });
+        setToast({ message: t('你只能编辑作者允许你编辑的论文') });
         return;
       }
       if (access.state !== 'private') {
-        setToast({ message: access.state === 'loading' ? '论文还在加载，请稍后再试' : '暂时读不到共享的论文，请刷新页面重试' });
+        setToast({ message: access.state === 'loading' ? t('论文还在加载，请稍后再试') : t('暂时读不到共享的论文，请刷新页面重试') });
         return;
       }
       if (isReordering(next.paperId)) {
-        setToast({ message: '正在保存新的顺序并更新编号，请几秒后再编辑' });
+        setToast({ message: t('正在保存新的顺序并更新编号，请几秒后再编辑') });
         return;
       }
       setRequest(next);
     },
-    [session, access, isReordering],
+    [session, access, isReordering, t],
   );
 
   const value = useMemo<EditModeValue>(
@@ -167,7 +175,7 @@ const CollaboratorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
             <Toast
               message={toast.message}
               onClose={() => setToast(null)}
-              action={toast.relogin ? { label: '重新登录', onClick: relogin } : toast.action}
+              action={toast.relogin ? { label: t('重新登录'), onClick: relogin } : toast.action}
             />
           )}
         </PresenceContext.Provider>

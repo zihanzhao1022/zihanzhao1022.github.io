@@ -1,5 +1,6 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
+import { useT } from '../../../lib/phrases/site';
 import { CommentOp, ResultComment } from '../../../types';
 import { CommentBox, CommentCard } from './CommentCard';
 import { placeCards } from './commentText';
@@ -59,6 +60,7 @@ const CommentsPanel: React.FC<Props> = ({
   onClose,
   act,
 }) => {
+  const t = useT();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 60_000);
@@ -133,14 +135,14 @@ const CommentsPanel: React.FC<Props> = ({
 
   const header = (
     <div className={`flex items-center gap-2 text-xs text-gray-500 ${column ? 'sticky top-24 z-10 -mx-1 rounded-md bg-white/90 px-1 py-1 backdrop-blur-sm' : 'mb-3'}`}>
-      <span className="font-medium text-gray-700">批注</span>
+      <span className="font-medium text-gray-700">{t('批注')}</span>
       <span>{threads.filter((thread) => !thread.resolved).length}</span>
       {resolvedCount > 0 && (
         <button type="button" onClick={onToggleResolved} className="ml-2 hover:text-purple-700">
-          {showResolved ? '隐藏已解决' : `显示已解决（${resolvedCount}）`}
+          {showResolved ? t('隐藏已解决') : t('显示已解决（{n}）', { n: resolvedCount })}
         </button>
       )}
-      <button type="button" onClick={onClose} aria-label="收起批注" className="ml-auto p-1 text-gray-400 hover:text-gray-700">
+      <button type="button" onClick={onClose} aria-label={t('收起批注')} className="ml-auto p-1 text-gray-400 hover:text-gray-700">
         <X size={14} />
       </button>
     </div>
@@ -149,7 +151,7 @@ const CommentsPanel: React.FC<Props> = ({
   const draftCard = draft && (
     <div ref={keep(DRAFT)} style={place(DRAFT)} className="rounded-lg border border-purple-300 bg-white p-3 text-sm shadow-md ring-2 ring-purple-100">
       {draft.quote && <blockquote className="line-clamp-3 border-l-2 border-amber-300 pl-2 text-xs text-gray-500">{draft.quote}</blockquote>}
-      <CommentBox placeholder={draft.quote ? '对这段文字的批注…' : '对这一块的批注…'} submit="发布" connected={connected} onSubmit={onPost} onCancel={onCancelDraft} />
+      <CommentBox placeholder={draft.quote ? t('对这段文字的批注…') : t('对这一块的批注…')} submit={t('发布')} connected={connected} onSubmit={onPost} onCancel={onCancelDraft} />
     </div>
   );
 
@@ -176,7 +178,7 @@ const CommentsPanel: React.FC<Props> = ({
           {draftCard}
           {list}
         </div>
-        {threads.length === 0 && !draft && <p className="mt-2 text-xs text-gray-400">选中 PDF 里的文字，或点块右上角的批注图标，就能添加批注。</p>}
+        {threads.length === 0 && !draft && <p className="mt-2 text-xs text-gray-400">{t('选中 PDF 里的文字，或点块右上角的批注图标，就能添加批注。')}</p>}
       </div>
     );
   }
@@ -187,7 +189,7 @@ const CommentsPanel: React.FC<Props> = ({
         {draftCard}
         {list}
       </div>
-      {threads.length === 0 && !draft && <p className="text-xs text-gray-400">选中 PDF 里的文字，或点块右上角的批注图标，就能添加批注。</p>}
+      {threads.length === 0 && !draft && <p className="text-xs text-gray-400">{t('选中 PDF 里的文字，或点块右上角的批注图标，就能添加批注。')}</p>}
     </div>
   );
 };

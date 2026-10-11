@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
+import { useT } from '../../lib/phrases/site';
 
 const LOGIN = /^@?[A-Za-z0-9][A-Za-z0-9-]{0,38}$/;
 
@@ -11,6 +12,7 @@ interface Props {
 
 /** The owner's list of GitHub users who may view every paper of the results pages. */
 const SiteViewersDialog: React.FC<Props> = ({ names, onSave, onClose }) => {
+  const t = useT();
   const [text, setText] = useState(names.join('\n'));
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -22,7 +24,7 @@ const SiteViewersDialog: React.FC<Props> = ({ names, onSave, onClose }) => {
       .filter(Boolean);
     const wrong = lines.find((line) => !LOGIN.test(line));
     if (wrong) {
-      setProblem(`"${wrong}" 不是 GitHub 用户名：每行一个，只能包含字母、数字和连字符`);
+      setProblem(t('"{name}" 不是 GitHub 用户名：每行一个，只能包含字母、数字和连字符', { name: wrong }));
       return;
     }
     const unique = lines
@@ -34,23 +36,23 @@ const SiteViewersDialog: React.FC<Props> = ({ names, onSave, onClose }) => {
       await onSave(unique);
       onClose();
     } catch (error) {
-      setProblem(error instanceof Error ? error.message : '保存失败，请稍后重试');
+      setProblem(error instanceof Error ? error.message : t('保存失败，请稍后重试'));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="可以查看全部论文的人" className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 p-4">
+    <div role="dialog" aria-modal="true" aria-label={t('可以查看全部论文的人')} className="fixed inset-0 z-[100] flex items-center justify-center bg-black/30 p-4">
       <div className="w-full max-w-md rounded-lg bg-white p-5 shadow-xl">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-gray-900">可以查看全部论文的人</h2>
-          <button type="button" onClick={onClose} aria-label="关闭" className="p-1 text-gray-400 hover:text-gray-700">
+          <h2 className="text-base font-semibold text-gray-900">{t('可以查看全部论文的人')}</h2>
+          <button type="button" onClick={onClose} aria-label={t('关闭')} className="p-1 text-gray-400 hover:text-gray-700">
             <X size={18} />
           </button>
         </div>
         <p className="mb-3 text-sm text-gray-600">
-          每行一个 GitHub 用户名。他们用 GitHub 登录后能看到这里所有的论文（只看到可见块的结果，看不到 LaTeX 代码），包括以后新建的。只想共享某一篇，就在那篇的"编辑论文信息"里填。
+          {t('每行一个 GitHub 用户名。他们用 GitHub 登录后能看到这里所有的论文（只看到可见块的结果，看不到 LaTeX 代码），包括以后新建的。只想共享某一篇，就在那篇的"编辑论文信息"里填。')}
         </p>
         <textarea
           value={text}
@@ -66,7 +68,7 @@ const SiteViewersDialog: React.FC<Props> = ({ names, onSave, onClose }) => {
         )}
         <div className="mt-4 flex justify-end gap-2">
           <button type="button" disabled={saving} onClick={onClose} className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
-            取消
+            {t('取消')}
           </button>
           <button
             type="button"
@@ -74,7 +76,7 @@ const SiteViewersDialog: React.FC<Props> = ({ names, onSave, onClose }) => {
             onClick={() => void save()}
             className="rounded-md bg-purple-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-60"
           >
-            {saving ? '保存中…' : '保存'}
+            {saving ? t('保存中…') : t('保存')}
           </button>
         </div>
       </div>

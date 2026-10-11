@@ -2,17 +2,21 @@ import React from 'react';
 import { useContent } from '../components/ContentContext';
 import { AddButton, useVisibleItems } from '../components/EditMode';
 import { SortableGroup } from '../components/SortableGroup';
+import { N_ } from '../lib/i18n';
+import { useT } from '../lib/phrases/site';
 import { ExperienceCategory } from '../types';
 import ListItem from '../components/ListItem';
 
+// The add buttons' texts are translated where shown.
 const SECTIONS: { id: ExperienceCategory; title: string; addText: string }[] = [
-  { id: 'education', title: 'Education', addText: '添加教育经历' },
-  { id: 'work', title: 'Work Experience', addText: '添加工作经历' },
-  { id: 'volunteer', title: 'Volunteer & Service', addText: '添加志愿经历' },
+  { id: 'education', title: 'Education', addText: N_('添加教育经历') },
+  { id: 'work', title: 'Work Experience', addText: N_('添加工作经历') },
+  { id: 'volunteer', title: 'Volunteer & Service', addText: N_('添加志愿经历') },
 ];
 
 const Experiences: React.FC = () => {
   const experiences = useVisibleItems(useContent().experiences);
+  const t = useT();
   return (
     <div className="animate-fade-in pb-20">
       <div className="mb-10">
@@ -36,7 +40,7 @@ const Experiences: React.FC = () => {
               </h2>
               <AddButton
                 request={{ kind: 'add', collection: 'experiences', preset: { category: section.id } }}
-                text={section.addText}
+                text={t(section.addText)}
                 className="ml-3"
               />
 

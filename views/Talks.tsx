@@ -3,15 +3,17 @@ import { useContent } from '../components/ContentContext';
 import { AddButton, EditButton, HiddenBadge, useVisibleItems } from '../components/EditMode';
 import { SortableGroup } from '../components/SortableGroup';
 import { MapPin, User, Calendar } from 'lucide-react';
+import { useT } from '../lib/phrases/site';
 
 const Talks: React.FC = () => {
   const talks = useVisibleItems(useContent().talks);
+  const t = useT();
   return (
     <div className="animate-fade-in pb-20">
       <div className="mb-10">
         <h1 className="text-3xl font-light text-gray-900 mb-2">
           invited talks
-          <AddButton request={{ kind: 'add', collection: 'talks' }} text="添加报告" className="ml-3" />
+          <AddButton request={{ kind: 'add', collection: 'talks' }} text={t('添加报告')} className="ml-3" />
         </h1>
       </div>
 
@@ -24,7 +26,7 @@ const Talks: React.FC = () => {
             <h3 className="text-xl font-bold text-gray-900 mb-2">
               <EditButton
                 request={{ kind: 'edit', collection: 'talks', id: talk.id }}
-                label="编辑这场报告"
+                label={t('编辑这场报告')}
                 className="float-right ml-3"
               />
               {talk.title}

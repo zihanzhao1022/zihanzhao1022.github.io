@@ -1,3 +1,5 @@
+import { t } from '../../lib/phrases/site';
+
 /** The destination forms returned by PDF.js for GoTo annotations. */
 export type PdfDestination = string | unknown[];
 
@@ -59,11 +61,11 @@ export function getPdfLinks(annotations: unknown[], viewport: PdfLinkViewport): 
     const destination = annotation.dest;
     if (typeof destination === 'string' && destination.length > 0) {
       const label = destination.startsWith('cite.')
-        ? `查看参考文献 ${destination.slice(5)}`
-        : `跳转到 ${destination}`;
+        ? t('查看参考文献 {key}', { key: destination.slice(5) })
+        : t('跳转到 {name}', { name: destination });
       links.push({ ...bounds, destination, label });
     } else if (Array.isArray(destination) && destination.length > 0) {
-      links.push({ ...bounds, destination, label: '跳转到文档中的引用位置' });
+      links.push({ ...bounds, destination, label: t('跳转到文档中的引用位置') });
     }
   }
   return links;

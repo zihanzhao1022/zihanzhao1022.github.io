@@ -3,6 +3,8 @@
  * under public/texlive/; anything else comes from TeXlyre's TeX Live server and is kept in Cache Storage.
  * Only file names leave the browser, never the document being compiled.
  */
+import { N_ } from '../../lib/i18n';
+import { t } from '../../lib/phrases/results';
 
 export interface CompileInput {
   /** The text of main.tex. */
@@ -65,13 +67,13 @@ const COMPILE_TIMEOUT_MS = 45_000;
 /** Starting takes a few MB of downloads the first time; a start that takes longer has stalled. */
 const STARTUP_TIMEOUT_MS = 120_000;
 const REMOTE_PREFIX = '/texlive-remote/';
-const LOAD_FAILED = 'TeX 引擎加载失败，请检查网络后重试';
+const LOAD_FAILED = N_('TeX 引擎加载失败，请检查网络后重试');
 
 const assetUrl = (path: string): string => new URL(`texlive/${path}`, document.baseURI).href;
 
 /** The bytes of a .gz asset, decompressed; a host that already sent it with Content-Encoding: gzip is fine too. */
 async function gunzip(res: Response): Promise<ArrayBuffer> {
-  if (!res.ok) throw new Error(LOAD_FAILED);
+  if (!res.ok) throw new Error(t(LOAD_FAILED));
   const bytes = await res.arrayBuffer();
   const head = new Uint8Array(bytes, 0, Math.min(2, bytes.byteLength));
   if (head[0] !== 0x1f || head[1] !== 0x8b) return bytes;
@@ -126,7 +128,7 @@ class WorkerEngine implements TexEngine {
         resolve(reply);
       }
     };
-    worker.onerror = () => this.retire('TeX 引擎意外退出');
+    worker.onerror = () => this.retire(t('TeX 引擎意外退出'));
   }
 
   /** Stops using this worker: answers the open request with a failure, and lets the next compile start a new one. */
@@ -148,11 +150,11 @@ class WorkerEngine implements TexEngine {
 
   private request(message: Record<string, unknown>, cmd: string, transfer: Transferable[] = [], timeoutMs = 0): Promise<WorkerReply> {
     if (this.dead) {
-      const reason = 'TeX 引擎已重启，请重新编译';
+      const reason = t('TeX 引擎已重启，请重新编译');
       return Promise.resolve({ cmd, result: 'failed', status: -254, log: reason, reason });
     }
     return new Promise((resolve) => {
-      const timer = timeoutMs > 0 ? setTimeout(() => this.retire('编译超时：可能有无限循环的宏'), timeoutMs) : undefined;
+      const timer = timeoutMs > 0 ? setTimeout(() => this.retire(t('编译超时：可能有无限循环的宏')), timeoutMs) : undefined;
       this.waiting = {
         cmd,
         resolve: (reply) => {
@@ -166,7 +168,7 @@ class WorkerEngine implements TexEngine {
 
   async preload(files: PreloadFile[]): Promise<void> {
     const reply = await this.request({ cmd: 'preload', files }, 'preload', files.map((file) => file.data));
-    if (reply.result !== 'ok') throw new Error(LOAD_FAILED);
+    if (reply.result !== 'ok') throw new Error(t(LOAD_FAILED));
   }
 
   compile(input: CompileInput): Promise<CompileOutput> {
@@ -197,8 +199,8 @@ class WorkerEngine implements TexEngine {
       const bib = await this.request({ cmd: 'bibtex' }, 'bibtex', [], COMPILE_TIMEOUT_MS);
       bibtexLog = bib.log ?? '';
       if (bib.status === -254) {
-        this.retire(bib.reason ?? 'BibTeX 意外退出');
-        return { ok: false, status: -254, log: bibtexLog, reason: bib.reason ?? 'BibTeX 意外退出', bibtexLog };
+        this.retire(bib.reason ?? t('BibTeX 意外退出'));
+        return { ok: false, status: -254, log: bibtexLog, reason: bib.reason ?? t('BibTeX 意外退出'), bibtexLog };
       }
       reply = await this.request({ cmd: 'compilelatex' }, 'compile', [], COMPILE_TIMEOUT_MS);
     }
@@ -224,14 +226,14 @@ async function startEngine(onCrash: () => void): Promise<TexEngine> {
   const worker = new Worker(assetUrl('swiftlatexpdftex.js'));
   let timer: ReturnType<typeof setTimeout> | undefined;
   const stalled = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(LOAD_FAILED)), STARTUP_TIMEOUT_MS);
+    timer = setTimeout(() => reject(new Error(t(LOAD_FAILED))), STARTUP_TIMEOUT_MS);
   });
   try {
     // Saves wait for compiles in one queue, so a stalled start must fail rather than hold it forever.
     return await Promise.race([setUp(worker, onCrash), stalled]);
   } catch (error) {
     worker.terminate();
-    throw error instanceof Error ? error : new Error(LOAD_FAILED);
+    throw error instanceof Error ? error : new Error(t(LOAD_FAILED));
   } finally {
     clearTimeout(timer);
   }
@@ -241,12 +243,12 @@ async function setUp(worker: Worker, onCrash: () => void): Promise<TexEngine> {
   await new Promise<void>((resolve, reject) => {
     worker.onmessage = (event: MessageEvent<WorkerReply>) => {
       if (event.data.result === 'ok' && !event.data.cmd) resolve();
-      else reject(new Error(LOAD_FAILED));
+      else reject(new Error(t(LOAD_FAILED)));
     };
-    worker.onerror = () => reject(new Error(LOAD_FAILED));
+    worker.onerror = () => reject(new Error(t(LOAD_FAILED)));
   });
   const res = await fetch(assetUrl('manifest.json'));
-  if (!res.ok) throw new Error(LOAD_FAILED);
+  if (!res.ok) throw new Error(t(LOAD_FAILED));
   const manifest = (await res.json()) as Manifest;
   worker.postMessage({ cmd: 'setbundle', base: assetUrl('files/'), files: manifest.files, missing: manifest.missing ?? [] });
   const bundled = await Promise.all(

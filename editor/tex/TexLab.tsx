@@ -1,6 +1,8 @@
 import React, { useCallback, useState } from 'react';
 import PdfView from '../../components/results/PdfView';
 import { pdfPageSize } from '../../components/results/pdfjs';
+import { N_ } from '../../lib/i18n';
+import { useT } from '../../lib/phrases/results';
 import { BlockKind, DEFAULT_PREAMBLE, buildBlockDocument } from './document';
 import { getTexEngine } from './engine';
 import { TexIssue, locateLine, parseAuxLabels, parseCounters, parseErrors, parseWarnings } from './log';
@@ -31,10 +33,11 @@ interface Outcome {
   log: string;
 }
 
-const AREA = { source: '代码', preamble: '导言区', wrapper: '包装' } as const;
+const AREA = { source: N_('代码'), preamble: N_('导言区'), wrapper: N_('包装') } as const;
 
 /** Development page for the TeX engine (#/__tex under npm run dev). */
 const TexLab: React.FC = () => {
+  const t = useT();
   const [preamble, setPreamble] = useState(DEFAULT_PREAMBLE);
   const [source, setSource] = useState(SAMPLE);
   const [kind, setKind] = useState<BlockKind>('table');
@@ -55,9 +58,9 @@ const TexLab: React.FC = () => {
       const size = out.pdf ? await pdfPageSize(out.pdf) : { width: 0, height: 0 };
       const describe = (issue: TexIssue): string => {
         if (issue.line === undefined) return issue.message;
-        if (issue.file) return `${issue.file} 第 ${issue.line} 行：${issue.message}`;
+        if (issue.file) return t('{file} 第 {line} 行：{message}', { file: issue.file, line: issue.line, message: issue.message });
         const where = locateLine(issue.line, doc);
-        return `${AREA[where.area]}第 ${where.line} 行：${issue.message}`;
+        return t('{where}第 {line} 行：{message}', { where: t(AREA[where.area]), line: where.line, message: issue.message });
       };
       const problems = parseErrors(out.log).map(describe);
       setOutcome({
@@ -107,7 +110,7 @@ const TexLab: React.FC = () => {
           disabled={busy}
           className="px-3 py-1 rounded bg-purple-600 text-white disabled:opacity-50"
         >
-          {busy ? '编译中…' : '编译'}
+          {busy ? t('编译中…') : t('编译')}
         </button>
         {outcome && <span className="text-gray-500">{outcome.ms} ms</span>}
       </div>
@@ -124,7 +127,7 @@ const TexLab: React.FC = () => {
             {JSON.stringify({ counters: outcome.counters, labels: outcome.labels, warnings: outcome.warnings }, null, 2)}
           </pre>
           <details>
-            <summary className="cursor-pointer text-gray-500">日志</summary>
+            <summary className="cursor-pointer text-gray-500">{t('日志')}</summary>
             <pre className="text-xs bg-gray-50 p-2 overflow-auto max-h-96">{outcome.log}</pre>
           </details>
         </>

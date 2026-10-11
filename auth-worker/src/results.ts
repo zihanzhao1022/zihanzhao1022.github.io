@@ -150,6 +150,7 @@ async function readBody(request: Request, limit: number): Promise<Untrusted | 't
 
 type Handler = (api: GitHubApi, user: GitHubUser, body: Untrusted, env: ResultsEnv, cors: Headers) => Promise<Response>;
 
+/** A refused request; `message` stays in Chinese and the site translates it (lib/phrases/results.ts). */
 const badRequest = (cors: Headers, message?: string): Response => json({ error: 'bad_request', message }, 400, cors);
 const forbidden = (cors: Headers): Response => json({ error: 'forbidden' }, 403, cors);
 

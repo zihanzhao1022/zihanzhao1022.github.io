@@ -1,4 +1,5 @@
 import { pdfPageSize } from '../../components/results/pdfjs';
+import { t } from '../../lib/phrases/results';
 import { PdfBlockKind, ResultPaper } from '../../types';
 import { DEFAULT_PREAMBLE } from '../tex/document';
 import { TexEngine, getTexEngine } from '../tex/engine';
@@ -41,7 +42,7 @@ export function makeCompileFn(engine: TexEngine, preamble: string, files: Record
     if (result.ok && result.pdf) {
       return { ok: true, pdf: result.pdf, width: result.width, height: result.height, counters: result.counters, labels: result.labels };
     }
-    return { ok: false, message: result.issues.map(describeIssue).join('；') || '编译失败' };
+    return { ok: false, message: result.issues.map(describeIssue).join(t('；')) || t('编译失败') };
   };
 }
 
@@ -55,7 +56,7 @@ export function makeReferencesBuilder(engine: TexEngine, paper: ResultPaper, fil
     compile: async (keys) => {
       const result = await compileReferences(engine, { preamble: preambleOf(paper), keys, style, files }, pdfPageSize);
       if (result.ok && result.pdf) return { ok: true, pdf: result.pdf, width: result.width, height: result.height, citations: result.citations };
-      return { ok: false, message: result.issues.map(describeIssue).join('；') || '编译失败' };
+      return { ok: false, message: result.issues.map(describeIssue).join(t('；')) || t('编译失败') };
     },
   };
 }
@@ -84,15 +85,16 @@ export function withOutputs(paperId: string, ops: ResultsOp[], rebuilt: RebuildR
 
 export const newBlockId = (): string => `blk-${Date.now().toString(36)}`;
 
-export const BLOCK_TEMPLATES: Record<PdfBlockKind, string> = {
-  text: String.raw`Write the text here; math works as usual: $E = mc^2$.`,
-  figure: String.raw`\begin{figure}[t]
+/** The code a new block starts with; made when the block is added, so the figure's comment names the insert button as shown. */
+export const BLOCK_TEMPLATES: Record<PdfBlockKind, () => string> = {
+  text: () => String.raw`Write the text here; math works as usual: $E = mc^2$.`,
+  figure: () => String.raw`\begin{figure}[t]
 \centering
-% Upload an image above, then use "插入" to add \includegraphics here.
+% Upload an image above, then use "${t('插入')}" to add \includegraphics here.
 \caption{Caption.}
 \label{fig:}
 \end{figure}`,
-  table: String.raw`\begin{table}[t]
+  table: () => String.raw`\begin{table}[t]
 \centering
 \begin{tabular}{lcc}
 \toprule
@@ -148,7 +150,11 @@ export const extensionOf = (name: string): string => {
 
 /** Why an attachment cannot be used, or null when it can. */
 export function attachmentProblem(file: { name: string; size: number }): string | null {
-  if (!ATTACHMENT_TYPES.includes(extensionOf(file.name))) return `不支持 ${extensionOf(file.name) || '没有扩展名的'} 文件，可以上传 ${ATTACHMENT_TYPES.join(' ')}`;
-  if (file.size > ATTACHMENT_LIMIT) return '文件超过 20 MB';
+  const extension = extensionOf(file.name);
+  if (!ATTACHMENT_TYPES.includes(extension)) {
+    const types = ATTACHMENT_TYPES.join(' ');
+    return extension ? t('不支持 {extension} 文件，可以上传 {types}', { extension, types }) : t('不支持 没有扩展名的 文件，可以上传 {types}', { types });
+  }
+  if (file.size > ATTACHMENT_LIMIT) return t('文件超过 20 MB');
   return null;
 }

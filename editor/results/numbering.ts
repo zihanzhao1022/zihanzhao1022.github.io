@@ -1,4 +1,5 @@
 import { countersBefore, headingKey, headingTex, readHeadingNumber, startsAppendix } from '../../lib/headings';
+import { t } from '../../lib/phrases/results';
 import { HeadingNumbering, ResultBlock, ResultBlockOutput, ResultPaper, ResultReferences } from '../../types';
 import { WRAPPER_VERSION, stripComments } from '../tex/document';
 import { FileWrite } from './backend';
@@ -162,10 +163,13 @@ export interface RebuildResult {
   failed?: { blockId: string; message: string };
 }
 
-/** Says what a failed rebuild could not compile, counting blocks from 1. */
-export function describeFailure(blocks: ResultBlock[], failed: { blockId: string; message: string }, prefix = ''): string {
-  if (failed.blockId === 'references') return `参考文献编译失败：${failed.message}`;
-  return `${prefix}第 ${blocks.findIndex((block) => block.id === failed.blockId) + 1} 个块编译失败：${failed.message}`;
+/** Says what a failed rebuild could not compile, counting blocks from 1; `after` names the edit that made it fail. */
+export function describeFailure(blocks: ResultBlock[], failed: { blockId: string; message: string }, after?: 'delete' | 'change'): string {
+  if (failed.blockId === 'references') return t('参考文献编译失败：{message}', { message: failed.message });
+  const values = { n: blocks.findIndex((block) => block.id === failed.blockId) + 1, message: failed.message };
+  if (after === 'delete') return t('删除后第 {n} 个块编译失败：{message}', values);
+  if (after === 'change') return t('改动后第 {n} 个块编译失败：{message}', values);
+  return t('第 {n} 个块编译失败：{message}', values);
 }
 
 /**

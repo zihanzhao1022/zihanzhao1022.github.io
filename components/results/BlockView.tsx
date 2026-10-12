@@ -1,10 +1,11 @@
-import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useT } from '../../lib/phrases/site';
 import { publicFilePath } from '../../lib/results';
 import { ResultBlock } from '../../types';
 import { readsPrivately, useResultsAccess } from './access';
 import { findQuote } from './comments/commentText';
 import { Box, layerText, quoteBoxes } from './comments/textLayer';
+import FigureZoom from './FigureZoom';
 import PdfView from './PdfView';
 
 /** A comment on text of this block, to highlight. */
@@ -36,6 +37,10 @@ const BlockView: React.FC<Props> = ({ paperId, block, references = false, quotes
   const [failed, setFailed] = useState(false);
   const [layer, setLayer] = useState<HTMLElement | null>(null);
   const [marks, setMarks] = useState<{ id: string; boxes: Box[] }[]>([]);
+  const [zoomed, setZoomed] = useState(false);
+  const closeZoom = useCallback(() => setZoomed(false), []);
+  // A figure on the page opens enlarged; its PDF must be there to draw again.
+  const zoomable = block.kind === 'figure' && !references && (!isPrivate || data !== undefined);
   // The marks depend on the quotes' text, not on the array the page builds again on every update.
   const quotesKey = JSON.stringify(quotes ?? []);
   const wanted = useMemo(() => JSON.parse(quotesKey) as QuoteMark[], [quotesKey]);
@@ -54,14 +59,22 @@ const BlockView: React.FC<Props> = ({ paperId, block, references = false, quotes
     );
   }, [layer, wanted]);
 
-  // Highlights let clicks through to the text and links; a click on one (not ending a selection) opens its comment.
-  const clickMark = (event: React.MouseEvent) => {
-    if (!onQuoteClick || !layer || marks.length === 0 || !window.getSelection()?.isCollapsed) return;
-    const origin = layer.getBoundingClientRect();
-    const x = event.clientX - origin.left;
-    const y = event.clientY - origin.top;
-    const hit = marks.find((mark) => mark.boxes.some((box) => x >= box.left && x <= box.left + box.width && y >= box.top && y <= box.top + box.height));
-    if (hit) onQuoteClick(hit.id);
+  // Highlights let clicks through to the text and links. A click (not ending a selection) on one opens its
+  // comment; anywhere else on a figure's page but its links, it shows the figure enlarged.
+  const click = (event: React.MouseEvent) => {
+    if (!window.getSelection()?.isCollapsed) return;
+    if (onQuoteClick && layer && marks.length > 0) {
+      const origin = layer.getBoundingClientRect();
+      const x = event.clientX - origin.left;
+      const y = event.clientY - origin.top;
+      const hit = marks.find((mark) => mark.boxes.some((box) => x >= box.left && x <= box.left + box.width && y >= box.top && y <= box.top + box.height));
+      if (hit) {
+        onQuoteClick(hit.id);
+        return;
+      }
+    }
+    const target = event.target instanceof Element ? event.target : null;
+    if (zoomable && target?.closest('.resultsPdfPage') && !target.closest('.resultsPdfLink')) setZoomed(true);
   };
 
   useEffect(() => {
@@ -89,28 +102,39 @@ const BlockView: React.FC<Props> = ({ paperId, block, references = false, quotes
     return <div className="py-8 text-center text-sm text-red-500 border border-dashed border-red-200 rounded">{t('读取 PDF 失败，请刷新页面重试')}</div>;
   }
   return (
-    <div onClick={clickMark}>
-      <PdfView
-        data={isPrivate ? data : undefined}
-        url={isPrivate ? undefined : publicFilePath(output.pdf)}
-        width={output.width}
-        height={output.height}
-        citationScope={paperId}
-        citationTargets={references}
-        onTextLayer={setLayer}
-      >
-        {marks.map((mark) =>
-          mark.boxes.map((box, index) => (
-            <span
-              key={`${mark.id}-${index}`}
-              data-comment-highlight={mark.id}
-              className={`pointer-events-none absolute rounded-sm mix-blend-multiply ${mark.id === activeQuote ? 'bg-amber-300/80' : 'bg-yellow-200/70'}`}
-              style={{ left: box.left, top: box.top, width: box.width, height: box.height }}
-            />
-          )),
-        )}
-      </PdfView>
-    </div>
+    <>
+      <div onClick={click} className={zoomable ? 'resultsZoomable' : undefined}>
+        <PdfView
+          data={isPrivate ? data : undefined}
+          url={isPrivate ? undefined : publicFilePath(output.pdf)}
+          width={output.width}
+          height={output.height}
+          citationScope={paperId}
+          citationTargets={references}
+          onTextLayer={setLayer}
+        >
+          {marks.map((mark) =>
+            mark.boxes.map((box, index) => (
+              <span
+                key={`${mark.id}-${index}`}
+                data-comment-highlight={mark.id}
+                className={`pointer-events-none absolute rounded-sm mix-blend-multiply ${mark.id === activeQuote ? 'bg-amber-300/80' : 'bg-yellow-200/70'}`}
+                style={{ left: box.left, top: box.top, width: box.width, height: box.height }}
+              />
+            )),
+          )}
+        </PdfView>
+      </div>
+      {zoomed && (
+        <FigureZoom
+          data={isPrivate ? data : undefined}
+          url={isPrivate ? undefined : publicFilePath(output.pdf)}
+          width={output.width}
+          height={output.height}
+          onClose={closeZoom}
+        />
+      )}
+    </>
   );
 };
 

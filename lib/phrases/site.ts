@@ -309,6 +309,8 @@ export const { t, useT, table } = phrases({
   '这里还没有内容。': { ja: 'まだ何もありません。', en: 'Nothing here yet.' },
   '用 GitHub 登录': { ja: 'GitHub でログイン', en: 'Sign in with GitHub' },
 
+  '放大的图': { ja: '拡大した図', en: 'Enlarged figure' },
+
   // Turning a figure into a table, or a table into a figure
   '转为表格': { ja: '表に変換', en: 'Turn into a table' },
   '转为图': { ja: '図に変換', en: 'Turn into a figure' },

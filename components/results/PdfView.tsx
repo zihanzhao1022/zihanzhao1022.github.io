@@ -35,12 +35,14 @@ interface Props {
   citationTargets?: boolean;
   /** Called with the selectable text layer each time the page is drawn. */
   onTextLayer?: (layer: HTMLElement) => void;
+  /** The largest scale to draw at; an enlarged figure fills the space it is given. */
+  maxScale?: number;
   /** Drawn over the page in its coordinates, e.g. comment highlights. */
   children?: React.ReactNode;
 }
 
-/** The first page of a PDF, at PDF_SCALE or narrower to fit, with selectable text and links. */
-const PdfView: React.FC<Props> = ({ data, url, width, height, className = '', onError, citationScope, citationTargets = false, onTextLayer, children }) => {
+/** The first page of a PDF, at PDF_SCALE (or `maxScale`) or narrower to fit, with selectable text and links. */
+const PdfView: React.FC<Props> = ({ data, url, width, height, className = '', onError, citationScope, citationTargets = false, onTextLayer, maxScale = PDF_SCALE, children }) => {
   const frame = useRef<HTMLDivElement>(null);
   const layers = useRef<HTMLDivElement>(null);
   const [available, setAvailable] = useState<number | null>(null);
@@ -62,7 +64,7 @@ const PdfView: React.FC<Props> = ({ data, url, width, height, className = '', on
     return () => observer.disconnect();
   }, []);
 
-  const scale = available ? Math.min(PDF_SCALE, available / width) : PDF_SCALE;
+  const scale = available ? Math.min(maxScale, available / width) : Math.min(maxScale, PDF_SCALE);
 
   useEffect(() => {
     const target = layers.current;
@@ -186,7 +188,7 @@ const PdfView: React.FC<Props> = ({ data, url, width, height, className = '', on
 
   return (
     <div ref={frame} id={citationTargets && citationScope ? referencesId(citationScope) : undefined} className={`w-full ${className}`}>
-      <div className="relative mx-auto bg-white" style={{ width: width * scale, height: height * scale }}>
+      <div className="resultsPdfPage relative mx-auto bg-white" style={{ width: width * scale, height: height * scale }}>
         <div ref={layers} className="absolute inset-0" />
         {children}
         {failed && (

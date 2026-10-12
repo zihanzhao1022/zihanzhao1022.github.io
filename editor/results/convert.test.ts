@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { captionAndLabel, convertedSource } from './convert';
+import { ResultBlock } from '../../types';
+import { captionAndLabel, convertedBlock, convertedSource, filesKeptVersionsUse } from './convert';
 import { parseTable } from './table/latex';
 
 const figure = String.raw`\begin{figure}[t]
@@ -42,5 +43,42 @@ describe('convertedSource', () => {
     expect(tex).toContain('\\label{tab:scores}');
     expect(tex).not.toContain('tabular');
     expect(convertedSource('', 'figure')).toContain('\\caption{Caption.}');
+  });
+});
+
+describe('convertedBlock', () => {
+  const output = { pdf: 'results/p/f-00000000.pdf', width: 1, height: 1 };
+  const block: ResultBlock = { id: 'f', kind: 'figure', source: figure, hidden: true, output };
+  const myTable = String.raw`\begin{table}\begin{tabular}{l}made-up\end{tabular}\caption{Mine}\label{tab:mine}\end{table}`;
+
+  it('starts the other kind the first time and keeps the figure', () => {
+    const table = convertedBlock(block, 'table');
+    expect(table).toMatchObject({ id: 'f', kind: 'table', hidden: true, output, alternate: { kind: 'figure', source: figure } });
+    expect(table.source).toBe(convertedSource(figure, 'table'));
+  });
+
+  it('goes back and forth between the kept versions without losing either', () => {
+    // The owner wrote their own table in place of the starting one and saved it.
+    const table: ResultBlock = { ...convertedBlock(block, 'table'), source: myTable };
+    const back = convertedBlock(table, 'figure');
+    expect(back).toMatchObject({ kind: 'figure', source: figure, alternate: { kind: 'table', source: myTable } });
+    expect(convertedBlock(back, 'table')).toMatchObject({ kind: 'table', source: myTable, alternate: { kind: 'figure', source: figure } });
+  });
+
+  it('leaves a block that already is that kind, or a text block, as it is', () => {
+    expect(convertedBlock(block, 'figure')).toBe(block);
+    const text: ResultBlock = { id: 't', kind: 'text', source: 'Plain.' };
+    expect(convertedBlock(text, 'table')).toBe(text);
+  });
+});
+
+describe('filesKeptVersionsUse', () => {
+  it("finds attachments only a block's kept version uses, by name with or without extension", () => {
+    const blocks: ResultBlock[] = [
+      { id: 'x', kind: 'text', source: '\\includegraphics{shown-plot}' },
+      { id: 't', kind: 'table', source: '% made-up', alternate: { kind: 'figure', source: '\\includegraphics[width=\\linewidth]{made-up-plot}' } },
+      { id: 'u', kind: 'table', source: '% made-up', alternate: { kind: 'figure', source: '% \\includegraphics{commented.png}' } },
+    ];
+    expect(filesKeptVersionsUse(blocks, ['made-up-plot.pdf', 'shown-plot.png', 'commented.png', 'style.sty'])).toEqual([{ name: 'made-up-plot.pdf', n: 2 }]);
   });
 });

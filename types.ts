@@ -151,6 +151,8 @@ export interface OverwatchRank {
 /** Blocks of LaTeX, each compiled to a PDF. */
 export type PdfBlockKind = 'text' | 'figure' | 'table';
 export type ResultBlockKind = PdfBlockKind;
+/** The kinds a block can be turned into each other. */
+export type FloatKind = 'figure' | 'table';
 
 export type SectionLevel = 'section' | 'subsection' | 'subsubsection' | 'paragraph';
 
@@ -204,6 +206,11 @@ export interface ResultBlock extends Hideable {
   kind: ResultBlockKind;
   /** LaTeX source; left out of the public snapshot. */
   source?: string;
+  /**
+   * A figure's table version, or a table's figure version, kept while the other one shows: turning the block
+   * into that kind brings it back. Private like the source.
+   */
+  alternate?: { kind: FloatKind; source: string };
   output?: ResultBlockOutput;
 }
 
@@ -339,8 +346,8 @@ export type EditRequest =
       blockId?: string;
       blockKind?: PdfBlockKind;
       afterBlockId?: string;
-      /** Redo an existing figure as a table or a table as a figure: saving changes the block's kind. */
-      convertTo?: 'figure' | 'table';
+      /** Turn an existing figure into a table or a table into a figure: saving changes the block's kind. */
+      convertTo?: FloatKind;
     }
   /** A results paper's preamble and attachments. */
   | { kind: 'paperSettings'; paperId: string }

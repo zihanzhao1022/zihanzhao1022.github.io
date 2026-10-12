@@ -24,6 +24,7 @@ import { ResultsSave } from './BlockEditor';
 import CodeEditor from './CodeEditor';
 import { sharedColors, withoutColors } from './colorDefinitions';
 import { BlockCompileResult, compileBlock, describeIssue } from './compile';
+import { filesKeptVersionsUse } from './convert';
 import { describeFailure } from './numbering';
 import { ResultsOp, resultsCommitMessage } from './ops';
 
@@ -153,6 +154,12 @@ const PaperSettings: React.FC<Props> = ({ paper, readFile, onSave, onClose }) =>
     try {
       const kept = names.filter((name) => !removed.includes(name));
       const gone = removed.filter((name) => (paper.files ?? []).includes(name));
+      // The recompile below would not notice a file that only a figure's or table's kept version uses.
+      const needed = filesKeptVersionsUse(paper.blocks, gone);
+      if (needed.length > 0) {
+        setProblem(() => t('第 {n} 个块存下的另一个版本还要用 {name}，不能移除', needed[0]));
+        return;
+      }
       // A file uploaded here and then removed again is not uploaded at all.
       const uploaded = Object.fromEntries(Object.entries(added).filter(([name]) => !removed.includes(name)));
       const uploads = await putFiles(paper.id, uploaded);

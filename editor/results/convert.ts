@@ -1,10 +1,8 @@
+import { FloatKind, ResultBlock } from '../../types';
 import { stripComments } from '../tex/document';
 import { BLOCK_TEMPLATES } from './actions';
 import { createTable } from './table/model';
 import { serializeTable } from './table/latex';
-
-/** The kinds a block can be turned into each other. */
-export type FloatKind = 'figure' | 'table';
 
 /** The text of the brace group that opens just before `start`. */
 function group(text: string, start: number): { value: string; end: number } {
@@ -44,4 +42,28 @@ export function convertedSource(source: string, to: FloatKind): string {
   return BLOCK_TEMPLATES.figure()
     .replace('\\caption{Caption.}', () => `\\caption{${caption ?? 'Caption.'}}`)
     .replace('\\label{fig:}', () => `\\label{${label ?? 'fig:'}}`);
+}
+
+/**
+ * The block turned into the other kind: the version kept from an earlier turn if it has one, else that
+ * kind's starting code (convertedSource). The version it replaces is kept in turn, so turning back loses nothing.
+ */
+export function convertedBlock(block: ResultBlock, to: FloatKind): ResultBlock {
+  if (block.kind === to || block.kind === 'text') return block;
+  const source = block.source ?? '';
+  const kept = block.alternate?.kind === to ? block.alternate.source : undefined;
+  return { ...block, kind: to, source: kept ?? convertedSource(source, to), alternate: { kind: block.kind, source } };
+}
+
+/**
+ * Attachments among `names` that a block's kept version uses (named with or without the extension, as
+ * \includegraphics allows), each with that block's number counting from 1. No compile checks them, since the
+ * kept version is not shown.
+ */
+export function filesKeptVersionsUse(blocks: ResultBlock[], names: string[]): { name: string; n: number }[] {
+  return names.flatMap((name) => {
+    const stem = name.replace(/\.[^.]+$/, '');
+    const index = blocks.findIndex((block) => block.alternate !== undefined && stripComments(block.alternate.source).includes(stem));
+    return index < 0 ? [] : [{ name, n: index + 1 }];
+  });
 }

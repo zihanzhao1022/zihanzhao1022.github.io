@@ -203,4 +203,14 @@ describe('putBlock on an existing block', () => {
     const [updated] = applyResultsOp([start], { kind: 'putBlock', paperId: 'p1', block: { id: 't', kind: 'text', source: 'New' } });
     expect(updated.blocks[0]).toEqual({ id: 't', kind: 'text', source: 'New', hidden: true, output });
   });
+
+  it("sets the other version an edit carries, and keeps it through edits that don't", () => {
+    const start = paper('p1', { blocks: [{ id: 'f', kind: 'figure', source: 'Figure' }] });
+    const alternate = { kind: 'figure' as const, source: 'Figure' };
+    const [turned] = applyResultsOp([start], { kind: 'putBlock', paperId: 'p1', block: { id: 'f', kind: 'table', source: 'Table', alternate } });
+    expect(turned.blocks[0]).toEqual({ id: 'f', kind: 'table', source: 'Table', alternate });
+    // A collaborator's edit arrives without it (cleanBlock).
+    const [edited] = applyResultsOp([turned], { kind: 'putBlock', paperId: 'p1', block: { id: 'f', kind: 'table', source: 'Table 2' } });
+    expect(edited.blocks[0]).toEqual({ id: 'f', kind: 'table', source: 'Table 2', alternate });
+  });
 });

@@ -77,17 +77,24 @@ const CopyButton: React.FC<{ text: () => string; label: string; title: string; p
   );
 };
 
-/** Opens the editor redoing a figure as a table, or a table as a figure, with its caption and label kept. */
+/**
+ * Opens the editor turning a figure into a table, or a table into a figure: the version kept from an earlier
+ * turn, or the other kind started over with the caption and label kept. The version shown now is kept.
+ */
 const ConvertButton: React.FC<{ paperId: string; block: ResultBlock }> = ({ paperId, block }) => {
   const { open } = useEditMode();
   const t = useT();
   if (block.kind !== 'figure' && block.kind !== 'table') return null;
   const to = block.kind === 'figure' ? 'table' : 'figure';
+  const kept = block.alternate?.kind === to;
+  let title: string;
+  if (to === 'table') title = kept ? t('换回之前存下的表格；这张图也会存下，随时可以换回来') : t('把这张图换成表格，保留图题和引用名；这张图会存下，随时可以换回来');
+  else title = kept ? t('换回之前存下的图；这张表格也会存下，随时可以换回来') : t('把这张表格换成图，保留图题和引用名；这张表格会存下，随时可以换回来');
   return (
     <button
       type="button"
       onClick={() => open({ kind: 'block', paperId, blockId: block.id, convertTo: to })}
-      title={to === 'table' ? t('把这张图换成表格，保留图题和引用名') : t('把这张表格换成图，保留图题和引用名')}
+      title={title}
       className={TOOL}
     >
       <ArrowLeftRight size={14} />

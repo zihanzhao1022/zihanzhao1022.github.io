@@ -15,7 +15,8 @@ const papers: ResultPaper[] = [
     preamble: '\\documentclass{article} % private macros',
     files: ['style.sty'],
     blocks: [
-      { id: 'b1', kind: 'table', source: '% unpublished: 99.9', output: output('results/p1/b1-aaaa.pdf') },
+      // Its kept figure version is as private as its source.
+      { id: 'b1', kind: 'table', source: '% unpublished: 99.9', alternate: { kind: 'figure', source: 'unpublished-plot' }, output: output('results/p1/b1-aaaa.pdf') },
       { id: 'b2', kind: 'text', source: 'secret ablation', hidden: true, output: output('results/p1/b2-bbbb.pdf') },
       { id: 'b3', kind: 'figure', source: 'not compiled yet' },
     ],

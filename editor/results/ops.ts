@@ -20,8 +20,9 @@ export type ResultsOp =
   | { kind: 'putFile'; paperId: string; name: string; hash: string }
   | { kind: 'removeFile'; paperId: string; name: string }
   /**
-   * Inserts a new block at `at` (default: the end). For an existing block only its kind and source change:
-   * whether it is hidden and its compiled output always come from the latest version.
+   * Inserts a new block at `at` (default: the end). For an existing block only its kind, source and, when the
+   * op has one, its other version (alternate) change: whether it is hidden and its compiled output always
+   * come from the latest version.
    */
   | { kind: 'putBlock'; paperId: string; block: ResultBlock; at?: number }
   | { kind: 'deleteBlock'; paperId: string; blockId: string }
@@ -100,7 +101,13 @@ export function applyResultsOp(papers: ResultPaper[], op: ResultsOp): ResultPape
             blocks: paper.blocks.map((block) => {
               if (block.id !== op.block.id) return block;
               const { source: _source, ...rest } = block;
-              return { ...rest, kind: op.block.kind, ...(op.block.source === undefined ? {} : { source: op.block.source }) };
+              return {
+                ...rest,
+                kind: op.block.kind,
+                ...(op.block.source === undefined ? {} : { source: op.block.source }),
+                // Edits that do not carry it (a collaborator's, see cleanBlock) keep the version put aside.
+                ...(op.block.alternate === undefined ? {} : { alternate: op.block.alternate }),
+              };
             }),
           };
         }

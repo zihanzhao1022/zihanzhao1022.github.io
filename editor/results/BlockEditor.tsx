@@ -4,7 +4,7 @@ import PdfView from '../../components/results/PdfView';
 import { pdfPageSize } from '../../components/results/pdfjs';
 import { N_, useLang, useMessage } from '../../lib/i18n';
 import { useT } from '../../lib/phrases/results';
-import { PdfBlockKind, ResultBlock, ResultBlockKind, ResultPaper } from '../../types';
+import { FloatKind, PdfBlockKind, ResultBlock, ResultBlockKind, ResultPaper } from '../../types';
 import { describeSaveError } from '../backend';
 import { BUTTON_PRIMARY, BUTTON_SECONDARY } from '../components/Modal';
 import { getTexEngine } from '../tex/engine';
@@ -32,7 +32,7 @@ import { ResultsOp, applyResultsOp, resultsCommitMessage } from './ops';
 import { createBlockPreview } from './preview';
 import { exportTex, preambleNames } from './texNames';
 import TableVisualEditor from './table/TableVisualEditor';
-import { FloatKind, convertedSource } from './convert';
+import { convertedBlock } from './convert';
 import { createTable } from './table/model';
 import { parseTable, serializeTable } from './table/latex';
 
@@ -60,7 +60,7 @@ interface Props {
   blockKind?: PdfBlockKind;
   /** Insert a new block below this one; omit to append. */
   afterBlockId?: string;
-  /** Redo the figure or table as the other kind (see convertedSource); saving changes its kind. */
+  /** Turn the figure or table into the other kind (see convertedBlock); saving changes its kind. */
   convertTo?: FloatKind;
   readFile: ReadFile;
   onSave: ResultsSave;
@@ -72,9 +72,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
   const t = useT();
   const existing = blockId === undefined ? undefined : paper.blocks.find((item) => item.id === blockId);
   const [block] = useState<ResultBlock>(() => {
-    if (existing && convertTo && convertTo !== existing.kind) {
-      return { ...existing, kind: convertTo, source: convertedSource(existing.source ?? '', convertTo) };
-    }
+    if (existing && convertTo && convertTo !== existing.kind) return convertedBlock(existing, convertTo);
     return existing ?? {
       id: newBlockId(), kind: blockKind,
       source: blockKind === 'table' ? serializeTable(createTable()) : BLOCK_TEMPLATES[blockKind](),
@@ -83,6 +81,8 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
   const isNew = existing === undefined;
   /** The block keeps its place, hidden or not, and its comments; only its kind and code change. */
   const converting = existing !== undefined && existing.kind !== block.kind;
+  /** It goes back to the version kept from an earlier turn, rather than starting that kind over. */
+  const restoring = converting && existing.alternate?.kind === block.kind;
   const original = block.source ?? '';
   const citationScope = `preview:${paper.id}:${block.id}`;
   const [source, setSource] = useState(original);
@@ -479,9 +479,13 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
         <div className="px-4 py-2 space-y-1 text-sm border-b border-gray-100">
           {converting && (
             <p className="text-purple-700">
-              {block.kind === 'table'
-                ? t('保存后这张图会变成表格，图题和引用名已保留；取消则保持原样。')
-                : t('保存后这张表格会变成图，图题和引用名已保留；取消则保持原样。')}
+              {restoring
+                ? block.kind === 'table'
+                  ? t('这是之前存下的表格，保存后换成它；现在的图也会存下，随时可以换回来。取消则保持原样。')
+                  : t('这是之前存下的图，保存后换成它；现在的表格也会存下，随时可以换回来。取消则保持原样。')
+                : block.kind === 'table'
+                  ? t('第一次转为表格：在这里填表格，图题和引用名已保留。保存后原来的图会存下，随时可以换回来；取消则保持原样。')
+                  : t('第一次转为图：上传图片后用"插入"加进代码，图题和引用名已保留。保存后原来的表格会存下，随时可以换回来；取消则保持原样。')}
             </p>
           )}
           {problem && (

@@ -312,6 +312,20 @@ export const { t, useT, table } = phrases({
   // Turning a figure into a table, or a table into a figure
   '转为表格': { ja: '表に変換', en: 'Turn into a table' },
   '转为图': { ja: '図に変換', en: 'Turn into a figure' },
-  '把这张图换成表格，保留图题和引用名': { ja: 'この図を表に置き換えます（キャプションとラベルは引き継ぎます）', en: 'Redo this figure as a table, keeping its caption and label' },
-  '把这张表格换成图，保留图题和引用名': { ja: 'この表を図に置き換えます（キャプションとラベルは引き継ぎます）', en: 'Redo this table as a figure, keeping its caption and label' },
+  '把这张图换成表格，保留图题和引用名；这张图会存下，随时可以换回来': {
+    ja: 'この図を表に置き換えます（キャプションとラベルは引き継ぎます）。図は残るので、いつでも戻せます',
+    en: 'Redo this figure as a table, keeping its caption and label; the figure is kept, so you can switch back at any time',
+  },
+  '把这张表格换成图，保留图题和引用名；这张表格会存下，随时可以换回来': {
+    ja: 'この表を図に置き換えます（キャプションとラベルは引き継ぎます）。表は残るので、いつでも戻せます',
+    en: 'Redo this table as a figure, keeping its caption and label; the table is kept, so you can switch back at any time',
+  },
+  '换回之前存下的表格；这张图也会存下，随时可以换回来': {
+    ja: '以前の表に切り替えます。この図も残るので、いつでも戻せます',
+    en: 'Switch to the table kept from before; this figure is kept too, so you can switch back at any time',
+  },
+  '换回之前存下的图；这张表格也会存下，随时可以换回来': {
+    ja: '以前の図に切り替えます。この表も残るので、いつでも戻せます',
+    en: 'Switch to the figure kept from before; this table is kept too, so you can switch back at any time',
+  },
 });

@@ -291,12 +291,24 @@ export const { t, useT, table } = phrases({
   // Turning a figure into a table, or a table into a figure (editor/results/convert.ts)
   '把图转换成表格': { ja: '図を表に変換', en: 'Turn the figure into a table' },
   '把表格转换成图': { ja: '表を図に変換', en: 'Turn the table into a figure' },
-  '保存后这张图会变成表格，图题和引用名已保留；取消则保持原样。': {
-    ja: '保存すると、この図は表に変わります（キャプションとラベルは引き継ぎます）。キャンセルすると元のままです。',
-    en: 'Saving turns this figure into a table, keeping its caption and label; cancel to leave it as it is.',
+  '第一次转为表格：在这里填表格，图题和引用名已保留。保存后原来的图会存下，随时可以换回来；取消则保持原样。': {
+    ja: '初めて表に変換します。ここで表を作ってください（キャプションとラベルは引き継ぎます）。保存しても元の図は残り、いつでも戻せます。キャンセルすると元のままです。',
+    en: 'Turning this figure into a table for the first time: fill in the table here; the caption and label are kept. Saving keeps the figure too, so you can switch back at any time; cancel to leave it as it is.',
   },
-  '保存后这张表格会变成图，图题和引用名已保留；取消则保持原样。': {
-    ja: '保存すると、この表は図に変わります（キャプションとラベルは引き継ぎます）。キャンセルすると元のままです。',
-    en: 'Saving turns this table into a figure, keeping its caption and label; cancel to leave it as it is.',
+  '第一次转为图：上传图片后用"插入"加进代码，图题和引用名已保留。保存后原来的表格会存下，随时可以换回来；取消则保持原样。': {
+    ja: '初めて図に変換します。画像をアップロードし、「挿入」でコードに加えてください（キャプションとラベルは引き継ぎます）。保存しても元の表は残り、いつでも戻せます。キャンセルすると元のままです。',
+    en: 'Turning this table into a figure for the first time: upload an image and add it to the code with "Insert"; the caption and label are kept. Saving keeps the table too, so you can switch back at any time; cancel to leave it as it is.',
+  },
+  '这是之前存下的表格，保存后换成它；现在的图也会存下，随时可以换回来。取消则保持原样。': {
+    ja: '以前の表です。保存するとこの表に切り替わり、今の図も残るので、いつでも戻せます。キャンセルすると元のままです。',
+    en: 'This is the table kept from before. Saving switches to it and keeps the current figure, so you can switch back at any time; cancel to leave it as it is.',
+  },
+  '这是之前存下的图，保存后换成它；现在的表格也会存下，随时可以换回来。取消则保持原样。': {
+    ja: '以前の図です。保存するとこの図に切り替わり、今の表も残るので、いつでも戻せます。キャンセルすると元のままです。',
+    en: 'This is the figure kept from before. Saving switches to it and keeps the current table, so you can switch back at any time; cancel to leave it as it is.',
+  },
+  '第 {n} 个块存下的另一个版本还要用 {name}，不能移除': {
+    ja: '{n} 番目のブロックに残してあるもう一方の版が {name} を使っているため、削除できません',
+    en: "The other version kept with block {n} still uses {name}, so it can't be removed",
   },
 });

@@ -16,8 +16,12 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  # One job builds and publishes, so a deployment waits for a single runner.
+  deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -25,18 +29,27 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm test
-      - run: npm run build
+      # Side by side rather than one after another; the site is published only if all three pass.
+      - name: Test, type-check and build
+        run: |
+          npm test > tests.log 2>&1 & tests=$!
+          npx tsc > types.log 2>&1 & types=$!
+          npx vite build > build.log 2>&1 & build=$!
+          failed=0
+          for name in tests types build; do
+            if wait "${!name}"; then
+              echo "::group::$name passed"
+              cat "$name.log"
+              echo "::endgroup::"
+            else
+              echo "::error::$name failed"
+              cat "$name.log"
+              failed=1
+            fi
+          done
+          exit "$failed"
       - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
       - id: deployment
         uses: actions/deploy-pages@v5

@@ -32,6 +32,7 @@ import { ResultsOp, applyResultsOp, resultsCommitMessage } from './ops';
 import { createBlockPreview } from './preview';
 import { exportTex, preambleNames } from './texNames';
 import TableVisualEditor from './table/TableVisualEditor';
+import { FloatKind, convertedSource } from './convert';
 import { createTable } from './table/model';
 import { parseTable, serializeTable } from './table/latex';
 
@@ -59,20 +60,29 @@ interface Props {
   blockKind?: PdfBlockKind;
   /** Insert a new block below this one; omit to append. */
   afterBlockId?: string;
+  /** Redo the figure or table as the other kind (see convertedSource); saving changes its kind. */
+  convertTo?: FloatKind;
   readFile: ReadFile;
   onSave: ResultsSave;
   onClose: () => void;
 }
 
 /** Full-screen LaTeX editor for one block: code on the left, the compiled PDF on the right. */
-const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afterBlockId, readFile, onSave, onClose }) => {
+const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afterBlockId, convertTo, readFile, onSave, onClose }) => {
   const t = useT();
   const existing = blockId === undefined ? undefined : paper.blocks.find((item) => item.id === blockId);
-  const [block] = useState<ResultBlock>(() => existing ?? {
-    id: newBlockId(), kind: blockKind,
-    source: blockKind === 'table' ? serializeTable(createTable()) : BLOCK_TEMPLATES[blockKind](),
+  const [block] = useState<ResultBlock>(() => {
+    if (existing && convertTo && convertTo !== existing.kind) {
+      return { ...existing, kind: convertTo, source: convertedSource(existing.source ?? '', convertTo) };
+    }
+    return existing ?? {
+      id: newBlockId(), kind: blockKind,
+      source: blockKind === 'table' ? serializeTable(createTable()) : BLOCK_TEMPLATES[blockKind](),
+    };
   });
   const isNew = existing === undefined;
+  /** The block keeps its place, hidden or not, and its comments; only its kind and code change. */
+  const converting = existing !== undefined && existing.kind !== block.kind;
   const original = block.source ?? '';
   const citationScope = `preview:${paper.id}:${block.id}`;
   const [source, setSource] = useState(original);
@@ -265,7 +275,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
         withOutputs(paper.id, ops, rebuilt),
         writes,
         rebuilt.deletes,
-        resultsCommitMessage(isNew ? 'add block to' : 'update block in', paper.title),
+        resultsCommitMessage(converting ? 'convert block in' : isNew ? 'add block to' : 'update block in', paper.title),
         publicMessage,
       );
       onClose();
@@ -415,7 +425,9 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
       }}
     >
       <header className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 border-b border-gray-200">
-        <span className="font-semibold text-gray-900">{t(isNew ? KIND[block.kind].add : KIND[block.kind].edit)}</span>
+        <span className="font-semibold text-gray-900">
+          {converting ? (block.kind === 'table' ? t('把图转换成表格') : t('把表格转换成图')) : t(isNew ? KIND[block.kind].add : KIND[block.kind].edit)}
+        </span>
         <span className="text-sm text-gray-500 truncate max-w-[16rem]">{paper.title}</span>
         <span className="text-xs text-gray-500">{status}</span>
         <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -463,8 +475,15 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
           </button>
         </div>
       </header>
-      {(problem || notice || !paper.hidden) && (
+      {(problem || notice || converting || !paper.hidden) && (
         <div className="px-4 py-2 space-y-1 text-sm border-b border-gray-100">
+          {converting && (
+            <p className="text-purple-700">
+              {block.kind === 'table'
+                ? t('保存后这张图会变成表格，图题和引用名已保留；取消则保持原样。')
+                : t('保存后这张表格会变成图，图题和引用名已保留；取消则保持原样。')}
+            </p>
+          )}
           {problem && (
             <p role="alert" className="text-red-700">
               {problem}

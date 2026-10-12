@@ -287,4 +287,16 @@ export const { t, useT, table } = phrases({
     en: 'Write the text here; math works as usual: $E = mc^2$',
   },
   '请先输入内容': { ja: '先に内容を入力してください', en: 'Write something first' },
+
+  // Turning a figure into a table, or a table into a figure (editor/results/convert.ts)
+  '把图转换成表格': { ja: '図を表に変換', en: 'Turn the figure into a table' },
+  '把表格转换成图': { ja: '表を図に変換', en: 'Turn the table into a figure' },
+  '保存后这张图会变成表格，图题和引用名已保留；取消则保持原样。': {
+    ja: '保存すると、この図は表に変わります（キャプションとラベルは引き継ぎます）。キャンセルすると元のままです。',
+    en: 'Saving turns this figure into a table, keeping its caption and label; cancel to leave it as it is.',
+  },
+  '保存后这张表格会变成图，图题和引用名已保留；取消则保持原样。': {
+    ja: '保存すると、この表は図に変わります（キャプションとラベルは引き継ぎます）。キャンセルすると元のままです。',
+    en: 'Saving turns this table into a figure, keeping its caption and label; cancel to leave it as it is.',
+  },
 });

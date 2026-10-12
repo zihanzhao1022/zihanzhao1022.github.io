@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, Copy, ListTree, MessageSquare, MessageSquarePlus, X } from 'lucide-react';
+import { ArrowLeftRight, Check, Copy, ListTree, MessageSquare, MessageSquarePlus, X } from 'lucide-react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { exportPaperTex, exportTex } from '../../editor/results/texNames';
 import { N_, Translate } from '../../lib/i18n';
@@ -39,6 +39,10 @@ const InsertButtons: React.FC<{ paperId: string; afterBlockId?: string }> = ({ p
   );
 };
 
+/** The look of the buttons beside a block's round edit button. */
+const TOOL =
+  'inline-flex items-center gap-1 h-8 px-2.5 rounded-full border border-gray-300 bg-white text-xs text-gray-600 shadow-sm hover:border-purple-300 hover:text-purple-700';
+
 /** Copies LaTeX to the clipboard without opening an editor; `pill` matches the labelled edit buttons beside it. */
 const CopyButton: React.FC<{ text: () => string; label: string; title: string; pill?: boolean; className?: string }> = ({
   text,
@@ -65,14 +69,29 @@ const CopyButton: React.FC<{ text: () => string; label: string; title: string; p
       type="button"
       onClick={copy}
       title={title}
-      className={`${
-        pill
-          ? PILL
-          : 'inline-flex items-center gap-1 h-8 px-2.5 rounded-full border border-gray-300 bg-white text-xs text-gray-600 shadow-sm hover:border-purple-300 hover:text-purple-700'
-      } ${className}`}
+      className={`${pill ? PILL : TOOL} ${className}`}
     >
       {state === 'copied' ? <Check size={14} /> : <Copy size={14} />}
       {{ idle: label, copied: t('已复制'), failed: t('复制失败') }[state]}
+    </button>
+  );
+};
+
+/** Opens the editor redoing a figure as a table, or a table as a figure, with its caption and label kept. */
+const ConvertButton: React.FC<{ paperId: string; block: ResultBlock }> = ({ paperId, block }) => {
+  const { open } = useEditMode();
+  const t = useT();
+  if (block.kind !== 'figure' && block.kind !== 'table') return null;
+  const to = block.kind === 'figure' ? 'table' : 'figure';
+  return (
+    <button
+      type="button"
+      onClick={() => open({ kind: 'block', paperId, blockId: block.id, convertTo: to })}
+      title={to === 'table' ? t('把这张图换成表格，保留图题和引用名') : t('把这张表格换成图，保留图题和引用名')}
+      className={TOOL}
+    >
+      <ArrowLeftRight size={14} />
+      {to === 'table' ? t('转为表格') : t('转为图')}
     </button>
   );
 };
@@ -153,6 +172,7 @@ const BlockItem: React.FC<{ paperId: string; block: ResultBlock; comments?: Bloc
           {block.hidden && <HiddenBadge />}
           {add}
           {block.source && <CopyButton text={() => exportTex(block.source ?? '')} label={t('复制 LaTeX')} title={t('复制 LaTeX 代码（开头注明需要的宏包）')} />}
+          <ConvertButton paperId={paperId} block={block} />
           <EditButton request={{ kind: 'block', paperId, blockId: block.id }} label={t(EDIT_LABEL[block.kind])} />
         </div>
       )}

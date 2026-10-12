@@ -308,4 +308,10 @@ export const { t, useT, table } = phrases({
   '查看结果 →': { ja: '結果を見る →', en: 'view results →' },
   '这里还没有内容。': { ja: 'まだ何もありません。', en: 'Nothing here yet.' },
   '用 GitHub 登录': { ja: 'GitHub でログイン', en: 'Sign in with GitHub' },
+
+  // Turning a figure into a table, or a table into a figure
+  '转为表格': { ja: '表に変換', en: 'Turn into a table' },
+  '转为图': { ja: '図に変換', en: 'Turn into a figure' },
+  '把这张图换成表格，保留图题和引用名': { ja: 'この図を表に置き換えます（キャプションとラベルは引き継ぎます）', en: 'Redo this figure as a table, keeping its caption and label' },
+  '把这张表格换成图，保留图题和引用名': { ja: 'この表を図に置き換えます（キャプションとラベルは引き継ぎます）', en: 'Redo this table as a figure, keeping its caption and label' },
 });

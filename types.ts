@@ -333,7 +333,15 @@ export type EditRequest =
   | { kind: 'profile'; section: ProfileSection }
   | { kind: 'navigation' }
   /** Edit a block, or add one after `afterBlockId` (at the end when omitted). */
-  | { kind: 'block'; paperId: string; blockId?: string; blockKind?: PdfBlockKind; afterBlockId?: string }
+  | {
+      kind: 'block';
+      paperId: string;
+      blockId?: string;
+      blockKind?: PdfBlockKind;
+      afterBlockId?: string;
+      /** Redo an existing figure as a table or a table as a figure: saving changes the block's kind. */
+      convertTo?: 'figure' | 'table';
+    }
   /** A results paper's preamble and attachments. */
   | { kind: 'paperSettings'; paperId: string }
   /** A results paper's references.bib. */

@@ -40,10 +40,10 @@ const ListItem: React.FC<ListItemProps> = ({
       {/* Image Thumbnail */}
       <div className="flex-shrink-0 w-full sm:w-48 h-32 border border-gray-200 bg-white rounded-md overflow-hidden flex items-center justify-center relative z-10">
         {image ? (
-          <img src={resolveImage(image)} alt="thumbnail" className="w-full h-full object-contain p-2" />
+          <img src={resolveImage(image)} alt={t('缩略图')} className="w-full h-full object-contain p-2" />
         ) : (
           <div className="w-full h-full bg-transparent flex items-center justify-center text-gray-300 text-xs uppercase tracking-wider">
-            No Image
+            {t('无图片')}
           </div>
         )}
       </div>

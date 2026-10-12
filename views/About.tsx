@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { useContent } from '../components/ContentContext';
+import { useLocalizedContent } from '../components/ContentContext';
 import { AddButton, EditButton, HiddenBadge, useVisibleItems } from '../components/EditMode';
 import { SortableGroup } from '../components/SortableGroup';
 import { Icon, Overwatch } from '../components/Icon';
 import { SocialLink } from '../types';
 import OverwatchRanks from '../components/OverwatchRanks';
+import { localDate } from '../lib/dates';
+import { useLang } from '../lib/i18n';
 import { resolveImage } from '../lib/localImages';
 import { renderInlineMarkdown } from '../lib/markdown';
 import { useT } from '../lib/phrases/site';
@@ -23,9 +25,10 @@ const BRAND: Record<SocialLink['platform'], { hover: string; active: string }> =
 };
 
 const About: React.FC = () => {
-  const { profile, news: allNews } = useContent();
+  const { profile, news: allNews } = useLocalizedContent();
   const news = useVisibleItems(allNews);
   const t = useT();
+  const lang = useLang();
   // The social icon whose QR code or Overwatch ranks are showing.
   const [activeQr, setActiveQr] = useState<string | null>(null);
 
@@ -44,7 +47,20 @@ const About: React.FC = () => {
           <EditButton request={{ kind: 'profile', section: 'basics' }} label={t('编辑基本信息')} className="ml-3 align-middle" />
         </h1>
         <p className="text-sm text-gray-500 mb-4">
-          {profile.title} at <span className="text-purple-600">{profile.affiliation}</span>
+          {/* "PhD Candidate at …" in English; the affiliation comes first in Chinese and Japanese. */}
+          {t('{affiliation} {title}')
+            .split(/(\{\w+\})/)
+            .map((piece, index) =>
+              piece === '{title}' ? (
+                <React.Fragment key={index}>{profile.title}</React.Fragment>
+              ) : piece === '{affiliation}' ? (
+                <span key={index} className="text-purple-600">
+                  {profile.affiliation}
+                </span>
+              ) : (
+                piece
+              ),
+            )}
         </p>
 
         {/* Languages Section */}
@@ -85,7 +101,7 @@ const About: React.FC = () => {
             <div className="absolute -inset-1 bg-gradient-to-r from-purple-100 to-gray-100 rounded-lg blur opacity-50 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
             <img
               src={resolveImage(profile.avatar)}
-              alt="Profile"
+              alt={t('头像')}
               /* Removed grayscale classes. Use h-auto to keep aspect ratio, or h-96 to force height. */
               className="relative w-full h-auto rounded-lg shadow-lg object-cover transition-all duration-500"
             />
@@ -112,12 +128,12 @@ const About: React.FC = () => {
                       {/* QR Image */}
                       <img
                         src={resolveImage(social.qrCode)}
-                        alt={`${social.platform} QR`}
+                        alt={t('{platform} 二维码', { platform: social.platform })}
                         className="w-full h-auto rounded block"
                       />
 
                       <div className="text-center text-[10px] text-gray-500 mt-1 uppercase tracking-wider font-medium">
-                        Scan to Add
+                        {t('扫码添加')}
                       </div>
 
                       {/* Little Triangle/Arrow pointing down */}
@@ -135,7 +151,7 @@ const About: React.FC = () => {
                         toggleQr(social.platform);
                       }
                     }}
-                    {...(social.platform === 'overwatch' ? { 'aria-label': 'Overwatch ranks', 'aria-expanded': isActive } : {})}
+                    {...(social.platform === 'overwatch' ? { 'aria-label': t('守望先锋段位'), 'aria-expanded': isActive } : {})}
                     className={`block transition-colors transform hover:scale-110 ${
                       isActive ? BRAND[social.platform].active : `text-gray-400 ${BRAND[social.platform].hover}`
                     }`}
@@ -157,7 +173,7 @@ const About: React.FC = () => {
       {/* News Section */}
       <div className="border-t border-gray-100 pt-6">
         <h2 className="text-2xl font-light text-gray-900 mb-6">
-          news
+          {t('新闻')}
           <AddButton request={{ kind: 'add', collection: 'news' }} text={t('添加新闻')} className="ml-3" />
         </h2>
         <SortableGroup
@@ -166,7 +182,7 @@ const About: React.FC = () => {
           className="space-y-4"
           renderItem={(item) => (
             <div key={item.id} className={`flex flex-col sm:flex-row gap-2 sm:gap-8 text-sm${item.hidden ? ' opacity-50' : ''}`}>
-              <div className="font-bold text-gray-900 min-w-[100px]">{item.date}</div>
+              <div className="font-bold text-gray-900 min-w-[100px]">{localDate(item.date, lang)}</div>
               <div className="text-gray-600" dangerouslySetInnerHTML={{ __html: renderInlineMarkdown(item.content) }} />
               {item.hidden && <HiddenBadge />}
               <EditButton

@@ -2,9 +2,9 @@ import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
 import { COMMON } from './phrases/common';
 
 /**
- * The language of the site's own interface: Chinese, Japanese or English. Phrases are written in Chinese
- * in the code and looked up in tables (lib/phrases). The home page, the navigation and what the owner writes
- * (papers, comments, the CV) stay as written.
+ * The language of the site: Chinese, Japanese or English. Phrases are written in Chinese in the code and
+ * looked up in tables (lib/phrases); what the owner writes has Chinese and Japanese versions where they wrote
+ * them (lib/localize). Papers, their PDFs and comments stay as written.
  */
 export type Lang = 'zh' | 'ja' | 'en';
 
@@ -20,16 +20,7 @@ export const LOCALES: Record<Lang, string> = { zh: 'zh-CN', ja: 'ja-JP', en: 'en
 const KEY = 'ui-lang';
 const isLang = (value: unknown): value is Lang => value === 'zh' || value === 'ja' || value === 'en';
 
-/** The first of zh, ja and en among language tags such as "ja-JP" or "zh-Hans-CN"; English otherwise. */
-export function pickLang(tags: readonly string[]): Lang {
-  for (const tag of tags) {
-    const base = tag.toLowerCase().split('-')[0];
-    if (isLang(base)) return base;
-  }
-  return 'en';
-}
-
-/** The choice saved in this browser, else the browser's languages. */
+/** The choice saved in this browser; English until the visitor picks another language. */
 function initialLang(): Lang {
   try {
     const saved = window.localStorage.getItem(KEY);
@@ -37,19 +28,25 @@ function initialLang(): Lang {
   } catch {
     // No window (tests, the worker) or no storage (private windows).
   }
-  if (typeof navigator === 'undefined') return 'en';
-  return pickLang(navigator.languages?.length ? navigator.languages : [navigator.language ?? 'en']);
+  return 'en';
+}
+
+/** Tells the browser the page's language, so it picks Chinese or Japanese glyphs for the characters both use. */
+function markPage(current: Lang): void {
+  if (typeof document !== 'undefined') document.documentElement.lang = LOCALES[current];
 }
 
 let lang: Lang = initialLang();
+markPage(lang);
 const listeners = new Set<() => void>();
 
 export const getLang = (): Lang => lang;
 
-/** Switches the interface and remembers the choice in this browser. */
+/** Switches the site's language and remembers the choice in this browser. */
 export function setLang(next: Lang): void {
   if (next === lang) return;
   lang = next;
+  markPage(next);
   try {
     window.localStorage.setItem(KEY, next);
   } catch {

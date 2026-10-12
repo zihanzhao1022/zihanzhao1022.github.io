@@ -6,7 +6,21 @@
     "year": "Mar. 2023 - May 2023",
     "level": "Provincial Key R&D Program",
     "role": "Project Leader",
-    "image": ""
+    "image": "",
+    "i18n": {
+      "zh": {
+        "title": "基于大语言模型的恶意软件分析与检测系统",
+        "description": "研究利用大语言模型实现恶意软件的自动化分析与高效威胁检测。",
+        "level": "省级重点研发计划",
+        "role": "项目负责人"
+      },
+      "ja": {
+        "title": "大規模言語モデルに基づくマルウェア解析・検知システム",
+        "description": "大規模言語モデルを用いた、マルウェアの自動解析と効果的な脅威検知に関する研究。",
+        "level": "省重点研究開発計画",
+        "role": "プロジェクトリーダー"
+      }
+    }
   },
   {
     "id": "prj2",
@@ -15,7 +29,21 @@
     "year": "Feb. 2022 - Aug. 2022",
     "level": "Software Copyright Certificate (SCC)",
     "role": "Lead Developer",
-    "image": ""
+    "image": "",
+    "i18n": {
+      "zh": {
+        "title": "基于 YOLOv5 的新冠疫情防控口罩佩戴检测平台",
+        "description": "使用 YOLOv5 开发了实时计算机视觉系统，用于检测公共场所的口罩佩戴情况。",
+        "level": "计算机软件著作权登记证书",
+        "role": "开发负责人"
+      },
+      "ja": {
+        "title": "YOLOv5 を用いた新型コロナ感染対策のためのマスク着用検知プラットフォーム",
+        "description": "YOLOv5 を用いて、公共の場でのマスク着用をリアルタイムに検知するコンピュータビジョンシステムを開発しました。",
+        "level": "ソフトウェア著作権登録証書",
+        "role": "リード開発者"
+      }
+    }
   },
   {
     "id": "prj3",
@@ -24,7 +52,21 @@
     "year": "Apr. 2021 - Sep. 2021",
     "level": "National Key R&D Program",
     "role": "Research Assistant",
-    "image": ""
+    "image": "",
+    "i18n": {
+      "zh": {
+        "title": "基于多源异构数据的场景建模技术",
+        "description": "研究利用多源异构数据进行三维场景重建的技术。",
+        "level": "国家重点研发计划",
+        "role": "研究助理"
+      },
+      "ja": {
+        "title": "マルチソース異種データに基づくシーンモデリング技術",
+        "description": "マルチソースの異種データを活用した 3D シーン再構築技術の研究。",
+        "level": "国家重点研究開発計画",
+        "role": "リサーチアシスタント"
+      }
+    }
   },
   {
     "id": "prj4",
@@ -33,7 +75,21 @@
     "year": "Sep. 2020 - Sep. 2021",
     "level": "National Key R&D Program",
     "role": "Research Assistant",
-    "image": ""
+    "image": "",
+    "i18n": {
+      "zh": {
+        "title": "航空发动机示温涂料智能评估子系统与可视化平台",
+        "description": "设计了用于评估航空发动机示温涂料性能的可视化平台。",
+        "level": "国家重点研发计划",
+        "role": "研究助理"
+      },
+      "ja": {
+        "title": "航空エンジン用示温塗料のインテリジェント評価サブシステムと可視化プラットフォーム",
+        "description": "航空エンジンの示温塗料の性能を評価する可視化プラットフォームを設計しました。",
+        "level": "国家重点研究開発計画",
+        "role": "リサーチアシスタント"
+      }
+    }
   },
   {
     "id": "prj5",
@@ -42,7 +98,21 @@
     "year": "Sep. 2020 - Dec. 2020",
     "level": "Provincial Key R&D Program",
     "role": "Main Developer",
-    "image": ""
+    "image": "",
+    "i18n": {
+      "zh": {
+        "title": "数据驱动的企业异常预警可视分析系统",
+        "description": "构建了可视分析系统，用于发现企业数据异常并及时预警。",
+        "level": "省级重点研发计划",
+        "role": "主要开发者"
+      },
+      "ja": {
+        "title": "データ駆動型の企業異常早期警戒ビジュアルアナリティクスシステム",
+        "description": "企業データの異常を検知し、早期に警告するビジュアルアナリティクスシステムを構築しました。",
+        "level": "省重点研究開発計画",
+        "role": "メイン開発者"
+      }
+    }
   },
   {
     "id": "prj6",
@@ -51,6 +121,20 @@
     "year": "Jan. 2020 - Jan. 2021",
     "level": "University Program, SWUST",
     "role": "Main Developer",
-    "image": ""
+    "image": "",
+    "i18n": {
+      "zh": {
+        "title": "西南科技大学虚拟现实与可视化研究组官方网站",
+        "description": "负责该研究组官方网站的设计、开发与维护。",
+        "level": "西南科技大学校级项目",
+        "role": "主要开发者"
+      },
+      "ja": {
+        "title": "西南科技大学 VR・可視化研究グループ公式ウェブサイト",
+        "description": "大学の研究グループの公式ウェブサイトを設計・開発・運用しました。",
+        "level": "西南科技大学 学内プロジェクト",
+        "role": "メイン開発者"
+      }
+    }
   }
 ]

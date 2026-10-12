@@ -1,10 +1,15 @@
 import React from 'react';
-import { useContent } from '../components/ContentContext';
+import { useLocalizedContent } from '../components/ContentContext';
 import { Download } from 'lucide-react';
+import { localDate } from '../lib/dates';
+import { useLang } from '../lib/i18n';
+import { useT } from '../lib/phrases/site';
 
 const CV: React.FC = () => {
-  const content = useContent();
+  const content = useLocalizedContent();
   const { profile } = content;
+  const t = useT();
+  const lang = useLang();
   // The CV is for printing, so hidden items never appear on it, not even while editing.
   const publications = content.publications.filter((item) => !item.hidden);
   const projects = content.projects.filter((item) => !item.hidden);
@@ -40,7 +45,7 @@ const CV: React.FC = () => {
           className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors text-sm font-medium"
         >
           <Download size={16} />
-          Download PDF
+          {t('下载 PDF')}
         </button>
       </div>
 
@@ -64,7 +69,7 @@ const CV: React.FC = () => {
 
         {/* Education */}
         <section className="mb-8">
-          <h2 className="text-lg font-bold text-gray-900 uppercase border-b border-gray-200 mb-4 pb-1">Education</h2>
+          <h2 className="text-lg font-bold text-gray-900 uppercase border-b border-gray-200 mb-4 pb-1">{t('教育经历')}</h2>
           <div className="space-y-4">
             {profile.education.map((edu, idx) => (
               <div key={idx} className="flex flex-col sm:flex-row justify-between">
@@ -81,7 +86,7 @@ const CV: React.FC = () => {
                  </div>
                  <div className="text-right shrink-0">
                    <div className="font-medium text-gray-900">{edu.location}</div>
-                   <div className="text-sm text-gray-500">{edu.year}</div>
+                   <div className="text-sm text-gray-500">{localDate(edu.year, lang)}</div>
                  </div>
               </div>
             ))}
@@ -90,7 +95,7 @@ const CV: React.FC = () => {
 
         {/* Research Interests */}
         <section className="mb-8">
-          <h2 className="text-lg font-bold text-gray-900 uppercase border-b border-gray-200 mb-4 pb-1">Research Interests</h2>
+          <h2 className="text-lg font-bold text-gray-900 uppercase border-b border-gray-200 mb-4 pb-1">{t('研究兴趣')}</h2>
           <div className="flex flex-wrap gap-2">
             {profile.researchInterests.map((interest, idx) => (
               <span key={idx} className="bg-gray-100 px-3 py-1 rounded text-sm text-gray-700">
@@ -102,11 +107,11 @@ const CV: React.FC = () => {
 
         {/* Publications */}
         <section className="mb-8">
-          <h2 className="text-lg font-bold text-gray-900 uppercase border-b border-gray-200 mb-4 pb-1">Publications</h2>
+          <h2 className="text-lg font-bold text-gray-900 uppercase border-b border-gray-200 mb-4 pb-1">{t('论文')}</h2>
           
           {journals.length > 0 && (
             <div className="mb-4">
-              <h3 className="text-md font-semibold text-gray-800 mb-2">Refereed Journal Articles</h3>
+              <h3 className="text-md font-semibold text-gray-800 mb-2">{t('期刊论文（同行评审）')}</h3>
               <ul className="list-decimal list-outside ml-5 space-y-3 text-sm text-gray-800">
                 {journals.map((pub) => (
                   <li key={pub.id} className="pl-1">
@@ -124,7 +129,7 @@ const CV: React.FC = () => {
 
           {conferences.length > 0 && (
             <div>
-              <h3 className="text-md font-semibold text-gray-800 mb-2">Conference Proceedings</h3>
+              <h3 className="text-md font-semibold text-gray-800 mb-2">{t('会议论文集')}</h3>
               <ul className="list-decimal list-outside ml-5 space-y-3 text-sm text-gray-800">
                 {conferences.map((pub) => (
                   <li key={pub.id} className="pl-1">
@@ -143,13 +148,13 @@ const CV: React.FC = () => {
 
         {/* Selected Projects */}
         <section className="mb-8">
-           <h2 className="text-lg font-bold text-gray-900 uppercase border-b border-gray-200 mb-4 pb-1">Selected Projects</h2>
+           <h2 className="text-lg font-bold text-gray-900 uppercase border-b border-gray-200 mb-4 pb-1">{t('代表性项目')}</h2>
            <div className="space-y-4">
              {projects.map((proj) => (
                <div key={proj.id}>
                  <div className="flex justify-between items-baseline mb-1">
                    <h3 className="font-bold text-gray-900 text-sm">{proj.title} <span className="font-normal text-gray-600 italic">- {proj.role}</span></h3>
-                   <span className="text-xs text-gray-500">{proj.year}</span>
+                   <span className="text-xs text-gray-500">{localDate(proj.year, lang)}</span>
                  </div>
                  <p className="text-sm text-gray-700">{proj.description}</p>
                  <div className="text-xs text-gray-500 mt-1">{proj.level}</div>
@@ -160,15 +165,17 @@ const CV: React.FC = () => {
 
         {/* Invited Talks */}
         <section className="mb-8">
-           <h2 className="text-lg font-bold text-gray-900 uppercase border-b border-gray-200 mb-4 pb-1">Invited Talks</h2>
+           <h2 className="text-lg font-bold text-gray-900 uppercase border-b border-gray-200 mb-4 pb-1">{t('受邀报告')}</h2>
            <ul className="space-y-3 text-sm text-gray-800">
              {talks.map((talk) => (
                <li key={talk.id} className="grid grid-cols-[1fr_auto] gap-4">
                  <div>
                    <strong>{talk.title}</strong>. {talk.event ? `${talk.event}, ` : ''}{talk.location}.
-                   <div className="text-xs text-gray-500 italic">Host: {talk.host} {talk.collaborators ? `(w/ ${talk.collaborators})` : ''}</div>
+                   <div className="text-xs text-gray-500 italic">
+                     {t('主办：{host}', { host: talk.host })} {talk.collaborators ? t('（合作：{collaborators}）', { collaborators: talk.collaborators }) : ''}
+                   </div>
                  </div>
-                 <div className="whitespace-nowrap text-gray-500">{talk.date}</div>
+                 <div className="whitespace-nowrap text-gray-500">{localDate(talk.date, lang)}</div>
                </li>
              ))}
            </ul>
@@ -176,12 +183,12 @@ const CV: React.FC = () => {
 
         {/* Honors & Awards */}
         <section className="mb-8">
-          <h2 className="text-lg font-bold text-gray-900 uppercase border-b border-gray-200 mb-4 pb-1">Honors & Awards</h2>
+          <h2 className="text-lg font-bold text-gray-900 uppercase border-b border-gray-200 mb-4 pb-1">{t('荣誉与奖项')}</h2>
           <ul className="space-y-2 text-sm text-gray-800">
             {profile.awards.map((award, idx) => (
               <li key={idx} className="flex justify-between">
                 <span>{award.title} {award.issuer && <span className="text-gray-500">- {award.issuer}</span>}</span>
-                <span className="text-gray-500">{award.date}</span>
+                <span className="text-gray-500">{localDate(award.date, lang)}</span>
               </li>
             ))}
           </ul>
@@ -190,7 +197,7 @@ const CV: React.FC = () => {
         {/* Skills & Languages */}
         <section className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-8">
           <div>
-            <h2 className="text-lg font-bold text-gray-900 uppercase border-b border-gray-200 mb-4 pb-1">Technical Skills</h2>
+            <h2 className="text-lg font-bold text-gray-900 uppercase border-b border-gray-200 mb-4 pb-1">{t('技术技能')}</h2>
             <div className="text-sm text-gray-800">
               <ul className="list-disc list-inside space-y-1">
                 {profile.skills.map((skill, idx) => (
@@ -201,7 +208,7 @@ const CV: React.FC = () => {
           </div>
           
           <div>
-            <h2 className="text-lg font-bold text-gray-900 uppercase border-b border-gray-200 mb-4 pb-1">Languages</h2>
+            <h2 className="text-lg font-bold text-gray-900 uppercase border-b border-gray-200 mb-4 pb-1">{t('语言')}</h2>
             <div className="text-sm text-gray-800">
                <ul className="space-y-1">
                 {profile.languages.map((lang, idx) => (

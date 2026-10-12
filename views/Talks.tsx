@@ -1,18 +1,21 @@
 import React from 'react';
-import { useContent } from '../components/ContentContext';
+import { useLocalizedContent } from '../components/ContentContext';
 import { AddButton, EditButton, HiddenBadge, useVisibleItems } from '../components/EditMode';
 import { SortableGroup } from '../components/SortableGroup';
 import { MapPin, User, Calendar } from 'lucide-react';
+import { localDate } from '../lib/dates';
+import { useLang } from '../lib/i18n';
 import { useT } from '../lib/phrases/site';
 
 const Talks: React.FC = () => {
-  const talks = useVisibleItems(useContent().talks);
+  const talks = useVisibleItems(useLocalizedContent().talks);
   const t = useT();
+  const lang = useLang();
   return (
     <div className="animate-fade-in pb-20">
       <div className="mb-10">
         <h1 className="text-3xl font-light text-gray-900 mb-2">
-          invited talks
+          {t('受邀报告')}
           <AddButton request={{ kind: 'add', collection: 'talks' }} text={t('添加报告')} className="ml-3" />
         </h1>
       </div>
@@ -41,7 +44,7 @@ const Talks: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-2 text-sm text-gray-600">
                 <div className="flex items-center gap-2">
                     <Calendar size={16} />
-                    <span>{talk.date}</span>
+                    <span>{localDate(talk.date, lang)}</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <MapPin size={16} />
@@ -49,11 +52,11 @@ const Talks: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2">
                     <User size={16} />
-                    <span>Host: {talk.host}</span>
+                    <span>{t('主办：{host}', { host: talk.host })}</span>
                 </div>
                 {talk.collaborators && (
                      <div className="flex items-center gap-2 col-span-1 md:col-span-2 text-gray-500 italic">
-                        <span>With: {talk.collaborators}</span>
+                        <span>{t('合作：{collaborators}', { collaborators: talk.collaborators })}</span>
                     </div>
                 )}
             </div>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { LANGS, setLang, useLang } from '../lib/i18n';
 
-/** Switches the interface between Chinese, Japanese and English; the choice is remembered in this browser. */
+/** Switches the site between Chinese, Japanese and English; the choice is remembered in this browser. */
 const LangSwitch: React.FC<{ dark?: boolean; className?: string }> = ({ dark = false, className = '' }) => {
   const current = useLang();
   return (

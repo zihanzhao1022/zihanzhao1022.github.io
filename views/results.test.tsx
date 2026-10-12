@@ -126,7 +126,7 @@ describe('paper page', () => {
   });
 
   it('asks visitors to sign in at an unknown address: it may be a paper shared with them', () => {
-    expect(render('/results/nope', <ResultPage />)).toContain('Sign in with GitHub to see the results shared with you.');
+    expect(render('/results/nope', <ResultPage />)).toContain('登录 GitHub 后查看作者共享给你的论文结果。');
   });
 
   it('sends the signed-in owner back to the list from an unknown address', () => {
@@ -210,6 +210,6 @@ describe('results routes', () => {
   });
 
   it('asks visitors to sign in at a hidden results address instead of sending them home', () => {
-    expect(site('/results/draft', true)).toContain('Sign in with GitHub to see the results shared with you.');
+    expect(site('/results/draft', true)).toContain('登录 GitHub 后查看作者共享给你的论文结果。');
   });
 });

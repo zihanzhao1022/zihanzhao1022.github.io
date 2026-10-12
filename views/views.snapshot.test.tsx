@@ -1,7 +1,8 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ContentContext } from '../components/ContentContext';
+import { setLang } from '../lib/i18n';
 import { SiteContent } from '../types';
 import fixture from './__fixtures__/content.json';
 import About from './About';
@@ -34,6 +35,10 @@ const render = (View: React.ComponentType): string =>
   ).replace(/></g, '>\n<') + '\n';
 
 describe('views render unchanged markup', () => {
+  // The English pages as they were before the site could be switched to Chinese or Japanese.
+  beforeAll(() => setLang('en'));
+  afterAll(() => setLang('zh'));
+
   for (const [name, View] of Object.entries(VIEWS)) {
     it(name, async () => {
       await expect(render(View)).toMatchFileSnapshot(`./__snapshots__/${name}.html`);

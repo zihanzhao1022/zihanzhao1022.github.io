@@ -10,6 +10,8 @@ import {
   profileFields,
   toFormState,
   validateForm,
+  visibleFields,
+  withTranslations,
 } from './schemas';
 
 const now = new Date(Date.UTC(2026, 9, 6, 15, 30, 12));
@@ -233,5 +235,48 @@ describe('navigation forms', () => {
     const { item } = fromFormState(NAV_SCHEMAS.page, { label: '教学', title: '教学', slug: '', body: '' }, { id: 'page-abc', type: 'page' }, now);
     expect(item.slug).toBe('page-abc');
     expect(item.body).toBe('');
+  });
+});
+
+describe('translations', () => {
+  const news = withTranslations(LIST_SCHEMAS.news);
+  const item = { id: 'n1', date: 'Jan 20, 2025', content: 'Made-up news', i18n: { zh: { content: '旧的' }, ja: { content: '古い' } } };
+
+  it('adds an optional Chinese and Japanese version of each translatable field', () => {
+    expect(news.fields.map((field) => field.key)).toEqual(['date', 'content', 'i18n.zh.content', 'i18n.ja.content']);
+    expect(validateForm(news, { date: 'Jan 20, 2025', content: 'Made-up news', 'i18n.zh.content': '', 'i18n.ja.content': '' })).toEqual({});
+    expect(withTranslations(LIST_SCHEMAS.publications)).toBe(LIST_SCHEMAS.publications);
+  });
+
+  it('keeps the versions under i18n and drops a version once it is emptied', () => {
+    const state = toFormState(news, item);
+    expect(state['i18n.zh.content']).toBe('旧的');
+    const changed = fromFormState(news, { ...state, 'i18n.zh.content': ' 新的 ', 'i18n.ja.content': '' }, item, now).item;
+    expect(changed.i18n).toEqual({ zh: { content: '新的' } });
+    expect(changed.content).toBe('Made-up news');
+    const cleared = fromFormState(news, { ...state, 'i18n.zh.content': '', 'i18n.ja.content': '' }, item, now).item;
+    expect(cleared).not.toHaveProperty('i18n');
+  });
+
+  it('asks for translations only where the English field is asked for', () => {
+    const experiences = withTranslations(LIST_SCHEMAS.experiences);
+    const keys = visibleFields(experiences, { category: 'work' }).map((field) => field.key);
+    expect(keys).toContain('i18n.zh.description');
+    expect(keys).not.toContain('i18n.zh.department');
+  });
+
+  it("patches the profile's translations with the fields they translate", () => {
+    const profile = { title: 'PhD Candidate', bio: ['One'], languages: [{ language: 'Chinese', proficiency: 'Native' }] };
+    const bio = withTranslations(PROFILE_SCHEMAS.bio);
+    const translated = fromFormState(bio, { ...toFormState(bio, profile), 'i18n.ja.bio': '一段目\n\n二段目' }, profile, now).item;
+    expect(profileFields(bio, translated)).toEqual({ bio: ['One'], i18n: { ja: { bio: ['一段目', '二段目'] } } });
+
+    const basics = withTranslations(PROFILE_SCHEMAS.basics);
+    const state = toFormState(basics, profile);
+    expect(state['i18n.zh.languages']).toEqual([]);
+    const languages = [{ language: '中文', proficiency: '母语' }];
+    expect(fromFormState(basics, { ...state, 'i18n.zh.languages': languages }, profile, now).item.i18n).toEqual({ zh: { languages } });
+    // An empty list shows the English list again rather than none.
+    expect(fromFormState(basics, state, profile, now).item).not.toHaveProperty('i18n');
   });
 });

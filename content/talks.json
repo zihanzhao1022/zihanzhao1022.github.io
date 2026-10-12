@@ -5,7 +5,21 @@
     "date": "Dec 2024",
     "host": "Computer and Artificial Intelligence Association, SWUST",
     "location": "Southwest University of Science and Technology, China",
-    "collaborators": "Co-hosted with Hosei Univ., Sichuan Univ., and Shenzhen Univ."
+    "collaborators": "Co-hosted with Hosei Univ., Sichuan Univ., and Shenzhen Univ.",
+    "i18n": {
+      "zh": {
+        "title": "2024 自然语言处理（NLP）与大语言模型（LLM）路线图：如何学习？挑战与机遇",
+        "host": "西南科技大学计算机与人工智能协会",
+        "location": "中国 西南科技大学",
+        "collaborators": "法政大学、四川大学、深圳大学（联合主办）"
+      },
+      "ja": {
+        "title": "自然言語処理（NLP）と大規模言語モデル（LLM）ロードマップ 2024：どう学ぶか？課題と機会",
+        "host": "西南科技大学 コンピュータ・人工知能協会",
+        "location": "西南科技大学（中国）",
+        "collaborators": "法政大学・四川大学・深圳大学（共催）"
+      }
+    }
   },
   {
     "id": "t2",
@@ -13,7 +27,21 @@
     "date": "Jan 2022",
     "host": "Computer and Artificial Intelligence Association, SWUST",
     "location": "Southwest University of Science and Technology, China",
-    "collaborators": "Co-hosted with Microsoft Student Club (MSC)"
+    "collaborators": "Co-hosted with Microsoft Student Club (MSC)",
+    "i18n": {
+      "zh": {
+        "title": "从零搭建目标检测系统：以 YOLOv5 为例",
+        "host": "西南科技大学计算机与人工智能协会",
+        "location": "中国 西南科技大学",
+        "collaborators": "微软学生俱乐部 MSC（联合主办）"
+      },
+      "ja": {
+        "title": "ゼロから作る物体検出システム：YOLOv5 を例に",
+        "host": "西南科技大学 コンピュータ・人工知能協会",
+        "location": "西南科技大学（中国）",
+        "collaborators": "Microsoft Student Club（MSC、共催）"
+      }
+    }
   },
   {
     "id": "t3",
@@ -21,13 +49,39 @@
     "date": "Oct 2021",
     "host": "Computer and Artificial Intelligence Association, SWUST",
     "location": "Southwest University of Science and Technology, China",
-    "collaborators": "VR&VIS Laboratory II"
+    "collaborators": "VR&VIS Laboratory II",
+    "i18n": {
+      "zh": {
+        "title": "以 Web 前端为平台的科学可视化",
+        "host": "西南科技大学计算机与人工智能协会",
+        "location": "中国 西南科技大学",
+        "collaborators": "VR&VIS 第二实验室"
+      },
+      "ja": {
+        "title": "Web フロントエンドを基盤とした科学的可視化",
+        "host": "西南科技大学 コンピュータ・人工知能協会",
+        "location": "西南科技大学（中国）",
+        "collaborators": "VR&VIS 第二研究室"
+      }
+    }
   },
   {
     "id": "t4",
     "title": "Introduction to Visualization: Principle and Implementation",
     "date": "Mar 2021",
     "host": "Computer and Artificial Intelligence Association, SWUST",
-    "location": "Southwest University of Science and Technology, China"
+    "location": "Southwest University of Science and Technology, China",
+    "i18n": {
+      "zh": {
+        "title": "可视化入门：原理与实现",
+        "host": "西南科技大学计算机与人工智能协会",
+        "location": "中国 西南科技大学"
+      },
+      "ja": {
+        "title": "可視化入門：原理と実装",
+        "host": "西南科技大学 コンピュータ・人工知能協会",
+        "location": "西南科技大学（中国）"
+      }
+    }
   }
 ]

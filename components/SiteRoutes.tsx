@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import About from '../views/About';
-import { useContent } from './ContentContext';
+import { useLocalizedContent } from './ContentContext';
 import CustomPage from './CustomPage';
 import { useEditMode } from './EditMode';
 import { BUILTIN_ROUTES } from './pages';
@@ -23,7 +23,7 @@ const NotFound: React.FC = () => {
 
 /** Routes follow the navigation data; hidden pages only open for the signed-in owner. */
 const SiteRoutes: React.FC = () => {
-  const { navigation } = useContent();
+  const { navigation } = useLocalizedContent();
   const { loggedIn } = useEditMode();
   const collaborator = isCollaborator(useResultsAccess());
   const items = navigation.filter((item) => (loggedIn && !collaborator) || !item.hidden);

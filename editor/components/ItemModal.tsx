@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Message, say, useMessage } from '../../lib/i18n';
+import { LANGS, Lang, Message, say, useMessage } from '../../lib/i18n';
 import { Eye, EyeOff, Trash2 } from 'lucide-react';
 import { useT } from '../../lib/phrases/editor';
 import { EditRequest, SiteContent } from '../../types';
@@ -7,6 +7,7 @@ import { ImageUpload, describeSaveError } from '../backend';
 import { existingImages } from '../existingImages';
 import { ContentOp, ListItem, commitMessage, itemNoun } from '../ops';
 import {
+  Field,
   FormSchema,
   FormState,
   PROFILE_SCHEMAS,
@@ -18,6 +19,7 @@ import {
   toFormState,
   validateForm,
   visibleFields,
+  withTranslations,
 } from '../schemas';
 import { FieldControl } from './fields';
 import { BUTTON_PRIMARY, BUTTON_SECONDARY, Modal } from './Modal';
@@ -38,7 +40,17 @@ interface ResolvedForm {
   unique: Record<string, string>;
 }
 
+// English is the text itself; the other tabs hold the owner's translations of it.
+const TABS: Lang[] = ['en', 'zh', 'ja'];
+const langName = (lang: Lang): string => LANGS.find((entry) => entry.lang === lang)?.name ?? lang;
+const tabOf = (field: Field | undefined): Lang => field?.translation?.lang ?? 'en';
+
 function resolveForm(request: FormRequest, content: SiteContent): ResolvedForm | null {
+  const form = findForm(request, content);
+  return form && { ...form, schema: withTranslations(form.schema) };
+}
+
+function findForm(request: FormRequest, content: SiteContent): ResolvedForm | null {
   if (request.kind === 'profile') {
     const schema = PROFILE_SCHEMAS[request.section];
     return { schema, item: content.profile as unknown as Values, title: schema.editTitle, isNew: false, locked: true, unique: {} };
@@ -70,6 +82,7 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
   const [errors, setErrors] = useState<Record<string, Message>>({});
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useMessage();
+  const [tab, setTab] = useState<Lang>('en');
 
   if (!form) {
     return (
@@ -89,6 +102,23 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
 
   const dirty = JSON.stringify(state) !== JSON.stringify(initial);
   const isHidden = form.item.hidden === true;
+  const translated = form.schema.fields.some((field) => field.translation);
+  const fieldTab = (key: string): Lang => tabOf(form.schema.fields.find((field) => field.key === key));
+  const problemTabs = new Set(Object.keys(errors).map(fieldTab));
+
+  /** The English a translation stands for, shown in its empty box (or under a list) while translating. */
+  const english = (field: Field): string => {
+    const value = field.translation ? state[field.translation.of] : undefined;
+    if (!Array.isArray(value)) return typeof value === 'string' ? value : '';
+    const cells = (row: Values) => (field.columns ?? []).map((column) => row[column.key]).filter((cell) => typeof cell === 'string' && cell);
+    return (value as Values[]).map((row) => cells(row).join(' / ')).join(', ');
+  };
+  const shown = (field: Field): Field => {
+    if (!field.translation) return field;
+    const text = english(field);
+    if (!text) return field;
+    return field.type === 'rows' ? { ...field, help: t('英文：{text}', { text }) } : { ...field, placeholder: text };
+  };
 
   const close = () => {
     if (saving) return;
@@ -112,7 +142,12 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
     const found = validateForm(form.schema, state);
     // Checked again when shown, so the messages follow the language switch.
     setErrors(Object.fromEntries(Object.keys(found).map((key) => [key, () => validateForm(form.schema, state)[key] ?? found[key]])));
-    if (Object.keys(found).length > 0) return;
+    const problems = Object.keys(found).map(fieldTab);
+    if (problems.length > 0) {
+      // Open the first tab with a problem, unless this one has one.
+      if (!problems.includes(tab)) setTab(problems[0]);
+      return;
+    }
     const { item, uploads } = fromFormState(form.schema, state, form.item, new Date());
     if (request.kind === 'profile') {
       void submit(
@@ -224,10 +259,33 @@ export const ItemModal: React.FC<Props> = ({ request, content, onSave, onClose }
         </div>
       )}
       {isHidden && <div className="mb-4 p-3 rounded-md bg-gray-50 text-sm text-gray-600">{t('这一条目前对访客隐藏。')}</div>}
-      {visibleFields(form.schema, state).map((field) => (
+      {translated && (
+        <div role="tablist" className="mb-4 flex gap-1 border-b border-gray-200">
+          {TABS.map((lang) => (
+            <button
+              key={lang}
+              type="button"
+              role="tab"
+              lang={lang}
+              aria-selected={tab === lang}
+              onClick={() => setTab(lang)}
+              className={`-mb-px border-b-2 px-3 py-1.5 text-sm ${
+                tab === lang ? 'border-purple-600 font-medium text-purple-700' : 'border-transparent text-gray-500 hover:text-gray-800'
+              }`}
+            >
+              {langName(lang)}
+              {problemTabs.has(lang) && <span className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-red-500 align-middle" />}
+            </button>
+          ))}
+        </div>
+      )}
+      {tab !== 'en' && (
+        <p className="mb-4 text-xs text-gray-500">{t('网站切换到{lang}时显示这里填写的内容；留空的项显示英文。', { lang: langName(tab) })}</p>
+      )}
+      {visibleFields(form.schema, state).filter((field) => tabOf(field) === tab).map((field) => (
         <FieldControl
           key={field.key}
-          field={field}
+          field={shown(field)}
           value={state[field.key]}
           error={errors[field.key] === undefined ? undefined : say(errors[field.key])}
           onChange={(value) => setField(field.key, value)}

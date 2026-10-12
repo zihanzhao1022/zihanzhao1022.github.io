@@ -1,18 +1,27 @@
 import React, { useState, useMemo } from 'react';
-import { useContent } from '../components/ContentContext';
+import { useContent, useLocalizedContent } from '../components/ContentContext';
 import { AddButton, useVisibleItems } from '../components/EditMode';
 import { SortableGroup } from '../components/SortableGroup';
+import { localDate } from '../lib/dates';
+import { N_, useLang } from '../lib/i18n';
 import { useT } from '../lib/phrases/site';
 import { AwardType } from '../types';
 import ListItem from '../components/ListItem';
 
+// Translated where shown.
 const AWARD_TYPES: { type: AwardType | 'all', label: string }[] = [
-  { type: 'all', label: 'All' },
-  { type: 'international', label: 'International' },
-  { type: 'national', label: 'National (China)' },
-  { type: 'provincial', label: 'Provincial (China)' },
-  { type: 'scholarship', label: 'Scholarship' },
+  { type: 'all', label: N_('全部') },
+  { type: 'international', label: N_('国际') },
+  { type: 'national', label: N_('国家级（中国）') },
+  { type: 'provincial', label: N_('省级（中国）') },
+  { type: 'scholarship', label: N_('奖学金') },
 ];
+const TYPE_BADGES: Record<AwardType, string> = {
+  international: N_('国际'),
+  national: N_('国家级'),
+  provincial: N_('省级'),
+  scholarship: N_('奖学金'),
+};
 
 const getBadgeStyle = (level: string) => {
   const text = level.toLowerCase();
@@ -52,8 +61,11 @@ const getBadgeStyle = (level: string) => {
 };
 
 const Awards: React.FC = () => {
-  const awards = useVisibleItems(useContent().awards);
+  const awards = useVisibleItems(useLocalizedContent().awards);
+  // Badge colours follow the English level ("First Prize" is gold) in every language.
+  const stored = useContent().awards;
   const t = useT();
+  const lang = useLang();
   const [filter, setFilter] = useState('');
   const [selectedType, setSelectedType] = useState<AwardType | 'all'>('all');
 
@@ -84,11 +96,11 @@ const Awards: React.FC = () => {
     <div className="animate-fade-in pb-20">
       <div className="mb-10">
         <h1 className="text-3xl font-light text-gray-900 mb-2">
-          honors & awards
+          {t('荣誉与奖项')}
           <AddButton request={{ kind: 'add', collection: 'awards' }} text={t('添加奖项')} className="ml-3" />
         </h1>
         <p className="text-sm text-gray-500">
-          competitions, scholarships, and recognitions.
+          {t('竞赛、奖学金与其他荣誉。')}
         </p>
       </div>
 
@@ -97,7 +109,7 @@ const Awards: React.FC = () => {
         {/* Search Bar */}
         <input
           type="text"
-          placeholder="Filter awards..."
+          placeholder={t('筛选奖项…')}
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           className="w-full md:w-1/2 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-purple-500 text-sm"
@@ -105,17 +117,17 @@ const Awards: React.FC = () => {
 
         {/* Type Tabs */}
         <div className="flex flex-wrap items-center gap-2">
-            {AWARD_TYPES.map((t) => (
+            {AWARD_TYPES.map(({ type, label }) => (
               <button
-                key={t.type}
-                onClick={() => setSelectedType(t.type)}
+                key={type}
+                onClick={() => setSelectedType(type)}
                 className={`px-3 py-1 text-xs font-medium rounded-full border transition-all ${
-                  selectedType === t.type
+                  selectedType === type
                     ? 'bg-gray-900 text-white border-gray-900 shadow-sm'
                     : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
                 }`}
               >
-                {t.label}
+                {t(label)}
               </button>
             ))}
         </div>
@@ -148,21 +160,23 @@ const Awards: React.FC = () => {
                     }
                     meta={
                       <div className="text-sm text-gray-500 italic">
-                        {award.date}
+                        {localDate(award.date, lang)}
                       </div>
                     }
                     tags={
                       <div className="flex gap-2">
                         {/* Type Tag (mimicking publication layout but simpler) */}
                         <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded text-gray-600 bg-gray-100 border border-gray-200 uppercase tracking-wider">
-                           {award.type === 'national' ? 'National' :
-                            award.type === 'provincial' ? 'Provincial' :
-                            award.type}
+                           {TYPE_BADGES[award.type] ? t(TYPE_BADGES[award.type]) : award.type}
                         </span>
 
                         {/* Level Tag (Dynamic Color) */}
                         {award.level && (
-                          <span className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded border ${getBadgeStyle(award.level)}`}>
+                          <span
+                            className={`inline-block px-2 py-0.5 text-[10px] font-semibold rounded border ${getBadgeStyle(
+                              stored.find((item) => item.id === award.id)?.level ?? award.level,
+                            )}`}
+                          >
                              {award.level}
                           </span>
                         )}
@@ -184,7 +198,7 @@ const Awards: React.FC = () => {
 
       {sortedAwards.length === 0 && (
         <div className="text-center text-gray-500 py-12 italic">
-          No awards found matching criteria.
+          {t('没有符合条件的奖项。')}
         </div>
       )}
     </div>

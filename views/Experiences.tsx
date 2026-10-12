@@ -1,28 +1,30 @@
 import React from 'react';
-import { useContent } from '../components/ContentContext';
+import { useLocalizedContent } from '../components/ContentContext';
 import { AddButton, useVisibleItems } from '../components/EditMode';
 import { SortableGroup } from '../components/SortableGroup';
-import { N_ } from '../lib/i18n';
+import { localDate } from '../lib/dates';
+import { N_, useLang } from '../lib/i18n';
 import { useT } from '../lib/phrases/site';
 import { ExperienceCategory } from '../types';
 import ListItem from '../components/ListItem';
 
-// The add buttons' texts are translated where shown.
+// Titles and the add buttons' texts are translated where shown.
 const SECTIONS: { id: ExperienceCategory; title: string; addText: string }[] = [
-  { id: 'education', title: 'Education', addText: N_('添加教育经历') },
-  { id: 'work', title: 'Work Experience', addText: N_('添加工作经历') },
-  { id: 'volunteer', title: 'Volunteer & Service', addText: N_('添加志愿经历') },
+  { id: 'education', title: N_('教育经历'), addText: N_('添加教育经历') },
+  { id: 'work', title: N_('工作经历'), addText: N_('添加工作经历') },
+  { id: 'volunteer', title: N_('志愿与服务'), addText: N_('添加志愿经历') },
 ];
 
 const Experiences: React.FC = () => {
-  const experiences = useVisibleItems(useContent().experiences);
+  const experiences = useVisibleItems(useLocalizedContent().experiences);
   const t = useT();
+  const lang = useLang();
   return (
     <div className="animate-fade-in pb-20">
       <div className="mb-10">
-        <h1 className="text-3xl font-light text-gray-900 mb-2">experiences</h1>
+        <h1 className="text-3xl font-light text-gray-900 mb-2">{t('经历')}</h1>
         <p className="text-sm text-gray-500">
-          My academic journey, professional roles, and volunteer experiences in universities.
+          {t('我的求学、工作经历，以及在大学里的志愿与服务经历。')}
         </p>
       </div>
 
@@ -36,7 +38,7 @@ const Experiences: React.FC = () => {
             <div key={section.id}>
               {/* Section Header */}
               <h2 className="text-xl font-bold uppercase tracking-wider text-purple-700 mb-8 border-b-2 border-purple-100 pb-2 inline-block">
-                {section.title}
+                {t(section.title)}
               </h2>
               <AddButton
                 request={{ kind: 'add', collection: 'experiences', preset: { category: section.id } }}
@@ -64,7 +66,7 @@ const Experiences: React.FC = () => {
                       <div className="flex flex-col gap-1 text-sm text-gray-600 mt-1">
                          {/* Common Meta: Location & Date */}
                          <div className="italic text-gray-500">
-                           {exp.date}  •  {exp.location}
+                           {localDate(exp.date, lang)}  •  {exp.location}
                          </div>
 
                          {/* Education Specifics */}
@@ -90,7 +92,7 @@ const Experiences: React.FC = () => {
                           )}
                           {exp.rank && (
                              <span className="inline-block px-2 py-0.5 text-[10px] font-semibold rounded text-white bg-purple-500">
-                               Rank: {exp.rank}
+                               {t('排名：{rank}', { rank: exp.rank })}
                              </span>
                           )}
                         </div>

@@ -2,7 +2,6 @@ import React, { Suspense, lazy, useCallback, useMemo, useRef, useState } from 'r
 import { Loader2, LogOut } from 'lucide-react';
 import { useContent, useUpdateContent } from '../components/ContentContext';
 import { EditModeContext, EditModeValue, Toast } from '../components/EditMode';
-import LangSwitch from '../components/LangSwitch';
 import { ResultsAccessContext, canEditShared } from '../components/results/access';
 import { N_ } from '../lib/i18n';
 import { useT } from '../lib/phrases/site';
@@ -52,8 +51,7 @@ const CollaboratorBar: React.FC<{ session: Session; loading: boolean; onLogout: 
             {t('正在读取…')}
           </span>
         )}
-        <LangSwitch dark className={loading ? '' : 'ml-auto'} />
-        <button type="button" onClick={onLogout} className="flex items-center gap-1 text-gray-400 hover:text-white">
+        <button type="button" onClick={onLogout} className={`flex items-center gap-1 text-gray-400 hover:text-white ${loading ? '' : 'ml-auto'}`}>
           <LogOut size={12} />
           {t('退出')}
         </button>

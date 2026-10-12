@@ -2,11 +2,27 @@
   {
     "id": "n-muxiygg3",
     "date": "May 27, 2026",
-    "content": "Selected as student researcher in DAIKIN Industries Inc., the University of Osaka"
+    "content": "Selected as student researcher in DAIKIN Industries Inc., the University of Osaka",
+    "i18n": {
+      "zh": {
+        "content": "入选大金工业株式会社学生研究员（大阪大学）。"
+      },
+      "ja": {
+        "content": "ダイキン工業株式会社の学生研究員（大阪大学）に選ばれました。"
+      }
+    }
   },
   {
     "id": "n1",
     "date": "Jan 20, 2025",
-    "content": "My academic homepage was successfully deployed! 🚀"
+    "content": "My academic homepage was successfully deployed! 🚀",
+    "i18n": {
+      "zh": {
+        "content": "我的学术主页成功上线了！🚀"
+      },
+      "ja": {
+        "content": "学術ホームページを公開しました！🚀"
+      }
+    }
   }
 ]

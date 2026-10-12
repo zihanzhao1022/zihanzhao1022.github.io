@@ -10,7 +10,7 @@ const Footer: React.FC = () => {
   return (
     <footer className="w-full bg-gray-900 text-gray-400 py-6 text-center text-xs mt-20">
       <p>
-        © Copyright {currentYear} Zihan ZHAO. Powered by React. Hosted by GitHub Pages.
+        {t('© {year} Zihan ZHAO 版权所有。基于 React 构建，托管于 GitHub Pages。', { year: currentYear })}
         {canLogin && !loggedIn && (
           <button
             type="button"

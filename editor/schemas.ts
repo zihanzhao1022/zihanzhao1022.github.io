@@ -24,6 +24,10 @@ export interface Column {
   placeholder?: string;
 }
 
+/** The languages the owner can translate their text into; English is the text itself. */
+export const CONTENT_LANGS = ['zh', 'ja'] as const;
+export type ContentLang = (typeof CONTENT_LANGS)[number];
+
 export interface Field {
   /** Dotted path into the item, e.g. "links.pdf". */
   key: string;
@@ -39,6 +43,10 @@ export interface Field {
   showIf?: (state: FormState) => boolean;
   /** Height of textareas, overriding the default for the field type. */
   rows?: number;
+  /** The owner can write Chinese and Japanese versions of it, shown while the site is in that language. */
+  translate?: boolean;
+  /** For a Chinese or Japanese version (see withTranslations): its language and the key of the English field. */
+  translation?: { lang: ContentLang; of: string };
 }
 
 export interface FormSchema {
@@ -99,7 +107,7 @@ export const LIST_SCHEMAS: Record<Exclude<ListCollection, 'navigation'>, ListSch
     label: (item) => text(item.content),
     fields: [
       { key: 'date', label: N_('日期'), type: 'text', required: true, placeholder: 'Oct 6, 2026' },
-      { key: 'content', label: N_('内容'), type: 'markdown', required: true, help: LINK_HELP },
+      { key: 'content', label: N_('内容'), type: 'markdown', required: true, help: LINK_HELP, translate: true },
     ],
   },
   experiences: {
@@ -120,14 +128,14 @@ export const LIST_SCHEMAS: Record<Exclude<ListCollection, 'navigation'>, ListSch
           { value: 'volunteer', label: N_('志愿与服务') },
         ],
       },
-      { key: 'title', label: N_('学位 / 职位'), type: 'text', required: true },
-      { key: 'institution', label: N_('机构'), type: 'text', required: true },
-      { key: 'department', label: N_('院系'), type: 'text', showIf: isEducation },
-      { key: 'location', label: N_('地点'), type: 'text', required: true, placeholder: 'Tokyo, Japan' },
+      { key: 'title', label: N_('学位 / 职位'), type: 'text', required: true, translate: true },
+      { key: 'institution', label: N_('机构'), type: 'text', required: true, translate: true },
+      { key: 'department', label: N_('院系'), type: 'text', showIf: isEducation, translate: true },
+      { key: 'location', label: N_('地点'), type: 'text', required: true, placeholder: 'Tokyo, Japan', translate: true },
       { key: 'date', label: N_('时间'), type: 'text', required: true, placeholder: 'Sep. 2023 - Present' },
       { key: 'gpa', label: 'GPA', type: 'text', showIf: isEducation, placeholder: '3.5/4.0' },
-      { key: 'rank', label: N_('排名'), type: 'text', showIf: isEducation, placeholder: 'Top 5%' },
-      { key: 'description', label: N_('描述'), type: 'textarea', showIf: (state) => !isEducation(state) },
+      { key: 'rank', label: N_('排名'), type: 'text', showIf: isEducation, placeholder: 'Top 5%', translate: true },
+      { key: 'description', label: N_('描述'), type: 'textarea', showIf: (state) => !isEducation(state), translate: true },
       { key: 'image', label: 'Logo', type: 'image' },
     ],
   },
@@ -185,9 +193,9 @@ export const LIST_SCHEMAS: Record<Exclude<ListCollection, 'navigation'>, ListSch
     idPrefix: 'prj',
     label: (item) => text(item.title),
     fields: [
-      { key: 'title', label: N_('项目名称'), type: 'textarea', required: true },
-      { key: 'role', label: N_('角色'), type: 'text', required: true, placeholder: 'Project Leader' },
-      { key: 'description', label: N_('简介'), type: 'textarea', required: true },
+      { key: 'title', label: N_('项目名称'), type: 'textarea', required: true, translate: true },
+      { key: 'role', label: N_('角色'), type: 'text', required: true, placeholder: 'Project Leader', translate: true },
+      { key: 'description', label: N_('简介'), type: 'textarea', required: true, translate: true },
       {
         key: 'year',
         label: N_('时间'),
@@ -197,7 +205,7 @@ export const LIST_SCHEMAS: Record<Exclude<ListCollection, 'navigation'>, ListSch
         pattern: YEAR_IN_TEXT,
         help: N_('按其中第一个年份分组排序'),
       },
-      { key: 'level', label: N_('级别'), type: 'text', required: true, placeholder: 'National Key R&D Program' },
+      { key: 'level', label: N_('级别'), type: 'text', required: true, placeholder: 'National Key R&D Program', translate: true },
       { key: 'image', label: N_('图片'), type: 'image' },
     ],
   },
@@ -207,12 +215,12 @@ export const LIST_SCHEMAS: Record<Exclude<ListCollection, 'navigation'>, ListSch
     idPrefix: 't',
     label: (item) => text(item.title),
     fields: [
-      { key: 'title', label: N_('题目'), type: 'textarea', required: true },
-      { key: 'event', label: N_('活动名称'), type: 'text', placeholder: 'AI Seminar Series' },
+      { key: 'title', label: N_('题目'), type: 'textarea', required: true, translate: true },
+      { key: 'event', label: N_('活动名称'), type: 'text', placeholder: 'AI Seminar Series', translate: true },
       { key: 'date', label: N_('日期'), type: 'text', required: true, placeholder: 'Dec 2024' },
-      { key: 'host', label: N_('主办方'), type: 'text', required: true },
-      { key: 'location', label: N_('地点'), type: 'text', required: true },
-      { key: 'collaborators', label: N_('合作方'), type: 'text' },
+      { key: 'host', label: N_('主办方'), type: 'text', required: true, translate: true },
+      { key: 'location', label: N_('地点'), type: 'text', required: true, translate: true },
+      { key: 'collaborators', label: N_('合作方'), type: 'text', translate: true },
     ],
   },
   awards: {
@@ -223,8 +231,8 @@ export const LIST_SCHEMAS: Record<Exclude<ListCollection, 'navigation'>, ListSch
     defaults: () => ({ type: 'international' }),
     finalize: (item) => ({ ...item, year: Number(text(item.date).match(/\d{4}/)?.[0] ?? item.year) }),
     fields: [
-      { key: 'title', label: N_('奖项名称'), type: 'textarea', required: true },
-      { key: 'issuer', label: N_('颁发机构'), type: 'text', required: true },
+      { key: 'title', label: N_('奖项名称'), type: 'textarea', required: true, translate: true },
+      { key: 'issuer', label: N_('颁发机构'), type: 'text', required: true, translate: true },
       {
         key: 'date',
         label: N_('日期'),
@@ -252,6 +260,7 @@ export const LIST_SCHEMAS: Record<Exclude<ListCollection, 'navigation'>, ListSch
         type: 'text',
         placeholder: 'First Prize',
         help: N_('含 Gold / First、Silver / Second、Bronze / Third 时自动配色'),
+        translate: true,
       },
       { key: 'prize', label: N_('奖金'), type: 'text', placeholder: 'JPY 200,000' },
       { key: 'image', label: N_('图片'), type: 'image' },
@@ -317,14 +326,15 @@ export const PROFILE_SCHEMAS: Record<ProfileSection, FormSchema> = {
       { key: 'name.first', label: N_('名（First name）'), type: 'text', required: true },
       { key: 'name.last', label: N_('姓（Last name）'), type: 'text', required: true },
       { key: 'name.chinese', label: N_('中文名'), type: 'text' },
-      { key: 'title', label: N_('职位'), type: 'text', required: true, placeholder: 'PhD Candidate' },
-      { key: 'affiliation', label: N_('单位'), type: 'text', required: true },
+      { key: 'title', label: N_('职位'), type: 'text', required: true, placeholder: 'PhD Candidate', translate: true },
+      { key: 'affiliation', label: N_('单位'), type: 'text', required: true, translate: true },
       { key: 'email', label: N_('邮箱'), type: 'text', required: true },
       {
         key: 'languages',
         label: N_('语言'),
         type: 'rows',
         addLabel: N_('添加语言'),
+        translate: true,
         columns: [
           { key: 'language', label: N_('语言'), type: 'text', required: true },
           { key: 'proficiency', label: N_('水平'), type: 'text', required: true },
@@ -335,7 +345,9 @@ export const PROFILE_SCHEMAS: Record<ProfileSection, FormSchema> = {
   bio: {
     editTitle: N_('编辑简介'),
     label: () => 'bio',
-    fields: [{ key: 'bio', label: N_('简介'), type: 'paragraphs', required: true, help: N_('段落之间空一行；支持 [文字](链接) 和 **加粗**') }],
+    fields: [
+      { key: 'bio', label: N_('简介'), type: 'paragraphs', required: true, help: N_('段落之间空一行；支持 [文字](链接) 和 **加粗**'), translate: true },
+    ],
   },
   avatar: {
     editTitle: N_('更换头像'),
@@ -366,6 +378,29 @@ export function visibleFields(schema: FormSchema, state: FormState): Field[] {
   return schema.fields.filter((field) => !field.showIf || field.showIf(state));
 }
 
+/**
+ * The form with a Chinese and a Japanese version of each translatable field, stored under i18n.zh and i18n.ja.
+ * The versions are optional: what is left empty shows the English.
+ */
+export function withTranslations<T extends FormSchema>(schema: T): T {
+  const versions = CONTENT_LANGS.flatMap((lang) =>
+    schema.fields
+      .filter((field) => field.translate)
+      .map((field): Field => ({ ...field, key: `i18n.${lang}.${field.key}`, required: false, translate: false, translation: { lang, of: field.key } })),
+  );
+  return versions.length > 0 ? { ...schema, fields: [...schema.fields, ...versions] } : schema;
+}
+
+/** Drops a language's version once its last field is cleared, and the versions once none is left. */
+function pruneTranslations(item: Values): void {
+  const versions = item.i18n;
+  if (versions === null || typeof versions !== 'object') return;
+  for (const [lang, version] of Object.entries(versions as Values)) {
+    if (version === null || typeof version !== 'object' || Object.keys(version as Values).length === 0) delete (versions as Values)[lang];
+  }
+  if (Object.keys(versions as Values).length === 0) delete item.i18n;
+}
+
 export const slugify = (value: string): string =>
   value
     .toLowerCase()
@@ -382,7 +417,7 @@ export const NAV_SCHEMAS: Record<NavItem['type'], ListSchema> = {
     editTitle: N_('编辑导航项'),
     idPrefix: 'nav',
     label: (item) => text(item.label),
-    fields: [{ key: 'label', label: N_('导航名称'), type: 'text', required: true }],
+    fields: [{ key: 'label', label: N_('导航名称'), type: 'text', required: true, translate: true }],
   },
   page: {
     addTitle: N_('新增页面'),
@@ -397,10 +432,10 @@ export const NAV_SCHEMAS: Record<NavItem['type'], ListSchema> = {
       body: text(item.body),
     }),
     fields: [
-      { key: 'label', label: N_('导航名称'), type: 'text', required: true, placeholder: 'teaching' },
-      { key: 'title', label: N_('页面标题'), type: 'text', required: true, placeholder: 'teaching' },
+      { key: 'label', label: N_('导航名称'), type: 'text', required: true, placeholder: 'teaching', translate: true },
+      { key: 'title', label: N_('页面标题'), type: 'text', required: true, placeholder: 'teaching', translate: true },
       { key: 'slug', label: N_('页面地址'), type: 'text', pattern: SLUG, help: N_('网址为 #/p/<地址>；留空则根据导航名称生成') },
-      { key: 'body', label: N_('正文'), type: 'markdown', rows: 14, help: BODY_HELP },
+      { key: 'body', label: N_('正文'), type: 'markdown', rows: 14, help: BODY_HELP, translate: true },
     ],
   },
   link: {
@@ -410,7 +445,7 @@ export const NAV_SCHEMAS: Record<NavItem['type'], ListSchema> = {
     label: (item) => text(item.label),
     defaults: () => ({ type: 'link' }),
     fields: [
-      { key: 'label', label: N_('导航名称'), type: 'text', required: true, placeholder: 'scholar' },
+      { key: 'label', label: N_('导航名称'), type: 'text', required: true, placeholder: 'scholar', translate: true },
       {
         key: 'url',
         label: N_('网址'),
@@ -560,8 +595,8 @@ export function fromFormState(
       case 'image':
         next = image(value);
         break;
-      case 'rows':
-        next = (value as Values[]).map((row) => {
+      case 'rows': {
+        const rows = (value as Values[]).map((row) => {
           const out: Values = { ...row };
           for (const column of field.columns ?? []) {
             const cell = column.type === 'image' ? image(row[column.key]) : trimmed(row[column.key]);
@@ -570,12 +605,16 @@ export function fromFormState(
           }
           return out;
         });
+        // An emptied translation shows the English again; the English list itself may be empty.
+        next = field.translation && rows.length === 0 ? undefined : rows;
         break;
+      }
       default:
         next = trimmed(value);
     }
     setPath(item, field.key, next);
   }
+  pruneTranslations(item);
   return { item: schema.finalize ? schema.finalize(item) : item, uploads };
 }
 

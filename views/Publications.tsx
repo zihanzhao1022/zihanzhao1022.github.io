@@ -1,15 +1,25 @@
 import React, { useState, useMemo } from 'react';
-import { useContent } from '../components/ContentContext';
+import { useLocalizedContent } from '../components/ContentContext';
 import { AddButton, useVisibleItems } from '../components/EditMode';
 import { SortableGroup } from '../components/SortableGroup';
+import { N_ } from '../lib/i18n';
 import { useT } from '../lib/phrases/site';
-import { Rank } from '../types';
+import { PublicationType, Rank } from '../types';
 import ListItem from '../components/ListItem';
 
 const ALL_RANKS: Rank[] = ['Q1', 'Q2', 'Q3', 'Q4', 'CORE-A*', 'CORE-A', 'CORE-B', 'CORE-C', 'Unranked'];
 
+// Filter buttons and section titles, translated where shown.
+const TYPES: { type: 'all' | PublicationType; label: string }[] = [
+  { type: 'all', label: N_('全部') },
+  { type: 'journal', label: N_('期刊') },
+  { type: 'conference', label: N_('会议') },
+];
+const SECTION_TITLES: Record<PublicationType, string> = { journal: N_('期刊论文'), conference: N_('会议论文') };
+
 // Helper Component for Authors
 const AuthorList: React.FC<{ authors: string[] }> = ({ authors }) => {
+  const t = useT();
   const [expanded, setExpanded] = useState(false);
   const THRESHOLD = 5; // Number of authors to show before collapsing
 
@@ -38,7 +48,7 @@ const AuthorList: React.FC<{ authors: string[] }> = ({ authors }) => {
              onClick={(e) => { e.preventDefault(); setExpanded(false); }}
              className="ml-2 text-xs text-purple-600 hover:text-purple-800 hover:underline cursor-pointer select-none font-medium"
           >
-            (show less)
+            {t('（收起）')}
           </button>
         )}
       </span>
@@ -59,17 +69,17 @@ const AuthorList: React.FC<{ authors: string[] }> = ({ authors }) => {
            onClick={(e) => { e.preventDefault(); setExpanded(true); }}
            className="text-purple-600 hover:text-purple-800 hover:underline cursor-pointer select-none font-medium"
        >
-          ... ({authors.length - THRESHOLD} more)
+          {t('…（还有 {n} 位）', { n: authors.length - THRESHOLD })}
        </button>
     </span>
   );
 };
 
 const Publications: React.FC = () => {
-  const publications = useVisibleItems(useContent().publications);
+  const publications = useVisibleItems(useLocalizedContent().publications);
   const t = useT();
   const [filter, setFilter] = useState('');
-  const [selectedType, setSelectedType] = useState<'all' | 'journal' | 'conference'>('all');
+  const [selectedType, setSelectedType] = useState<'all' | PublicationType>('all');
   const [selectedRanks, setSelectedRanks] = useState<Rank[]>([]);
 
   const toggleRank = (rank: Rank) => {
@@ -104,17 +114,17 @@ const Publications: React.FC = () => {
     return filtered.sort((a, b) => b.year - a.year);
   }, [publications, filter, selectedType, selectedRanks]);
 
-  const displayedTypes = selectedType === 'all' ? ['journal', 'conference'] : [selectedType];
+  const displayedTypes: PublicationType[] = selectedType === 'all' ? ['journal', 'conference'] : [selectedType];
 
   return (
     <div className="animate-fade-in pb-20">
       <div className="mb-10">
         <h1 className="text-3xl font-light text-gray-900 mb-2">
-          publications
+          {t('论文')}
           <AddButton request={{ kind: 'add', collection: 'publications' }} text={t('添加论文')} className="ml-3" />
         </h1>
         <p className="text-sm text-gray-500">
-          publications by categories in reversed chronological order.
+          {t('按类别分组，按时间倒序排列。')}
         </p>
       </div>
 
@@ -123,7 +133,7 @@ const Publications: React.FC = () => {
         {/* Search Bar */}
         <input 
           type="text" 
-          placeholder="Type to filter..." 
+          placeholder={t('输入关键词筛选…')}
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           className="w-full md:w-1/2 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-purple-500 text-sm"
@@ -133,25 +143,25 @@ const Publications: React.FC = () => {
         <div className="flex flex-col gap-3">
           {/* Type Filter */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider mr-2">Type:</span>
-            {['all', 'journal', 'conference'].map((type) => (
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider mr-2">{t('类型：')}</span>
+            {TYPES.map(({ type, label }) => (
               <button
                 key={type}
-                onClick={() => setSelectedType(type as any)}
+                onClick={() => setSelectedType(type)}
                 className={`px-3 py-1 text-xs font-medium rounded-full border transition-all ${
                   selectedType === type
                     ? 'bg-gray-900 text-white border-gray-900 shadow-sm'
                     : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
                 }`}
               >
-                {type === 'all' ? 'All' : type.charAt(0).toUpperCase() + type.slice(1)}
+                {t(label)}
               </button>
             ))}
           </div>
 
           {/* Rank Filter */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider mr-2">Rank:</span>
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider mr-2">{t('等级：')}</span>
             {ALL_RANKS.map((rank) => (
               <button
                 key={rank}
@@ -162,7 +172,7 @@ const Publications: React.FC = () => {
                     : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
                 }`}
               >
-                {rank === 'Unranked' ? 'Else' : rank}
+                {rank === 'Unranked' ? t('其他') : rank}
               </button>
             ))}
             {selectedRanks.length > 0 && (
@@ -170,7 +180,7 @@ const Publications: React.FC = () => {
                 onClick={() => setSelectedRanks([])}
                 className="ml-2 text-xs text-red-500 hover:text-red-700 underline"
               >
-                Clear
+                {t('清除')}
               </button>
             )}
           </div>
@@ -188,7 +198,7 @@ const Publications: React.FC = () => {
         return (
           <div key={type} className="mb-12">
             <h2 className="text-xl font-bold uppercase tracking-wider text-purple-700 mb-6 border-b-2 border-purple-100 pb-2 inline-block">
-              {type}s
+              {t(SECTION_TITLES[type])}
             </h2>
             
             <div className="space-y-2">
@@ -227,7 +237,7 @@ const Publications: React.FC = () => {
                                 pub.rank.startsWith('Q1') || pub.rank.includes('A*') ? 'bg-red-500' : 
                                 pub.rank.startsWith('Q2') || pub.rank.includes('A') ? 'bg-orange-400' : 'bg-blue-400'
                               }`}>
-                                {pub.rank === 'Unranked' ? 'Else' : pub.rank}
+                                {pub.rank === 'Unranked' ? t('其他') : pub.rank}
                               </span>
 
                               {/* Impact Factor Tag (Only for Journals) */}
@@ -250,7 +260,7 @@ const Publications: React.FC = () => {
       
       {sortedPublications.length === 0 && (
         <div className="text-center text-gray-500 py-12 italic">
-          No publications match the selected filters.
+          {t('没有符合筛选条件的论文。')}
         </div>
       )}
     </div>

@@ -15,10 +15,20 @@ interface Hideable {
   hidden?: boolean;
 }
 
+/**
+ * The owner's Chinese and Japanese versions of some of an item's text, shown instead of the English while the
+ * site is in that language (lib/localize). A version may leave fields out; those show the English.
+ */
+export interface Translations<T> {
+  zh?: Partial<T>;
+  ja?: Partial<T>;
+}
+
 export interface NewsItem extends Hideable {
   id: string;
   date: string;
   content: string;
+  i18n?: Translations<Pick<NewsItem, 'content'>>;
 }
 
 export interface Publication extends Hideable {
@@ -48,6 +58,7 @@ export interface Project extends Hideable {
   level: string; // e.g., "National Key Project", "University Project"
   image?: string;
   role: string; // e.g., "Project Leader"
+  i18n?: Translations<Pick<Project, 'title' | 'role' | 'description' | 'level'>>;
 }
 
 export interface Talk extends Hideable {
@@ -58,6 +69,7 @@ export interface Talk extends Hideable {
   location: string;
   collaborators?: string;
   event?: string; // e.g., "AI Seminar Series"
+  i18n?: Translations<Pick<Talk, 'title' | 'event' | 'host' | 'location' | 'collaborators'>>;
 }
 
 export interface Education {
@@ -78,6 +90,7 @@ export interface Award extends Hideable {
   level?: string; // e.g. "First Prize", "Gold Medal"
   prize?: string; // e.g. "¥20,000", "$1,000"
   image?: string;
+  i18n?: Translations<Pick<Award, 'title' | 'issuer' | 'level'>>;
 }
 
 export interface Experience extends Hideable {
@@ -96,6 +109,7 @@ export interface Experience extends Hideable {
   
   // Work/Volunteer Specific
   description?: string;
+  i18n?: Translations<Pick<Experience, 'title' | 'institution' | 'department' | 'location' | 'rank' | 'description'>>;
 }
 
 export interface Language {
@@ -123,6 +137,7 @@ export interface Profile {
   languages: Language[];
   /** Competitive ranks the Overwatch icon shows under the bio's second paragraph. */
   overwatch?: OverwatchRank[];
+  i18n?: Translations<Pick<Profile, 'title' | 'affiliation' | 'bio' | 'languages'>>;
 }
 
 export interface OverwatchRank {
@@ -292,6 +307,8 @@ interface NavBase extends Hideable {
   id: string;
   /** Text shown in the navigation bar. */
   label: string;
+  /** A custom page's title and body can be translated too. */
+  i18n?: Translations<{ label: string; title: string; body: string }>;
 }
 
 /** One entry of the navigation bar; the array order is the bar's order. */

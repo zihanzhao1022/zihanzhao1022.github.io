@@ -16,8 +16,8 @@ const SOURCES = import.meta.glob<string>(
   ],
   { query: '?raw', import: 'default', eager: true },
 );
-/** Files that show Chinese as such: the language names, and the made-up data of `npm run dev:mock`. */
-const AS_WRITTEN = ['lib/i18n.ts', 'components/LangSwitch.tsx', 'editor/mockBackend.ts', 'editor/results/mockBackend.ts'];
+/** Files that show Chinese as such: the language names, dates written per language, and the made-up data of `npm run dev:mock`. */
+const AS_WRITTEN = ['lib/i18n.ts', 'lib/dates.ts', 'components/LangSwitch.tsx', 'editor/mockBackend.ts', 'editor/results/mockBackend.ts'];
 /** Code the worker runs too: messages it sends stay in Chinese and the site translates them, so each must be a phrase. */
 const SERVER = ['auth-worker/src/', 'editor/results/collaborators.ts', 'editor/errors.ts', 'editor/github.ts'];
 

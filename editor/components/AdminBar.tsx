@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { ExternalLink, Loader2, LogOut, UserPlus, Users } from 'lucide-react';
-import LangSwitch from '../../components/LangSwitch';
 import { AccessRequest, PresenceValue, avatarUrl } from '../../components/presence';
 import type { Translate } from '../../lib/i18n';
 import { useT } from '../../lib/phrases/editor';
@@ -225,7 +224,6 @@ export const AdminBar: React.FC<Props> = ({ session, enabled, onToggle, loadStat
         <span className="ml-auto">
           <Status loadState={loadState} deploy={deploy} />
         </span>
-        <LangSwitch dark />
         <button type="button" onClick={onLogout} className="flex items-center gap-1 text-gray-400 hover:text-white">
           <LogOut size={12} />
           {t('退出')}

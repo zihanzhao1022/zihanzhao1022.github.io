@@ -445,7 +445,7 @@ const ResultPage: React.FC = () => {
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <Link to="/results" className="text-sm text-gray-500 hover:text-purple-600">
-                ← results
+                ← {t('论文结果')}
               </Link>
               {items.length > 0 && (
                 <button
@@ -539,7 +539,7 @@ const ResultPage: React.FC = () => {
             <p className="mt-10 text-sm italic text-gray-400">{t('References：正文里还没有用 \\cite 引用 references.bib 里的文献。')}</p>
           )}
           {blocks.length === 0 && (
-            <div className="text-center text-gray-500 py-12 italic">{editing ? t('用下面的按钮添加文字、图、表格或小节标题。') : 'Nothing here yet.'}</div>
+            <div className="text-center text-gray-500 py-12 italic">{editing ? t('用下面的按钮添加文字、图、表格或小节标题。') : t('这里还没有内容。')}</div>
           )}
           {editing && (
             <div className="mt-10 flex flex-wrap items-center gap-2">

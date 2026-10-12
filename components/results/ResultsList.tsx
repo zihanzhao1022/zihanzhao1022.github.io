@@ -86,7 +86,7 @@ const PaperCard: React.FC<{ paper: ResultPaper }> = ({ paper }) => {
       )}
       {paper.summary && <p className="text-sm text-gray-600 mb-2">{paper.summary}</p>}
       <Link to={paperPath(paper)} className="text-xs font-medium text-purple-600 hover:underline">
-        view results →
+        {t('查看结果 →')}
       </Link>
     </div>
   );
@@ -111,7 +111,7 @@ const ResultsList: React.FC = () => {
       )}
       <div className="mb-10">
         <h1 className="text-3xl font-light text-gray-900 mb-2">
-          results
+          {t('论文结果')}
           <AddButton request={{ kind: 'add', collection: 'results' }} text={t('添加论文')} className="ml-3" />
           {editing && access?.saveSiteViewers && (
             <button
@@ -125,7 +125,7 @@ const ResultsList: React.FC = () => {
             </button>
           )}
         </h1>
-        <p className="text-sm text-gray-500">figures, tables and notes from my papers.</p>
+        <p className="text-sm text-gray-500">{t('我论文中的图、表和笔记。')}</p>
         {collaborator && <p className="mt-2 text-sm text-purple-700">{t('这里是作者共享给你的论文。')}</p>}
       </div>
       <ResultsUnavailable />
@@ -137,7 +137,7 @@ const ResultsList: React.FC = () => {
       />
       {papers.length === 0 && (
         <div className="text-center text-gray-500 py-12 italic">
-          {editing ? t('还没有论文，点上面的"添加论文"开始。新论文默认只有你能看到。') : 'Nothing here yet.'}
+          {editing ? t('还没有论文，点上面的"添加论文"开始。新论文默认只有你能看到。') : t('这里还没有内容。')}
         </div>
       )}
     </div>

@@ -353,4 +353,11 @@ export const { t, useT, table } = phrases({
   '请填写{label}': { ja: '{label}を入力してください', en: '"{label}" is required' },
   请填写四位数字的年份: { ja: '4 桁の年を入力してください', en: 'Enter a four-digit year' },
   '请填写第 {row} 行的{label}': { ja: '{row} 行目の{label}を入力してください', en: '"{label}" is required in row {row}' },
+
+  // Chinese and Japanese versions of the owner's text
+  '网站切换到{lang}时显示这里填写的内容；留空的项显示英文。': {
+    ja: 'サイトを{lang}に切り替えると、ここに入力した内容が表示されます。空欄の項目は英語のまま表示されます。',
+    en: 'Shown when the site is switched to {lang}. Fields left empty show the English.',
+  },
+  '英文：{text}': { ja: '英語：{text}', en: 'English: {text}' },
 });

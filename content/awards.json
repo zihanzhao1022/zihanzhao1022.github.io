@@ -6,7 +6,17 @@
     "year": 2025,
     "issuer": "Hosei University",
     "type": "scholarship",
-    "prize": "JPY 200,000"
+    "prize": "JPY 200,000",
+    "i18n": {
+      "zh": {
+        "title": "2025年度法政大学百年纪念奖学金（硕士课程）",
+        "issuer": "法政大学"
+      },
+      "ja": {
+        "title": "2025年度 法政大学100周年記念奨学金（修士課程）",
+        "issuer": "法政大学"
+      }
+    }
   },
   {
     "id": "aw2",
@@ -15,7 +25,17 @@
     "year": 2025,
     "issuer": "Hosei University",
     "type": "scholarship",
-    "prize": "JPY 30,000"
+    "prize": "JPY 30,000",
+    "i18n": {
+      "zh": {
+        "title": "理工联盟国际会议发表奖学金",
+        "issuer": "法政大学"
+      },
+      "ja": {
+        "title": "サイエンスコンソーシアム 国際会議発表奨学金",
+        "issuer": "法政大学"
+      }
+    }
   },
   {
     "id": "aw3",
@@ -24,7 +44,15 @@
     "year": 2024,
     "issuer": "IEEE VTS Tokyo/Japan Chapter",
     "type": "international",
-    "prize": "JPY 5,000"
+    "prize": "JPY 5,000",
+    "i18n": {
+      "zh": {
+        "title": "IEEE 2024 青年研究者奖励奖"
+      },
+      "ja": {
+        "title": "IEEE 2024 若手研究者奨励賞"
+      }
+    }
   },
   {
     "id": "aw4",
@@ -33,7 +61,17 @@
     "year": 2023,
     "issuer": "JASSO Japan Student Services Organization",
     "type": "scholarship",
-    "prize": "JPY 48,000 × 6 months"
+    "prize": "JPY 48,000 × 6 months",
+    "i18n": {
+      "zh": {
+        "title": "文部科学省外国人留学生学习奖励费（JASSO）",
+        "issuer": "日本学生支援机构（JASSO）"
+      },
+      "ja": {
+        "title": "文部科学省外国人留学生学習奨励費",
+        "issuer": "日本学生支援機構（JASSO）"
+      }
+    }
   },
   {
     "id": "aw5",
@@ -42,7 +80,19 @@
     "year": 2023,
     "issuer": "Chinese Association for Artificial Intelligence (CAAI)",
     "type": "national",
-    "level": "Silver Award"
+    "level": "Silver Award",
+    "i18n": {
+      "zh": {
+        "title": "2022–2023 全国大学生算法设计竞赛",
+        "issuer": "中国人工智能学会（CAAI）",
+        "level": "银奖"
+      },
+      "ja": {
+        "title": "2022–2023 全国大学生アルゴリズム設計コンテスト",
+        "issuer": "中国人工知能学会（CAAI）",
+        "level": "銀賞"
+      }
+    }
   },
   {
     "id": "aw6",
@@ -51,7 +101,19 @@
     "year": 2022,
     "issuer": "APMCM Committee",
     "type": "international",
-    "level": "Third Prize"
+    "level": "Third Prize",
+    "i18n": {
+      "zh": {
+        "title": "2022 亚太地区大学生数学建模竞赛（APMCM）",
+        "issuer": "APMCM 组委会",
+        "level": "三等奖"
+      },
+      "ja": {
+        "title": "2022 アジア太平洋数理モデリングコンテスト（APMCM）",
+        "issuer": "APMCM 委員会",
+        "level": "3等賞"
+      }
+    }
   },
   {
     "id": "aw7",
@@ -60,7 +122,19 @@
     "year": 2021,
     "issuer": "National Competition Committee",
     "type": "national",
-    "level": "First Prize"
+    "level": "First Prize",
+    "i18n": {
+      "zh": {
+        "title": "2021 中国高校大数据挑战赛",
+        "issuer": "全国竞赛组委会",
+        "level": "一等奖"
+      },
+      "ja": {
+        "title": "2021 中国大学ビッグデータチャレンジ",
+        "issuer": "全国大会委員会",
+        "level": "1等賞"
+      }
+    }
   },
   {
     "id": "aw8",
@@ -69,7 +143,19 @@
     "year": 2021,
     "issuer": "MathorCup Organizing Committee",
     "type": "national",
-    "level": "Third Prize"
+    "level": "Third Prize",
+    "i18n": {
+      "zh": {
+        "title": "2021 MathorCup 高校数学建模挑战赛",
+        "issuer": "MathorCup 组委会",
+        "level": "三等奖"
+      },
+      "ja": {
+        "title": "2021 MathorCup 大学数理モデリングチャレンジ",
+        "issuer": "MathorCup 組織委員会",
+        "level": "3等賞"
+      }
+    }
   },
   {
     "id": "aw9",
@@ -78,7 +164,19 @@
     "year": 2021,
     "issuer": "Sichuan Provincial Department of Education",
     "type": "provincial",
-    "level": "Second Prize"
+    "level": "Second Prize",
+    "i18n": {
+      "zh": {
+        "title": "2021 四川省大学生计算机设计大赛",
+        "issuer": "四川省教育厅",
+        "level": "二等奖"
+      },
+      "ja": {
+        "title": "2021 四川省大学生コンピュータデザインコンテスト",
+        "issuer": "四川省教育庁",
+        "level": "2等賞"
+      }
+    }
   },
   {
     "id": "aw10",
@@ -87,6 +185,18 @@
     "year": 2020,
     "issuer": "Shuwei Cup Organizing Committee",
     "type": "international",
-    "level": "Second Prize"
+    "level": "Second Prize",
+    "i18n": {
+      "zh": {
+        "title": "2020 数维杯国际大学生数学建模挑战赛",
+        "issuer": "数维杯组委会",
+        "level": "二等奖"
+      },
+      "ja": {
+        "title": "2020 数維杯国際数理モデリングコンテスト",
+        "issuer": "数維杯組織委員会",
+        "level": "2等賞"
+      }
+    }
   }
 ]

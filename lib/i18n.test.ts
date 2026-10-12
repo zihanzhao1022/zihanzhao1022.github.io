@@ -1,13 +1,20 @@
-import { afterEach, describe, expect, it } from 'vitest';
-import { PhraseError, getLang, phrases, pickLang, say, setLang } from './i18n';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { PhraseError, getLang, phrases, say, setLang } from './i18n';
 
 afterEach(() => setLang('zh'));
 
-describe('pickLang', () => {
-  it('takes the first of Chinese, Japanese and English among the browser languages', () => {
-    expect(pickLang(['ja-JP', 'en'])).toBe('ja');
-    expect(pickLang(['de-DE', 'zh-Hans-CN'])).toBe('zh');
-    expect(pickLang(['fr', 'ko'])).toBe('en');
+describe('setLang', () => {
+  it("marks the page's language for the browser", () => {
+    const page = { documentElement: { lang: 'en' } };
+    vi.stubGlobal('document', page);
+    try {
+      setLang('ja');
+      expect(page.documentElement.lang).toBe('ja-JP');
+      setLang('zh');
+      expect(page.documentElement.lang).toBe('zh-CN');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 

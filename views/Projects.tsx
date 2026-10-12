@@ -1,12 +1,12 @@
 import React, { useMemo } from 'react';
-import { useContent } from '../components/ContentContext';
+import { useLocalizedContent } from '../components/ContentContext';
 import { AddButton, useVisibleItems } from '../components/EditMode';
 import { SortableGroup } from '../components/SortableGroup';
 import ListItem from '../components/ListItem';
 import { useT } from '../lib/phrases/site';
 
 const Projects: React.FC = () => {
-  const projects = useVisibleItems(useContent().projects);
+  const projects = useVisibleItems(useLocalizedContent().projects);
   const t = useT();
   // Helper to extract the start year from a string like "2023 - Present"
   const getStartYear = (yearStr: string): number => {
@@ -26,10 +26,10 @@ const Projects: React.FC = () => {
     <div className="animate-fade-in pb-20">
       <div className="mb-10">
         <h1 className="text-3xl font-light text-gray-900 mb-2">
-          projects
+          {t('项目')}
           <AddButton request={{ kind: 'add', collection: 'projects' }} text={t('添加项目')} className="ml-3" />
         </h1>
-        <p className="text-sm text-gray-500">research and development projects.</p>
+        <p className="text-sm text-gray-500">{t('科研与开发项目。')}</p>
       </div>
 
       <div className="space-y-2">
@@ -74,7 +74,7 @@ const Projects: React.FC = () => {
       
       {sortedProjects.length === 0 && (
           <div className="text-center text-gray-500 py-12 italic">
-            No projects found.
+            {t('暂无项目。')}
           </div>
       )}
     </div>

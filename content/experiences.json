@@ -6,7 +6,19 @@
     "institution": "Daikin Industries, Inc.",
     "location": "Osaka, Japan",
     "date": "Jul. 2026 - Present",
-    "image": "/images/uploads/20261007-030016-daikin-logo-corporate-color-1920x1280-cmyk-hr.jpg"
+    "image": "/images/uploads/20261007-030016-daikin-logo-corporate-color-1920x1280-cmyk-hr.jpg",
+    "i18n": {
+      "zh": {
+        "title": "大金工业株式会社 学生研究员",
+        "institution": "大金工业株式会社",
+        "location": "日本大阪"
+      },
+      "ja": {
+        "title": "ダイキン工業株式会社 学生研究員",
+        "institution": "ダイキン工業株式会社",
+        "location": "大阪"
+      }
+    }
   },
   {
     "id": "exp-muximlx0",
@@ -15,7 +27,17 @@
     "institution": "The University of Osaka",
     "location": "Osaka, Japan",
     "date": "May. 2026 - Present",
-    "image": "/images/experiences/logo-uosaka.png"
+    "image": "/images/experiences/logo-uosaka.png",
+    "i18n": {
+      "zh": {
+        "institution": "大阪大学",
+        "location": "日本大阪"
+      },
+      "ja": {
+        "institution": "大阪大学",
+        "location": "大阪"
+      }
+    }
   },
   {
     "id": "edu1",
@@ -26,7 +48,21 @@
     "location": "Osaka, Japan",
     "date": "Apr. 2026 - Apr. 2029",
     "image": "/images/experiences/logo-uosaka.png",
-    "rank": "N/A"
+    "rank": "N/A",
+    "i18n": {
+      "zh": {
+        "title": "信息科学博士研究生",
+        "institution": "大阪大学",
+        "department": "信息科学研究科",
+        "location": "日本大阪"
+      },
+      "ja": {
+        "title": "博士後期課程（情報科学）",
+        "institution": "大阪大学",
+        "department": "大学院情報科学研究科",
+        "location": "大阪"
+      }
+    }
   },
   {
     "id": "edu2",
@@ -38,7 +74,23 @@
     "date": "Sep. 2023 - Sep. 2025",
     "image": "/images/experiences/logo-hosei.png",
     "gpa": "3.5/4.0",
-    "rank": "Top 1%"
+    "rank": "Top 1%",
+    "i18n": {
+      "zh": {
+        "title": "应用信息工学 工学硕士",
+        "institution": "法政大学",
+        "department": "理工学研究科",
+        "location": "日本东京",
+        "rank": "前 1%"
+      },
+      "ja": {
+        "title": "修士（工学）応用情報工学専攻",
+        "institution": "法政大学",
+        "department": "大学院理工学研究科",
+        "location": "東京",
+        "rank": "上位 1%"
+      }
+    }
   },
   {
     "id": "edu3",
@@ -50,7 +102,23 @@
     "date": "Sep. 2019 - July 2023",
     "image": "/images/experiences/logo-swust.png",
     "gpa": "3.68/5.0",
-    "rank": "Top 5%"
+    "rank": "Top 5%",
+    "i18n": {
+      "zh": {
+        "title": "计算机科学与技术 工学学士",
+        "institution": "西南科技大学",
+        "department": "计算机科学与技术学院",
+        "location": "中国绵阳",
+        "rank": "前 5%"
+      },
+      "ja": {
+        "title": "学士（工学）コンピュータ科学",
+        "institution": "西南科技大学",
+        "department": "コンピュータ科学技術学院",
+        "location": "中国・綿陽",
+        "rank": "上位 5%"
+      }
+    }
   },
   {
     "id": "work1",
@@ -60,7 +128,21 @@
     "location": "Tokyo, Japan",
     "date": "Sep. 2024 - Sep. 2025",
     "image": "/images/experiences/logo-hosei.png",
-    "description": "Give advice to lowerclassmen on research and study (e.g., assistance in writing reports), and on adjusting to life in graduate school."
+    "description": "Give advice to lowerclassmen on research and study (e.g., assistance in writing reports), and on adjusting to life in graduate school.",
+    "i18n": {
+      "zh": {
+        "title": "研究生低年级学生辅导员",
+        "institution": "法政大学",
+        "location": "日本东京",
+        "description": "为低年级同学提供研究与学习方面的建议（例如协助撰写报告），并帮助他们适应研究生生活。"
+      },
+      "ja": {
+        "title": "大学院チューター（低年次大学院生向け）",
+        "institution": "法政大学",
+        "location": "東京",
+        "description": "低年次の大学院生に、研究や学習（レポート作成の支援など）、大学院生活への適応について助言しました。"
+      }
+    }
   },
   {
     "id": "work2",
@@ -70,7 +152,21 @@
     "location": "Tokyo, Japan",
     "date": "Apr. 2024 - Apr. 2025",
     "image": "/images/experiences/logo-hosei.png",
-    "description": "Mainly offering advice to students and assisting with classes, practical trainings, and experiments under the supervision of the assigned professors."
+    "description": "Mainly offering advice to students and assisting with classes, practical trainings, and experiments under the supervision of the assigned professors.",
+    "i18n": {
+      "zh": {
+        "title": "助教（TA）",
+        "institution": "法政大学",
+        "location": "日本东京",
+        "description": "在任课教授的指导下，主要为学生提供建议，并协助课程、实训和实验。"
+      },
+      "ja": {
+        "title": "ティーチング・アシスタント（TA）",
+        "institution": "法政大学",
+        "location": "東京",
+        "description": "担当教員の指導のもと、主に学生への助言と、授業・実習・実験の補助を行いました。"
+      }
+    }
   },
   {
     "id": "vol1",
@@ -80,7 +176,21 @@
     "location": "Mianyang, China",
     "date": "Jun. 2021 - Jun. 2022",
     "image": "/images/experiences/logo-ccf.png",
-    "description": "Served as a member of the executive committee, participating in the organization and coordination of academic and technical activities for student members."
+    "description": "Served as a member of the executive committee, participating in the organization and coordination of academic and technical activities for student members.",
+    "i18n": {
+      "zh": {
+        "title": "中国计算机学会（CCF）学生分会第五届执行委员",
+        "institution": "西南科技大学",
+        "location": "中国绵阳",
+        "description": "担任执行委员会委员，参与组织和协调面向学生会员的学术与技术活动。"
+      },
+      "ja": {
+        "title": "中国計算機学会（CCF）学生支部 第5期執行委員",
+        "institution": "西南科技大学",
+        "location": "中国・綿陽",
+        "description": "執行委員として、学生会員向けの学術・技術イベントの企画と調整に携わりました。"
+      }
+    }
   },
   {
     "id": "vol2",
@@ -90,7 +200,21 @@
     "location": "Mianyang, China",
     "date": "Jun. 2021 - May. 2022",
     "image": "/images/experiences/logo-swust.png",
-    "description": "Led an undergraduate research team focusing on virtual reality and visualization projects, coordinating task allocation and project progress."
+    "description": "Led an undergraduate research team focusing on virtual reality and visualization projects, coordinating task allocation and project progress.",
+    "i18n": {
+      "zh": {
+        "title": "可视化与可视分析第二实验室（虚拟现实与可视化课题组）本科生负责人",
+        "institution": "西南科技大学",
+        "location": "中国绵阳",
+        "description": "带领本科生研究团队开展虚拟现实与可视化项目，负责任务分配与项目进度协调。"
+      },
+      "ja": {
+        "title": "可視化・ビジュアルアナリティクス第二研究室（VR・可視化グループ）学部生リーダー",
+        "institution": "西南科技大学",
+        "location": "中国・綿陽",
+        "description": "VR と可視化のプロジェクトに取り組む学部生チームを率い、タスクの割り当てと進捗を調整しました。"
+      }
+    }
   },
   {
     "id": "vol3",
@@ -111,6 +235,20 @@
     "location": "Mianyang, China",
     "date": "Nov. 2020 - Sep. 2022",
     "image": "/images/experiences/logo-swust.png",
-    "description": "Served as Vice President of the association, organizing multiple academic activities including lectures, seminars, outreach events, and technical training sessions."
+    "description": "Served as Vice President of the association, organizing multiple academic activities including lectures, seminars, outreach events, and technical training sessions.",
+    "i18n": {
+      "zh": {
+        "title": "计算机与人工智能协会副会长",
+        "institution": "西南科技大学",
+        "location": "中国绵阳",
+        "description": "担任协会副会长，组织了讲座、研讨会、推广活动和技术培训等多项学术活动。"
+      },
+      "ja": {
+        "title": "コンピュータ・人工知能協会 副会長",
+        "institution": "西南科技大学",
+        "location": "中国・綿陽",
+        "description": "協会の副会長として、講演会、セミナー、普及イベント、技術研修など数多くの学術活動を企画しました。"
+      }
+    }
   }
 ]

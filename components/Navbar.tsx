@@ -1,21 +1,38 @@
 import React from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { ExternalLink, EyeOff } from 'lucide-react';
+import { N_ } from '../lib/i18n';
 import { useT } from '../lib/phrases/site';
-import { NavItem } from '../types';
-import { useContent } from './ContentContext';
+import { BuiltinPage, NavItem } from '../types';
+import { useLocalizedContent } from './ContentContext';
 import { EditButton, useEditMode } from './EditMode';
+import LangSwitch from './LangSwitch';
 import { pathOf } from './pages';
 import { isCollaborator, useResultsAccess } from './results/access';
 
 const isResults = (item: NavItem): boolean => item.type === 'builtin' && item.page === 'results';
 const RESULTS_ITEM: NavItem = { id: 'results', type: 'builtin', page: 'results', label: 'results' };
 
+// Built-in pages are named in the site's language while they keep their default label; a label the owner chose
+// shows as written, or as they translated it.
+const PAGE_NAMES: Record<BuiltinPage, string> = {
+  about: N_('关于'),
+  experiences: N_('经历'),
+  publications: N_('论文'),
+  projects: N_('项目'),
+  talks: N_('报告'),
+  awards: N_('奖项'),
+  cv: N_('简历'),
+  results: N_('论文结果'),
+};
+
 const Navbar: React.FC = () => {
-  const { navigation } = useContent();
+  const { navigation } = useLocalizedContent();
   const { editing, loggedIn } = useEditMode();
   const access = useResultsAccess();
   const t = useT();
+  const label = (item: NavItem): string =>
+    item.type === 'builtin' && item.label === item.page ? t(PAGE_NAMES[item.page]) : item.label;
   // Hidden items show while editing. The results page stays hidden from the public, but whoever signs in to
   // it (the owner, or people a paper is shared with) always finds it in the navigation.
   const signedIn = loggedIn && access !== null;
@@ -35,7 +52,7 @@ const Navbar: React.FC = () => {
           Zihan <span className="font-light text-gray-600 group-hover:text-purple-500 transition-colors duration-200">ZHAO</span>
         </Link>
 
-        <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm font-medium">
+        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm font-medium">
           {items.map((item) =>
             item.type === 'link' ? (
               <a
@@ -45,7 +62,7 @@ const Navbar: React.FC = () => {
                 rel="noreferrer"
                 className={`inline-flex items-center gap-1 hover:text-purple-600 transition-colors text-gray-500${dimmed(item) ? ' opacity-50' : ''}`}
               >
-                {item.label}
+                {label(item)}
                 <ExternalLink size={12} />
                 {dimmed(item) && <EyeOff size={12} />}
               </a>
@@ -57,12 +74,13 @@ const Navbar: React.FC = () => {
                   `hover:text-purple-600 transition-colors ${isActive ? 'text-purple-600' : 'text-gray-500'}${dimmed(item) ? ' opacity-50' : ''}`
                 }
               >
-                {item.label}
+                {label(item)}
                 {dimmed(item) && <EyeOff size={12} className="inline ml-1 -mt-0.5" />}
               </NavLink>
             ),
           )}
           <EditButton request={{ kind: 'navigation' }} label={t('编辑导航')} text={t('编辑导航')} className="-my-1" />
+          <LangSwitch />
         </div>
       </div>
     </nav>

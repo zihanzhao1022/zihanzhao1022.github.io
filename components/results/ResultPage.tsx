@@ -15,18 +15,18 @@ import Authors from './Authors';
 import BlockView, { QuoteMark } from './BlockView';
 import CommentsPanel, { DRAFT, DraftComment } from './comments/CommentsPanel';
 import { useSelectedQuote } from './comments/textLayer';
-import HeadingView from './HeadingView';
 import LoginPrompt from './LoginPrompt';
 import Outline from './Outline';
-import { itemAt, outlineItems } from './outlineItems';
+import { OutlineItem, itemAt, outlineItems } from './outlineItems';
+import { goToHeading } from './pdfDestinations';
 import { ResultsUnavailable } from './ResultsList';
 import './resultPage.css';
 import { Reader, avatarUrl, usePresence } from '../presence';
 import { useReportBlockInView } from './readingPosition';
 
 // Translated where shown.
-const KIND_LABEL = { text: N_('文字'), figure: N_('图'), table: N_('表格'), heading: N_('小节标题') } as const;
-const EDIT_LABEL = { text: N_('编辑文字'), figure: N_('编辑图'), table: N_('编辑表格'), heading: N_('编辑小节标题') } as const;
+const KIND_LABEL = { text: N_('文字'), figure: N_('图'), table: N_('表格') } as const;
+const EDIT_LABEL = { text: N_('编辑文字'), figure: N_('编辑图'), table: N_('编辑表格') } as const;
 
 const InsertButtons: React.FC<{ paperId: string; afterBlockId?: string }> = ({ paperId, afterBlockId }) => {
   const t = useT();
@@ -35,7 +35,6 @@ const InsertButtons: React.FC<{ paperId: string; afterBlockId?: string }> = ({ p
       <AddButton request={{ kind: 'block', paperId, blockKind: 'text', afterBlockId }} text={t('文字')} />
       <AddButton request={{ kind: 'block', paperId, blockKind: 'figure', afterBlockId }} text={t('图')} />
       <AddButton request={{ kind: 'block', paperId, blockKind: 'table', afterBlockId }} text={t('表格')} />
-      <AddButton request={{ kind: 'heading', paperId, afterBlockId }} text={t('小节标题')} />
     </>
   );
 };
@@ -114,7 +113,6 @@ interface BlockComments {
 const BlockItem: React.FC<{ paperId: string; block: ResultBlock; comments?: BlockComments }> = ({ paperId, block, comments }) => {
   const { editing } = useEditMode();
   const t = useT();
-  const heading = block.kind === 'heading';
   const add = comments && (
     <button
       type="button"
@@ -155,17 +153,10 @@ const BlockItem: React.FC<{ paperId: string; block: ResultBlock; comments?: Bloc
           {block.hidden && <HiddenBadge />}
           {add}
           {block.source && <CopyButton text={() => exportTex(block.source ?? '')} label={t('复制 LaTeX')} title={t('复制 LaTeX 代码（开头注明需要的宏包）')} />}
-          <EditButton
-            request={heading ? { kind: 'heading', paperId, blockId: block.id } : { kind: 'block', paperId, blockId: block.id }}
-            label={t(EDIT_LABEL[block.kind])}
-          />
+          <EditButton request={{ kind: 'block', paperId, blockId: block.id }} label={t(EDIT_LABEL[block.kind])} />
         </div>
       )}
-      {heading ? (
-        <HeadingView paperId={paperId} block={block} />
-      ) : (
-        <BlockView paperId={paperId} block={block} quotes={comments?.quotes} activeQuote={comments?.active} onQuoteClick={comments?.onOpen} />
-      )}
+      <BlockView paperId={paperId} block={block} quotes={comments?.quotes} activeQuote={comments?.active} onQuoteClick={comments?.onOpen} />
       {editing && (
         <div className="result-block-insert" role="group" aria-label={t('在当前块下方插入内容')}>
           <InsertButtons paperId={paperId} afterBlockId={block.id} />
@@ -346,16 +337,17 @@ const ResultPage: React.FC = () => {
   if (paper.hidden && !loggedIn) return <Navigate to="/results" replace />;
 
   const blocks = shownBlocks(paper.blocks, editing);
-  const items = outlineItems(paper.blocks, (block) => editing || !block.hidden, paper.references !== undefined);
+  const items = outlineItems(paper.blocks, (block) => editing || !block.hidden, paper.references !== undefined, paper.preamble);
   const order = [...blocks.map((block) => block.id), ...(paper.references ? ['references'] : [])];
   const readers: Record<string, Reader[]> = {};
   for (const viewer of presence?.viewers ?? []) {
     const item = viewer.login === presence?.me?.login ? null : itemAt(items, order, viewer.block);
     if (item) readers[item] = [...(readers[item] ?? []), viewer];
   }
-  const go = (blockId: string) => {
+  // A heading inside a block is found in its PDF; anything else, or a heading not drawn yet, is the block's top.
+  const go = (item: OutlineItem) => {
     setDrawer(false);
-    goTo(blockId);
+    if (!item.heading || !goToHeading(item.blockId, item.heading.index, item.heading.of)) goTo(item.blockId);
   };
   const allThreads = presence?.comments?.paper === paper.id ? presence.comments.threads : [];
   const openThreads = allThreads.filter((thread) => !thread.resolved);
@@ -436,7 +428,7 @@ const ResultPage: React.FC = () => {
     items.length > 0 ? (
       <Outline items={items} active={itemAt(items, order, reading)} readers={readers} onGo={go} />
     ) : editing && !collaborator ? (
-      <p className="px-2 text-xs text-gray-400">{t('添加小节标题后，这里会出现目录。')}</p>
+      <p className="px-2 text-xs text-gray-400">{t('在文字块里用 \\section 等写小节标题后，这里会出现目录。')}</p>
     ) : null;
 
   return (
@@ -523,7 +515,7 @@ const ResultPage: React.FC = () => {
                 pill
                 text={() => exportPaperTex(paper.blocks)}
                 label={t('导出全文 LaTeX')}
-                title={t('按顺序复制所有块（包括隐藏的）和小节标题，开头注明需要的宏包，不含 References')}
+                title={t('按顺序复制所有块（包括隐藏的），开头注明需要的宏包，不含 References')}
                 className="mt-3 ml-2"
               />
             )}
@@ -557,7 +549,7 @@ const ResultPage: React.FC = () => {
             <p className="mt-10 text-sm italic text-gray-400">{t('References：正文里还没有用 \\cite 引用 references.bib 里的文献。')}</p>
           )}
           {blocks.length === 0 && (
-            <div className="text-center text-gray-500 py-12 italic">{editing ? t('用下面的按钮添加文字、图、表格或小节标题。') : t('这里还没有内容。')}</div>
+            <div className="text-center text-gray-500 py-12 italic">{editing ? t('用下面的按钮添加文字、图或表格。') : t('这里还没有内容。')}</div>
           )}
           {editing && (
             <div className="mt-10 flex flex-wrap items-center gap-2">

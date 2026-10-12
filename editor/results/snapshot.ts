@@ -1,4 +1,5 @@
 import { blockNumber } from '../../lib/headings';
+import { sectionsOf } from '../../lib/sections';
 import { ResultBlock, ResultPaper } from '../../types';
 
 /** Where the site keeps the published snapshot. */
@@ -26,8 +27,12 @@ export function buildSnapshot(papers: ResultPaper[], current: ResultPaper[] = []
     });
 }
 
-/** A published paper as visitors get it. */
+/**
+ * A published paper as visitors get it. Figure and table numbers and text blocks' headings, which the page
+ * reads from the source and counters otherwise, are worked out here, over every block like the compile.
+ */
 export function publicView(paper: ResultPaper): ResultPaper {
+  const sections = sectionsOf(paper.blocks, paper.preamble);
   return {
     id: paper.id,
     slug: paper.slug,
@@ -37,25 +42,11 @@ export function publicView(paper: ResultPaper): ResultPaper {
     ...(paper.year === undefined ? {} : { year: paper.year }),
     ...(paper.summary === undefined ? {} : { summary: paper.summary }),
     blocks: paper.blocks.flatMap((block, index): ResultBlock[] => {
-      if (block.hidden) return [];
-      if (block.kind === 'heading') {
-        if (!block.heading) return [];
-        const { level, starred, title } = block.heading;
-        const { number, anchor } = block.numbering ?? {};
-        return [
-          {
-            id: block.id,
-            kind: block.kind,
-            heading: { level, title, ...(starred ? { starred: true } : {}) },
-            numbering: { ...(number ? { number } : {}), ...(anchor ? { anchor } : {}) },
-          },
-        ];
-      }
-      if (!block.output) return [];
-      // Counted over every block, hidden ones too, like the compile counted them.
+      if (block.hidden || !block.output) return [];
       const number = blockNumber(paper.blocks, index);
+      const own = sections[block.id];
       const { pdf, width, height } = block.output;
-      return [{ id: block.id, kind: block.kind, output: { pdf, width, height, ...(number ? { number } : {}) } }];
+      return [{ id: block.id, kind: block.kind, output: { pdf, width, height, ...(number ? { number } : {}), ...(own ? { sections: own } : {}) } }];
     }),
     ...(paper.references
       ? { references: { pdf: paper.references.pdf, width: paper.references.width, height: paper.references.height } }
@@ -76,7 +67,7 @@ export function parseSnapshot(text: string | null): ResultPaper[] {
   }
 }
 
-/** Private paths (results/...) of every file the snapshot shows; headings have none. */
+/** Private paths (results/...) of every file the snapshot shows. */
 export const snapshotFiles = (snapshot: ResultPaper[]): string[] =>
   snapshot.flatMap((paper) => [
     ...paper.blocks.flatMap((block) => (block.output ? [block.output.pdf] : [])),

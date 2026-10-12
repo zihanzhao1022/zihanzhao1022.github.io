@@ -1,6 +1,6 @@
 import { phrases } from '../i18n';
 
-/** Japanese and English for the results editors: blocks, headings, preamble and attachments, references, compiling and saving. */
+/** Japanese and English for the results editors: blocks, preamble and attachments, references, compiling and saving. */
 export const { t, useT, table } = phrases({
   // Sent by the worker as written (editor/results/collaborators.ts, auth-worker/src/results.ts); the site translates them.
   只能修改共享给你的论文: { ja: 'あなたに共有された論文しか変更できません', en: 'You can only change papers shared with you' },
@@ -148,8 +148,6 @@ export const { t, useT, table } = phrases({
   编辑图: { ja: '図を編集', en: 'Edit figure' },
   添加表格: { ja: '表を追加', en: 'Add table' },
   编辑表格: { ja: '表を編集', en: 'Edit table' },
-  添加小节标题: { ja: '見出しを追加', en: 'Add heading' },
-  编辑小节标题: { ja: '見出しを編集', en: 'Edit heading' },
   '{kind}编辑器': { ja: '{kind}エディタ', en: '{kind} editor' },
   '放弃未保存的修改？': { ja: '保存していない変更を破棄しますか？', en: 'Discard unsaved changes?' },
   '编译有错误，修好后才能保存': { ja: 'コンパイルエラーがあります。修正してから保存してください', en: 'There are compile errors; fix them before saving' },
@@ -224,41 +222,6 @@ export const { t, useT, table } = phrases({
     en: 'Add copied BibTeX entries to references.bib and put their citation keys on the clipboard',
   },
   '粘贴 BibTeX': { ja: 'BibTeX を貼り付け', en: 'Paste BibTeX' },
-
-  // The heading editor (editor/results/HeadingEditor.tsx); 引用名 here is the \label.
-  请填写标题: { ja: 'タイトルを入力してください', en: 'Please enter a title' },
-  '标题最长 {n} 字': { ja: 'タイトルは {n} 文字までです', en: 'The title can be at most {n} characters' },
-  '引用名只能用字母、数字和 : _ - .': {
-    ja: 'ラベルに使えるのは英字・数字と : _ - . だけです',
-    en: 'The label can only use letters, digits and : _ - .',
-  },
-  '确定删除小节标题"{title}"吗？': { ja: '見出し「{title}」を削除しますか？', en: 'Delete the heading "{title}"?' },
-  '这篇论文已公开，取消隐藏后这个小节标题会发布到网站。确定吗？': {
-    ja: 'この論文は公開中です。この見出しを表示すると、サイトに公開されます。よろしいですか？',
-    en: 'This paper is public: unhiding this heading publishes it to the site. Continue?',
-  },
-  '编译并保存中…': { ja: 'コンパイルして保存中…', en: 'Compiling and saving…' },
-  等级: { ja: 'レベル', en: 'Level' },
-  标题: { ja: 'タイトル', en: 'Title' },
-  '例如：Experiments': { ja: '例：Experiments', en: 'e.g. Experiments' },
-  '按 LaTeX 原样导出；网页上 \\& \\% \\_ 这类转义会显示成符号。': {
-    ja: 'LaTeX のまま書き出されます。ページ上では \\& \\% \\_ のようなエスケープは記号として表示されます。',
-    en: 'Exported to LaTeX as written; on the page, escapes such as \\& \\% \\_ show as symbols.',
-  },
-  编号: { ja: '番号を付ける', en: 'Numbered' },
-  '不编号就是 \\{level}*；编号以 LaTeX 实际给出的为准': {
-    ja: '番号なしは \\{level}* です。番号は LaTeX が実際に付けたものになります',
-    en: 'Unnumbered means \\{level}*; the numbers are the ones LaTeX actually gives',
-  },
-  引用名: { ja: 'ラベル', en: 'Label' },
-  '（可选，块里用 \\ref 引用）': { ja: '（任意。ブロックからは \\ref で参照）', en: '(optional; blocks refer to it with \\ref)' },
-  '例如：sec:experiments': { ja: '例：sec:experiments', en: 'e.g. sec:experiments' },
-  附录从这里开始: { ja: 'ここから付録を始める', en: 'Start the appendix here' },
-  '附录已经从"{title}"开始': { ja: '付録はすでに「{title}」から始まっています', en: 'The appendix already starts at "{title}"' },
-  '这里写入 \\appendix：这一节和后面的节编号为 A、B…，小节为 A.1、A.2…': {
-    ja: 'ここに \\appendix を書き込みます：この節以降の節は A、B…、小節は A.1、A.2… と番号が付きます',
-    en: 'Writes \\appendix here: this section and the ones after it are numbered A, B…, their subsections A.1, A.2…',
-  },
 
   // The preamble and attachments (editor/results/PaperSettings.tsx).
   '保存并重新编译…': { ja: '保存して再コンパイル中…', en: 'Saving and recompiling…' },

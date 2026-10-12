@@ -42,7 +42,6 @@ const KIND: Record<ResultBlockKind, { label: string; add: string; edit: string }
   text: { label: N_('文字'), add: N_('添加文字'), edit: N_('编辑文字') },
   figure: { label: N_('图'), add: N_('添加图'), edit: N_('编辑图') },
   table: { label: N_('表格'), add: N_('添加表格'), edit: N_('编辑表格') },
-  heading: { label: N_('小节标题'), add: N_('添加小节标题'), edit: N_('编辑小节标题') },
 };
 const COMPILE_DELAY_MS = 1000;
 

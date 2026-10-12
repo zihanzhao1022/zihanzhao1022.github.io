@@ -30,8 +30,7 @@ export function makeCompileFn(engine: TexEngine, preamble: string, files: Record
       {
         preamble,
         source: block.source ?? '',
-        // A heading is compiled as text for its number (see rebuild).
-        kind: block.kind === 'heading' ? 'text' : block.kind,
+        kind: block.kind,
         appendix: context.appendix,
         counters: context.counters,
         labels: context.labels,
@@ -77,9 +76,8 @@ export async function rebuildPaper(paper: ResultPaper, readFile: ReadFile, files
 export function withOutputs(paperId: string, ops: ResultsOp[], rebuilt: RebuildResult): ResultsOp {
   const all = [...ops];
   if (rebuilt.references !== undefined) all.push({ kind: 'setReferences', paperId, references: rebuilt.references });
-  if (Object.keys(rebuilt.outputs).length > 0 || Object.keys(rebuilt.numberings).length > 0) {
-    const numberings = Object.keys(rebuilt.numberings).length > 0 ? { numberings: rebuilt.numberings } : {};
-    all.push({ kind: 'setOutputs', paperId, outputs: rebuilt.outputs, sources: rebuilt.sources, ...numberings });
+  if (Object.keys(rebuilt.outputs).length > 0) {
+    all.push({ kind: 'setOutputs', paperId, outputs: rebuilt.outputs, sources: rebuilt.sources });
   }
   return all.length === 1 ? all[0] : { kind: 'batch', ops: all };
 }

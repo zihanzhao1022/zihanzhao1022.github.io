@@ -55,7 +55,7 @@ export function sharedColors(blocks: ResultBlock[], preamble: string): { colors:
   const inPreamble = new Map(colorDefinitions(preamble).map((definition) => [definition.name, form(definition.text)]));
   const found = new Map<string, { forms: Set<string>; text: string; blocks: Set<string> }>();
   for (const block of blocks) {
-    if (block.kind === 'heading' || !block.source) continue;
+    if (!block.source) continue;
     for (const definition of colorDefinitions(block.source)) {
       const entry = found.get(definition.name) ?? { forms: new Set<string>(), text: definition.text, blocks: new Set<string>() };
       entry.forms.add(form(definition.text));
@@ -84,7 +84,7 @@ export function sharedColors(blocks: ResultBlock[], preamble: string): { colors:
     .filter((name) => movable.has(name))
     .map((name) => ({ name, text: found.get(name)!.text, inPreamble: inPreamble.has(name) }));
   const ids = blocks
-    .filter((block) => block.kind !== 'heading' && block.source && colorDefinitions(block.source).some((definition) => movable.has(definition.name)))
+    .filter((block) => block.source && colorDefinitions(block.source).some((definition) => movable.has(definition.name)))
     .map((block) => block.id);
   return { colors, blocks: ids };
 }

@@ -196,21 +196,11 @@ describe('resultsCommitMessage', () => {
   });
 });
 
-describe('headings', () => {
-  const heading = (title: string): ResultBlock => ({ id: 'h', kind: 'heading', heading: { level: 'section', title } });
-
-  it('changes an existing heading and keeps what putBlock does not carry', () => {
-    const start = paper('p1', { blocks: [{ ...heading('Old'), hidden: true, numbering: { number: '1' } }] });
-    const [updated] = applyResultsOp([start], { kind: 'putBlock', paperId: 'p1', block: heading('New') });
-    expect(updated.blocks[0]).toEqual({ id: 'h', kind: 'heading', heading: { level: 'section', title: 'New' }, hidden: true, numbering: { number: '1' } });
-  });
-
-  it('keeps a heading number only for the heading it was compiled from', () => {
-    const start = paper('p1', { blocks: [heading('Now')] });
-    const op = (title: string) =>
-      ({ kind: 'setOutputs', paperId: 'p1', outputs: {}, sources: { h: JSON.stringify(['section', false, title, '', false]) }, numberings: { h: { number: '2' } } }) as const;
-    expect(applyResultsOp([start], op('Now'))[0].blocks[0].numbering).toEqual({ number: '2' });
-    expect(applyResultsOp([start], op('Before'))[0].blocks[0].numbering).toBeUndefined();
+describe('putBlock on an existing block', () => {
+  it('changes its source and keeps what putBlock does not carry', () => {
+    const output = { pdf: 'results/p1/t-00000000.pdf', width: 1, height: 1 };
+    const start = paper('p1', { blocks: [{ id: 't', kind: 'text', source: 'Old', hidden: true, output }] });
+    const [updated] = applyResultsOp([start], { kind: 'putBlock', paperId: 'p1', block: { id: 't', kind: 'text', source: 'New' } });
+    expect(updated.blocks[0]).toEqual({ id: 't', kind: 'text', source: 'New', hidden: true, output });
   });
 });
-

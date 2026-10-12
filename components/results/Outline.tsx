@@ -5,12 +5,14 @@ import { OutlineItem } from './outlineItems';
 
 interface Props {
   items: OutlineItem[];
-  /** The item of the place being read. */
+  /** The key of the item of the place being read. */
   active: string | null;
-  /** Others on the page, by the item of where they are. */
+  /** Others on the page, by the key of the item of where they are. */
   readers: Record<string, Reader[]>;
-  onGo: (blockId: string) => void;
+  onGo: (item: OutlineItem) => void;
 }
+
+const MAJOR = new Set<OutlineItem['kind']>(['section', 'appendix', 'references']);
 
 /** The page's headings with its figures and tables under them, like a table of contents. */
 const Outline: React.FC<Props> = ({ items, active, readers, onGo }) => {
@@ -20,20 +22,21 @@ const Outline: React.FC<Props> = ({ items, active, readers, onGo }) => {
       <p className="mb-2 px-2 text-xs font-medium text-gray-400">{t('目录')}</p>
       <ul className="space-y-0.5">
         {items.map((item) => {
-          const here = item.blockId === active;
-          const tone = here ? 'bg-purple-50 text-purple-700' : item.kind === 'heading' || item.kind === 'references' ? 'text-gray-700' : 'text-gray-500';
+          const here = item.key === active;
+          const major = MAJOR.has(item.kind);
+          const tone = here ? 'bg-purple-50 text-purple-700' : major ? 'text-gray-700' : 'text-gray-500';
           return (
-            <li key={item.blockId}>
+            <li key={item.key}>
               <button
                 type="button"
-                onClick={() => onGo(item.blockId)}
+                onClick={() => onGo(item)}
                 aria-current={here ? 'location' : undefined}
                 title={item.text}
                 style={{ paddingLeft: `${0.5 + item.depth * 0.875}rem` }}
-                className={`flex w-full items-center gap-2 rounded-md py-1 pr-2 text-left hover:bg-gray-50 ${tone} ${item.kind === 'figure' || item.kind === 'table' ? 'text-xs' : ''}`}
+                className={`flex w-full items-center gap-2 rounded-md py-1 pr-2 text-left hover:bg-gray-50 ${tone} ${major ? '' : 'text-xs'}`}
               >
                 <span className="min-w-0 flex-1 truncate">{item.text}</span>
-                {(readers[item.blockId] ?? []).slice(0, 3).map((reader) => (
+                {(readers[item.key] ?? []).slice(0, 3).map((reader) => (
                   <img
                     key={reader.login}
                     src={avatarUrl(reader.id, 40)}

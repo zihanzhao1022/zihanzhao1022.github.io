@@ -25,7 +25,7 @@ export function destinationPoint(destination: unknown[], viewport: Viewport): { 
 }
 
 export const referencesId = (scope: string): string => `results-references-${encodeURIComponent(scope)}`;
-/** A place on the page that \ref links from any block can jump to: a PDF destination or a heading's anchor. */
+/** A place on the page that \ref links from any block can jump to: a PDF destination. */
 export const destinationId = (scope: string, name: string): string => `results-destination-${encodeURIComponent(JSON.stringify([scope, name]))}`;
 
 /**
@@ -63,6 +63,26 @@ export function navigateCitation(scope: string, destination: string): void {
 export function navigateDestination(scope: string, name: string): void {
   const target = document.getElementById(destinationId(scope, name));
   if (target) reveal(target);
+}
+
+/**
+ * The destination hyperref gives each heading a text block typesets, numbered or not ("section.2",
+ * "appendix.A", "section*.3" for \paragraph and starred ones): one per heading, in order from the top.
+ */
+export const HEADING_DESTINATION = /^(?:section|subsection|subsubsection|paragraph|subparagraph|appendix)\*?\./;
+
+/**
+ * Jumps to a block's n-th heading in its PDF (see HEADING_DESTINATION). False when the block does not show
+ * the `of` headings the outline expects (not drawn yet, or a heading it could not read in the source).
+ */
+export function goToHeading(blockId: string, index: number, of: number): boolean {
+  const block = document.querySelector(`[data-result-block-id="${CSS.escape(blockId)}"]`);
+  const marks = [...(block?.querySelectorAll<HTMLElement>('.resultsPdfHeading') ?? [])].sort(
+    (a, b) => parseFloat(a.style.top) - parseFloat(b.style.top),
+  );
+  if (marks.length !== of || !marks[index]) return false;
+  marks[index].scrollIntoView({ behavior: 'smooth', block: 'start' });
+  return true;
 }
 
 export function finishCitationNavigation(scope: string): void {

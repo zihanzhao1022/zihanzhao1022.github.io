@@ -72,12 +72,12 @@ describe('exportTex', () => {
 });
 
 describe('exportPaperTex', () => {
-  it('writes the page top to bottom, headings as LaTeX, with every needed package once', () => {
+  it('writes the page top to bottom with every needed package once', () => {
     const tex = exportPaperTex([
-      { id: 'h1', kind: 'heading', heading: { level: 'section', title: 'Results', label: 'sec:results' } },
+      { id: 'h1', kind: 'text', source: '\\section{Results}\\label{sec:results}' },
       { id: 't', kind: 'table', source: '% portfolio-table:v1 cache\n\\begin{tabular}{l}\\toprule A\\\\ \\cellcolor{red}B\\end{tabular}\n' },
       { id: 'x', kind: 'text', source: 'Hidden \\textcolor{red}{note}.', hidden: true },
-      { id: 'h2', kind: 'heading', heading: { level: 'section', starred: true, title: 'Appendix', appendix: true } },
+      { id: 'h2', kind: 'text', source: '\\appendix\n\\section*{Appendix}' },
       { id: 'f', kind: 'figure', source: '\\includegraphics{bars}\\toprule' },
     ]);
     expect(tex).toBe(

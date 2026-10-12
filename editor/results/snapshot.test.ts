@@ -46,26 +46,36 @@ describe('buildSnapshot', () => {
     ]);
   });
 
-  it('keeps visible headings with their numbers, without labels or bookkeeping', () => {
-    const withHeadings: ResultPaper = {
+  it("lists visible text blocks' headings, numbered over every block, without what they hide", () => {
+    const compiled = (pdf: string, counters: Record<string, number>) => ({ pdf, width: 400, height: 120, inputHash: 'secret-hash', counters });
+    const withSections: ResultPaper = {
       ...papers[0],
       blocks: [
-        {
-          id: 'h1',
-          kind: 'heading',
-          heading: { level: 'section', title: 'Proofs', label: 'sec:secret-proofs', appendix: true },
-          numbering: { inputHash: 'secret-hash', counters: { section: 1 }, labels: { 'sec:secret-proofs': '{A}{1}{}{appendix.A}{}' }, number: 'A', anchor: 'appendix.A' },
-        },
-        { id: 'h2', kind: 'heading', heading: { level: 'paragraph', starred: true, title: 'Notes' }, numbering: {} },
-        { id: 'h3', kind: 'heading', heading: { level: 'section', title: 'Hidden secret section' }, hidden: true },
+        { id: 't1', kind: 'text', source: '\\section{Intro}\\label{sec:secret-label}\n% \\section{Secret draft}', output: compiled('results/p1/t1-aaaa.pdf', { section: 1 }) },
+        { id: 't2', kind: 'text', source: '\\section{Hidden secret section}', hidden: true, output: compiled('results/p1/t2-bbbb.pdf', { section: 2 }) },
+        { id: 't3', kind: 'text', source: '\\section{Method}\n\\appendix\n\\section{Proofs}\n\\paragraph{Notes}', output: compiled('results/p1/t3-cccc.pdf', { section: 1 }) },
       ],
     };
-    const [view] = buildSnapshot([withHeadings]);
+    const [view] = buildSnapshot([withSections]);
     expect(view.blocks).toEqual([
-      { id: 'h1', kind: 'heading', heading: { level: 'section', title: 'Proofs' }, numbering: { number: 'A', anchor: 'appendix.A' } },
-      { id: 'h2', kind: 'heading', heading: { level: 'paragraph', starred: true, title: 'Notes' }, numbering: {} },
+      { id: 't1', kind: 'text', output: { pdf: 'results/p1/t1-aaaa.pdf', width: 400, height: 120, sections: [{ level: 'section', title: 'Intro', number: '1' }] } },
+      {
+        id: 't3',
+        kind: 'text',
+        output: {
+          pdf: 'results/p1/t3-cccc.pdf',
+          width: 400,
+          height: 120,
+          sections: [
+            { level: 'section', title: 'Method', number: '3' },
+            { level: 'appendix', title: 'Appendix' },
+            { level: 'section', title: 'Proofs', number: 'A' },
+            { level: 'paragraph', title: 'Notes' },
+          ],
+        },
+      },
     ]);
-    expect(JSON.stringify(view)).not.toMatch(/secret/);
+    expect(JSON.stringify(view)).not.toMatch(/secret/i);
   });
 
   it('never mentions private text', () => {
@@ -73,16 +83,6 @@ describe('buildSnapshot', () => {
     for (const secret of ['unpublished', 'secret', 'private macros', 'style.sty', 'An unpublished paper', 'secret-hash', 'tab:a']) {
       expect(text).not.toContain(secret);
     }
-  });
-});
-
-describe('planPublicSync with headings', () => {
-  it('publishes the block files of a paper with headings, which have none', () => {
-    const withHeading: ResultPaper = {
-      ...papers[0],
-      blocks: [{ id: 'h', kind: 'heading', heading: { level: 'section', title: 'Results' }, numbering: { number: '1' } }, papers[0].blocks[0]],
-    };
-    expect(planPublicSync([withHeading], null, []).add).toEqual(['results/p1/b1-aaaa.pdf']);
   });
 });
 

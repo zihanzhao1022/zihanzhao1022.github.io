@@ -1,7 +1,4 @@
-import { ResultBlock, ResultHeading } from '../types';
-
-/** The label a numbered heading's compile reads its number and anchor from; never shared with other blocks. */
-export const HEADING_LABEL = 'results-heading';
+import { ResultBlock } from '../types';
 
 /** Top-level brace groups of a \newlabel value: `{2.1}{3}{Method}{subsection.2.1}{}` gives 2.1, 3, Method, subsection.2.1 and ''. */
 export function labelGroups(value: string): string[] {
@@ -27,38 +24,10 @@ export function labelGroups(value: string): string[] {
 /** A number as LaTeX wrote it into the aux file, without formatting commands: `\textbf {2}` gives 2. */
 const plainNumber = (text: string): string => text.replace(/\\[A-Za-z@]+\s*/g, '').replace(/[{}]/g, '').trim();
 
-/** The heading as LaTeX. With `numbering`, it also writes the label the page reads the number from. */
-export function headingTex(heading: ResultHeading, { numbering = false }: { numbering?: boolean } = {}): string {
-  const labels = heading.starred ? '' : `${heading.label ? `\\label{${heading.label}}` : ''}${numbering ? `\\label{${HEADING_LABEL}}` : ''}`;
-  const command = `\\${heading.level}${heading.starred ? '*' : ''}{${heading.title}}${labels}`;
-  return heading.appendix && heading.level === 'section' ? `\\appendix\n${command}` : command;
-}
-
-/** The number and anchor a heading's compile wrote, and its other labels (without the internal one). */
-export function readHeadingNumber(labels: Record<string, string>): { number?: string; anchor?: string; labels: Record<string, string> } {
-  const { [HEADING_LABEL]: own, ...rest } = labels;
-  const groups = own === undefined ? [] : labelGroups(own);
-  // A heading LaTeX does not number leaves the label with the empty start of the document.
-  const number = plainNumber(groups[0] ?? '');
-  if (!number) return { labels: rest };
-  return { number, ...(groups[3] ? { anchor: groups[3] } : {}), labels: rest };
-}
-
-/** A heading's title for the page: the usual escapes undone, other LaTeX left as typed. */
-export const headingText = (title: string): string => title.replace(/\\([&%_#${}])/g, '$1').replace(/~/g, ' ');
-
-/** Identifies a heading's fields, so a numbering is kept only for the heading it was compiled from. */
-export const headingKey = (heading: ResultHeading | undefined): string =>
-  JSON.stringify(heading ? [heading.level, heading.starred === true, heading.title, heading.label ?? '', heading.appendix === true] : null);
-
-/** Whether this block is the heading the appendix starts at. */
-export const startsAppendix = (block: ResultBlock): boolean =>
-  block.kind === 'heading' && block.heading?.appendix === true && block.heading.level === 'section';
-
-/** The counters where the page left off before block `index`: those of the nearest earlier block or heading with any. */
+/** The counters where the page left off before block `index`: those of the nearest earlier block with any. */
 export function countersBefore(blocks: ResultBlock[], index: number): Record<string, number> {
   for (let previous = index - 1; previous >= 0; previous -= 1) {
-    const found = blocks[previous].output?.counters ?? blocks[previous].numbering?.counters;
+    const found = blocks[previous].output?.counters;
     if (found) return found;
   }
   return {};

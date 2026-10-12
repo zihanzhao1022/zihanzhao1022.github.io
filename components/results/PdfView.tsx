@@ -4,6 +4,7 @@ import { useT } from '../../lib/phrases/site';
 import { loadPdfjs, openPdf } from './pdfjs';
 import { renderPdfLinks } from './pdfLinks';
 import {
+  HEADING_DESTINATION,
   citationId,
   destinationId,
   destinationPoint,
@@ -101,6 +102,13 @@ const PdfView: React.FC<Props> = ({ data, url, width, height, className = '', on
       destinations.className = 'resultsPdfDestinations';
       if (citationScope) {
         for (const [name, destination] of await doc.getDestinations()) {
+          // Every heading, for the outline to find by its place (goToHeading); names repeat across blocks.
+          if (HEADING_DESTINATION.test(name)) {
+            const heading = document.createElement('span');
+            heading.className = 'resultsPdfDestination resultsPdfHeading';
+            heading.style.top = `${destinationPoint(destination, viewport).top}px`;
+            destinations.append(heading);
+          }
           let id: string;
           if (citationTargets && name.startsWith('cite.')) {
             id = citationId(citationScope, name);

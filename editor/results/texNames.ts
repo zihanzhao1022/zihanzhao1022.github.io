@@ -1,4 +1,3 @@
-import { headingTex } from '../../lib/headings';
 import { ResultBlock } from '../../types';
 import { stripComments } from '../tex/document';
 
@@ -48,14 +47,12 @@ export function exportTex(source: string): string {
 }
 
 /**
- * The whole page for pasting into the paper, top to bottom: headings as sectioning commands, every block's
- * code (hidden ones too), and the packages they all need at the top. The bibliography is not a block.
+ * The whole page for pasting into the paper, top to bottom: every block's code (hidden ones too), and the
+ * packages they all need at the top. The bibliography is not a block.
  */
 export function exportPaperTex(blocks: ResultBlock[]): string {
-  const parts = blocks
-    .map((block) => (block.kind === 'heading' ? (block.heading ? headingTex(block.heading) : '') : withoutCache(block.source ?? '')))
-    .filter(Boolean);
-  const packages = [...new Set(blocks.flatMap((block) => (block.kind === 'heading' ? [] : requiredPackages(withoutCache(block.source ?? '')))))];
+  const parts = blocks.map((block) => withoutCache(block.source ?? '')).filter(Boolean);
+  const packages = [...new Set(blocks.flatMap((block) => requiredPackages(withoutCache(block.source ?? ''))))];
   // xcolor with the table option covers plain xcolor.
   const needed = packages.includes('\\usepackage[table]{xcolor}') ? packages.filter((line) => line !== '\\usepackage{xcolor}') : packages;
   const head = requiresHead(needed);

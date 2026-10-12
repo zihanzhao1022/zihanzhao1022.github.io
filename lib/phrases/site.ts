@@ -147,13 +147,12 @@ export const { t, useT, table } = phrases({
   '编辑文字': { ja: 'テキストを編集', en: 'Edit text' },
   '编辑图': { ja: '図を編集', en: 'Edit figure' },
   '编辑表格': { ja: '表を編集', en: 'Edit table' },
-  '编辑小节标题': { ja: '見出しを編集', en: 'Edit heading' },
   '复制 LaTeX': { ja: 'LaTeX をコピー', en: 'Copy LaTeX' },
   '复制 LaTeX 代码（开头注明需要的宏包）': { ja: 'LaTeX コードをコピー（必要なパッケージを冒頭に記載）', en: 'Copy the LaTeX code (with the packages it needs listed at the top)' },
   '导出全文 LaTeX': { ja: '全文の LaTeX を書き出す', en: 'Export full LaTeX' },
-  '按顺序复制所有块（包括隐藏的）和小节标题，开头注明需要的宏包，不含 References': {
-    ja: 'すべてのブロック（非公開のものも含む）と見出しを順にコピーします。必要なパッケージを冒頭に記載し、References は含みません',
-    en: 'Copy every block (hidden ones too) and heading in order, with the packages they need listed at the top, without References',
+  '按顺序复制所有块（包括隐藏的），开头注明需要的宏包，不含 References': {
+    ja: 'すべてのブロック（非公開のものも含む）を順にコピーします。必要なパッケージを冒頭に記載し、References は含みません',
+    en: 'Copy every block (hidden ones too) in order, with the packages they need listed at the top, without References',
   },
   '在当前块下方插入内容': { ja: 'このブロックの下に挿入', en: 'Insert below this block' },
   '还没有编译': { ja: 'まだコンパイルされていません', en: 'Not compiled yet' },
@@ -170,15 +169,18 @@ export const { t, useT, table } = phrases({
     ja: 'References：本文ではまだ \\cite で references.bib の文献を引用していません。',
     en: 'References: the text does not \\cite any entry of references.bib yet.',
   },
-  '用下面的按钮添加文字、图、表格或小节标题。': {
-    ja: '下のボタンでテキスト、図、表、見出しを追加できます。',
-    en: 'Add text, figures, tables or headings with the buttons below.',
+  '用下面的按钮添加文字、图或表格。': {
+    ja: '下のボタンでテキスト、図、表を追加できます。',
+    en: 'Add text, figures or tables with the buttons below.',
   },
 
   // The outline, and who is reading where
   '目录': { ja: '目次', en: 'Contents' },
   '关闭目录': { ja: '目次を閉じる', en: 'Close contents' },
-  '添加小节标题后，这里会出现目录。': { ja: '見出しを追加すると、ここに目次が表示されます。', en: 'Add headings and the contents will show here.' },
+  '在文字块里用 \\section 等写小节标题后，这里会出现目录。': {
+    ja: 'テキストブロックで \\section などの見出しを書くと、ここに目次が表示されます。',
+    en: 'Write headings with \\section and the like in text blocks, and the contents will show here.',
+  },
   '图 {n}': { ja: '図 {n}', en: 'Figure {n}' },
   '表 {n}': { ja: '表 {n}', en: 'Table {n}' },
   '表': { ja: '表', en: 'Table' },

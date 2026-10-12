@@ -22,7 +22,6 @@ import { AccessRequest, PresenceContext } from '../components/presence';
 
 // The LaTeX editors (CodeMirror, the TeX engine) load only when a results dialog opens.
 const BlockEditor = lazy(() => import('./results/BlockEditor'));
-const HeadingEditor = lazy(() => import('./results/HeadingEditor'));
 const PaperSettings = lazy(() => import('./results/PaperSettings'));
 const ReferencesEditor = lazy(() => import('./results/ReferencesEditor'));
 
@@ -135,7 +134,6 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
       }
       const results =
         next.kind === 'block' ||
-        next.kind === 'heading' ||
         next.kind === 'paperSettings' ||
         next.kind === 'references' ||
         ((next.kind === 'add' || next.kind === 'edit') && next.collection === 'results');
@@ -143,7 +141,7 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
         setToast({ message: () => access.state === 'loading' ? t('论文结果还在加载，请稍后再试') : t('私有仓库不可用，暂时不能编辑论文结果') });
         return;
       }
-      if ((next.kind === 'block' || next.kind === 'heading' || next.kind === 'paperSettings' || next.kind === 'references') && isReordering(next.paperId)) {
+      if ((next.kind === 'block' || next.kind === 'paperSettings' || next.kind === 'references') && isReordering(next.paperId)) {
         setToast({ message: () => t('正在保存新的顺序并更新编号，请几秒后再编辑') });
         return;
       }
@@ -257,7 +255,7 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
   );
 
   const paper =
-    request?.kind === 'block' || request?.kind === 'heading' || request?.kind === 'paperSettings' || request?.kind === 'references'
+    request?.kind === 'block' || request?.kind === 'paperSettings' || request?.kind === 'references'
       ? content.results.find((item) => item.id === request.paperId)
       : undefined;
 
@@ -294,18 +292,6 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
                 paper={paper}
                 blockId={request.blockId}
                 blockKind={request.blockKind}
-                afterBlockId={request.afterBlockId}
-                readFile={access.readFile}
-                onSave={saveResults}
-                onClose={closeDialog}
-              />
-            </Suspense>
-          )}
-          {request?.kind === 'heading' && paper && (
-            <Suspense fallback={null}>
-              <HeadingEditor
-                paper={paper}
-                blockId={request.blockId}
                 afterBlockId={request.afterBlockId}
                 readFile={access.readFile}
                 onSave={saveResults}

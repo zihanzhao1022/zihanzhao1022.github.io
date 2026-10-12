@@ -1,6 +1,7 @@
-import { countersBefore, headingKey, headingTex, readHeadingNumber, startsAppendix } from '../../lib/headings';
+import { countersBefore } from '../../lib/headings';
 import { t } from '../../lib/phrases/results';
-import { HeadingNumbering, ResultBlock, ResultBlockOutput, ResultPaper, ResultReferences } from '../../types';
+import { hasAppendix } from '../../lib/sections';
+import { ResultBlock, ResultBlockOutput, ResultPaper, ResultReferences } from '../../types';
 import { WRAPPER_VERSION, stripComments } from '../tex/document';
 import { FileWrite } from './backend';
 
@@ -17,8 +18,9 @@ export interface BlockContext {
 
 export function blockContext(blocks: ResultBlock[], index: number, citations: Record<string, string> = {}): BlockContext {
   const labels: Record<string, string> = {};
-  for (const block of blocks) Object.assign(labels, block.output?.labels ?? {}, block.numbering?.labels ?? {});
-  const appendix = blocks.slice(0, index).some(startsAppendix);
+  for (const block of blocks) Object.assign(labels, block.output?.labels ?? {});
+  // An earlier text block's \appendix: it does not carry over to the next block's compile by itself.
+  const appendix = blocks.slice(0, index).some(hasAppendix);
   return { counters: countersBefore(blocks, index), labels, citations, ...(appendix ? { appendix: true } : {}) };
 }
 
@@ -71,26 +73,13 @@ export function usedFiles(paper: ResultPaper, block: ResultBlock): string[] {
   return (paper.files ?? []).filter((name) => text.includes(name.replace(/\.[^.]+$/, '')));
 }
 
-/** Everything the block's PDF (or a heading's number) depends on. */
+/** Everything the block's PDF depends on. */
 export function inputHash(paper: ResultPaper, block: ResultBlock, context: BlockContext): string {
   const counters = Object.keys(context.counters)
     .sort()
     .map((name) => [name, context.counters[name]]);
   // Only blocks in the appendix get this, so the others keep their hashes.
   const appendix = context.appendix ? { appendix: true } : {};
-  if (block.kind === 'heading') {
-    return hashText(
-      JSON.stringify({
-        wrapper: WRAPPER_VERSION,
-        preamble: paper.preamble ?? '',
-        files: usedFiles(paper, block).map((name) => [name, paper.fileHashes?.[name] ?? null]),
-        kind: block.kind,
-        heading: headingKey(block.heading),
-        counters,
-        ...appendix,
-      }),
-    );
-  }
   const references = referencedLabels(block.source ?? '').map((name) => [name, context.labels[name] ?? null]);
   const cited = citedKeys(block.source ?? '');
   return hashText(
@@ -150,9 +139,7 @@ export type CompileFn = (block: ResultBlock, context: BlockContext) => Promise<C
 export interface RebuildResult {
   /** New outputs of the blocks that were compiled. */
   outputs: Record<string, ResultBlockOutput>;
-  /** New numbers of the headings that were compiled. */
-  numberings: Record<string, HeadingNumbering>;
-  /** The source each new output was compiled from, or the headingKey of a heading (see the setOutputs operation). */
+  /** The source each new output was compiled from (see the setOutputs operation). */
   sources: Record<string, string>;
   writes: FileWrite[];
   /** PDFs the new outputs replace. */
@@ -183,7 +170,6 @@ export async function rebuild(
 ): Promise<RebuildResult> {
   const blocks = [...paper.blocks];
   const outputs: Record<string, ResultBlockOutput> = {};
-  const numberings: Record<string, HeadingNumbering> = {};
   const sources: Record<string, string> = {};
   const writes = new Map<string, Uint8Array>();
   const original = new Set(paper.blocks.map((block) => block.output?.pdf).filter((path): path is string => !!path));
@@ -192,7 +178,6 @@ export async function rebuild(
   let references: ResultReferences | null | undefined;
   const result = (failed?: RebuildResult['failed']): RebuildResult => ({
     outputs,
-    numberings,
     sources,
     writes: [...writes].map(([path, data]) => ({ path, data })),
     deletes: [...deletes],
@@ -229,22 +214,6 @@ export async function rebuild(
     let changed = false;
     for (let index = 0; index < blocks.length; index += 1) {
       const block = blocks[index];
-      if (block.kind === 'heading') {
-        if (!block.heading) continue;
-        const context = blockContext(blocks, index, citations);
-        const hash = inputHash(paper, block, context);
-        if (block.numbering?.inputHash === hash) continue;
-        // Compiled like a text block for its number, counters and labels; the PDF is not kept.
-        const compiled = await compile({ id: block.id, kind: 'text', source: headingTex(block.heading, { numbering: true }) }, context);
-        if (!compiled.ok) return result({ blockId: block.id, message: compiled.message });
-        const { labels, ...shown } = readHeadingNumber(compiled.labels);
-        const numbering: HeadingNumbering = { inputHash: hash, counters: compiled.counters, labels, ...shown };
-        blocks[index] = { ...block, numbering };
-        numberings[block.id] = numbering;
-        sources[block.id] = headingKey(block.heading);
-        changed = true;
-        continue;
-      }
       if (!block.source?.trim()) continue;
       const context = blockContext(blocks, index, citations);
       const hash = inputHash(paper, block, context);
@@ -277,13 +246,10 @@ export async function rebuild(
   return result();
 }
 
-/** Blocks whose PDF (or heading number) no longer matches their inputs (a first-pass view, without recompiling anything). */
+/** Blocks whose PDF no longer matches their inputs (a first-pass view, without recompiling anything). */
 export function staleBlocks(paper: ResultPaper): string[] {
   const citations = paper.references?.citations ?? {};
   return paper.blocks
-    .filter((block, index) => {
-      if (block.kind === 'heading') return block.heading !== undefined && block.numbering?.inputHash !== inputHash(paper, block, blockContext(paper.blocks, index, citations));
-      return block.source?.trim() && block.output?.inputHash !== inputHash(paper, block, blockContext(paper.blocks, index, citations));
-    })
+    .filter((block, index) => block.source?.trim() && block.output?.inputHash !== inputHash(paper, block, blockContext(paper.blocks, index, citations)))
     .map((block) => block.id);
 }

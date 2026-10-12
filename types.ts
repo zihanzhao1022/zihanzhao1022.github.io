@@ -150,33 +150,18 @@ export interface OverwatchRank {
 
 /** Blocks of LaTeX, each compiled to a PDF. */
 export type PdfBlockKind = 'text' | 'figure' | 'table';
-export type ResultBlockKind = PdfBlockKind | 'heading';
+export type ResultBlockKind = PdfBlockKind;
 
-export type HeadingLevel = 'section' | 'subsection' | 'subsubsection' | 'paragraph';
+export type SectionLevel = 'section' | 'subsection' | 'subsubsection' | 'paragraph';
 
-/** A section heading on a results page, shown as HTML rather than a PDF. */
-export interface ResultHeading {
-  level: HeadingLevel;
-  /** Unnumbered, like \section*. */
-  starred?: boolean;
-  /** One line, exported to LaTeX as is. */
+/** A heading a text block typesets (\section and below), as the page's contents list it (lib/sections). */
+export interface BlockSection {
+  /** "appendix" is where \appendix starts the appendix, listed like a section titled Appendix. */
+  level: SectionLevel | 'appendix';
+  /** Plain text, without LaTeX markup. */
   title: string;
-  /** For \ref from the blocks, e.g. "sec:method"; numbered headings only. Private only. */
-  label?: string;
-  /** The appendix starts here (\appendix): sections from here on are lettered. Sections only; private only. */
-  appendix?: boolean;
-}
-
-/** What compiling a heading gives; no PDF is kept. */
-export interface HeadingNumbering {
-  /** Private only, like the counters and labels. */
-  inputHash?: string;
-  counters?: Record<string, number>;
-  labels?: Record<string, string>;
-  /** The number LaTeX prints, e.g. "2.1" or "A"; absent when the heading has none. */
+  /** As LaTeX numbers it, e.g. "2.1" or "A"; absent for unnumbered headings and the appendix. */
   number?: string;
-  /** hyperref's anchor, e.g. "subsection.2.1", so \ref links can jump to the heading. */
-  anchor?: string;
 }
 
 /** A block's compiled PDF. The bookkeeping fields stay in the private repository only. */
@@ -194,6 +179,8 @@ export interface ResultBlockOutput {
   labels?: Record<string, string>;
   /** The figure or table number for the outline, e.g. "3"; only in what publicView gives. */
   number?: string;
+  /** A text block's headings for the outline; only in what publicView gives (others read the source). */
+  sections?: BlockSection[];
 }
 
 /**
@@ -215,12 +202,9 @@ export interface ResultReferences extends ResultBlockOutput {
 export interface ResultBlock extends Hideable {
   id: string;
   kind: ResultBlockKind;
-  /** LaTeX source; left out of the public snapshot. Headings have none. */
+  /** LaTeX source; left out of the public snapshot. */
   source?: string;
   output?: ResultBlockOutput;
-  /** Kind 'heading' only. */
-  heading?: ResultHeading;
-  numbering?: HeadingNumbering;
 }
 
 /** Someone who wrote a comment: GitHub user name and account ID. */
@@ -353,6 +337,4 @@ export type EditRequest =
   /** A results paper's preamble and attachments. */
   | { kind: 'paperSettings'; paperId: string }
   /** A results paper's references.bib. */
-  | { kind: 'references'; paperId: string }
-  /** Edit a section heading, or add one after `afterBlockId` (at the end when omitted). */
-  | { kind: 'heading'; paperId: string; blockId?: string; afterBlockId?: string };
+  | { kind: 'references'; paperId: string };

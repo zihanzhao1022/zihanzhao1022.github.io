@@ -23,7 +23,6 @@ export const COMMON: Phrases = {
   文字: { ja: 'テキスト', en: 'Text' },
   图: { ja: '図', en: 'Figure' },
   表格: { ja: '表', en: 'Table' },
-  小节标题: { ja: '見出し', en: 'Heading' },
   参考文献: { ja: '参考文献', en: 'References' },
   导言区与附件: { ja: 'プリアンブルと添付ファイル', en: 'Preamble & attachments' },
 };

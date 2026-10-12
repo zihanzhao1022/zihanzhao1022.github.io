@@ -86,9 +86,12 @@ export function withOutputs(paperId: string, ops: ResultsOp[], rebuilt: RebuildR
 
 export const newBlockId = (): string => `blk-${Date.now().toString(36)}`;
 
-/** The code a new block starts with; made when the block is added, so the figure's comment names the insert button as shown. */
+/**
+ * The code a new block starts with; made when the block is added, so the figure's comment names the insert
+ * button as shown. Text starts empty: the editor shows what to write as a hint instead.
+ */
 export const BLOCK_TEMPLATES: Record<PdfBlockKind, () => string> = {
-  text: () => String.raw`Write the text here; math works as usual: $E = mc^2$.`,
+  text: () => '',
   figure: () => String.raw`\begin{figure}[t]
 \centering
 % Upload an image above, then use "${t('插入')}" to add \includegraphics here.

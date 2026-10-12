@@ -317,4 +317,11 @@ export const { t, useT, table } = phrases({
     ja: 'プリアンブルに移しました。保存すると {n} 個のブロックからこれらの色の定義を削除し、すべてのブロックを再コンパイルします。',
     en: 'Moved to the preamble: saving removes these colour definitions from {n} block(s) and recompiles every block.',
   },
+
+  // An empty text block
+  '在这里写文字，数学公式照常可用：$E = mc^2$': {
+    ja: 'ここに本文を書きます。数式もいつも通り使えます：$E = mc^2$',
+    en: 'Write the text here; math works as usual: $E = mc^2$',
+  },
+  '请先输入内容': { ja: '先に内容を入力してください', en: 'Write something first' },
 });

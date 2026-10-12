@@ -13,6 +13,7 @@ import {
   highlightActiveLineGutter,
   keymap,
   lineNumbers,
+  placeholder as emptyHint,
 } from '@codemirror/view';
 import { t } from '../../lib/phrases/results';
 
@@ -50,6 +51,8 @@ interface Props {
   colors?: string[];
   /** Labels on the page, offered after \ref{. */
   labels?: string[];
+  /** Grey text shown while the editor is empty. */
+  placeholder?: string;
   onRun?: () => void;
   onSave?: () => void;
   className?: string;
@@ -85,7 +88,7 @@ const theme = EditorView.theme({
 
 /** A LaTeX code editor (CodeMirror 6) with highlighting, completion and problem markers. */
 const CodeEditor = React.forwardRef<CodeEditorHandle, Props>(function CodeEditor(
-  { value, onChange, problems = [], macros = [], colors = [], labels = [], onRun, onSave, className = '' },
+  { value, onChange, problems = [], macros = [], colors = [], labels = [], placeholder, onRun, onSave, className = '' },
   ref,
 ) {
   const host = useRef<HTMLDivElement>(null);
@@ -95,6 +98,7 @@ const CodeEditor = React.forwardRef<CodeEditorHandle, Props>(function CodeEditor
   const names = useRef({ macros, colors, labels });
   names.current = { macros, colors, labels };
   const readOnly = useRef(new Compartment());
+  const hint = useRef(new Compartment());
 
   useEffect(() => {
     if (!host.current) return undefined;
@@ -117,6 +121,7 @@ const CodeEditor = React.forwardRef<CodeEditorHandle, Props>(function CodeEditor
           autocompletion({ override: [completions(names)] }),
           EditorView.lineWrapping,
           readOnly.current.of([]),
+          hint.current.of(placeholder ? emptyHint(placeholder) : []),
           keymap.of([
             { key: 'Mod-Enter', run: () => (callbacks.current.onRun?.(), true) },
             { key: 'Mod-s', run: () => (callbacks.current.onSave?.(), true), preventDefault: true },
@@ -141,6 +146,11 @@ const CodeEditor = React.forwardRef<CodeEditorHandle, Props>(function CodeEditor
     };
     // The editor is created once; later values arrive through the effect below.
   }, []);
+
+  // The hint follows the interface language.
+  useEffect(() => {
+    view.current?.dispatch({ effects: hint.current.reconfigure(placeholder ? emptyHint(placeholder) : []) });
+  }, [placeholder]);
 
   // Text set from outside (not typed here) replaces the document.
   useEffect(() => {

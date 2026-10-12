@@ -158,7 +158,8 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
 
   const compile = useCallback(
     async (text: string): Promise<Compiled | null> => {
-      if (!preview) return null;
+      // An empty block has nothing to show; TeX would only complain that there is no page.
+      if (!preview || !text.trim()) return null;
       const ticket = ++latest.current;
       setCompiling(true);
       try {
@@ -231,6 +232,10 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
   const save = () =>
     run(async () => {
       if (!files) return;
+      if (!source.trim()) {
+        setProblem(() => t('请先输入内容'));
+        return;
+      }
       const current = compiled && compiled.source === source && compiled.preview === preview ? compiled : await compile(source);
       if (!current) return;
       if (!current.result.ok) {
@@ -556,6 +561,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
             macros={names.macros}
             colors={names.colors}
             labels={labels}
+            placeholder={block.kind === 'text' ? t('在这里写文字，数学公式照常可用：$E = mc^2$') : undefined}
             onRun={() => void compile(source)}
             onSave={() => void save()}
             className="flex-1"

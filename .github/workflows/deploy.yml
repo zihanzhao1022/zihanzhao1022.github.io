@@ -29,10 +29,11 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      # Side by side rather than one after another; the site is published only if all three pass.
+      # Side by side rather than one after another; the site is published only if all three pass. The tests
+      # keep to two of the runner's four CPUs, leaving the others to the type check and the build.
       - name: Test, type-check and build
         run: |
-          npm test > tests.log 2>&1 & tests=$!
+          npm test -- --maxWorkers=2 > tests.log 2>&1 & tests=$!
           npx tsc > types.log 2>&1 & types=$!
           npx vite build > build.log 2>&1 & build=$!
           failed=0

@@ -7,6 +7,7 @@ import { findQuote } from './comments/commentText';
 import { Box, layerText, quoteBoxes } from './comments/textLayer';
 import FigureZoom from './FigureZoom';
 import PdfView from './PdfView';
+import { PageBox, onPage } from './pictures';
 
 /** A comment on text of this block, to highlight. */
 export interface QuoteMark {
@@ -37,10 +38,16 @@ const BlockView: React.FC<Props> = ({ paperId, block, references = false, quotes
   const [failed, setFailed] = useState(false);
   const [layer, setLayer] = useState<HTMLElement | null>(null);
   const [marks, setMarks] = useState<{ id: string; boxes: Box[] }[]>([]);
-  const [zoomed, setZoomed] = useState(false);
-  const closeZoom = useCallback(() => setZoomed(false), []);
-  // A figure on the page opens enlarged; its PDF must be there to draw again.
-  const zoomable = block.kind === 'figure' && !references && (!isPrivate || data !== undefined);
+  /** What is shown enlarged: the whole figure, or a picture of a text block. */
+  const [zoomed, setZoomed] = useState<'page' | PageBox | null>(null);
+  const closeZoom = useCallback(() => setZoomed(null), []);
+  // Pictures that text blocks draw (figure environments written in the text), which open enlarged too.
+  const [pictures, setPictures] = useState<PageBox[]>([]);
+  // The PDF must be there to draw again.
+  const ready = !isPrivate || data !== undefined;
+  // A figure block opens enlarged as a whole.
+  const zoomable = block.kind === 'figure' && !references && ready;
+  const findsPictures = block.kind === 'text' && !references;
   // The marks depend on the quotes' text, not on the array the page builds again on every update.
   const quotesKey = JSON.stringify(quotes ?? []);
   const wanted = useMemo(() => JSON.parse(quotesKey) as QuoteMark[], [quotesKey]);
@@ -74,7 +81,7 @@ const BlockView: React.FC<Props> = ({ paperId, block, references = false, quotes
       }
     }
     const target = event.target instanceof Element ? event.target : null;
-    if (zoomable && target?.closest('.resultsPdfPage') && !target.closest('.resultsPdfLink')) setZoomed(true);
+    if (zoomable && target?.closest('.resultsPdfPage') && !target.closest('.resultsPdfLink')) setZoomed('page');
   };
 
   useEffect(() => {
@@ -112,6 +119,7 @@ const BlockView: React.FC<Props> = ({ paperId, block, references = false, quotes
           citationScope={paperId}
           citationTargets={references}
           onTextLayer={setLayer}
+          onPictures={findsPictures ? setPictures : undefined}
         >
           {marks.map((mark) =>
             mark.boxes.map((box, index) => (
@@ -123,6 +131,25 @@ const BlockView: React.FC<Props> = ({ paperId, block, references = false, quotes
               />
             )),
           )}
+          {ready &&
+            pictures.map((box) => (
+              <button
+                key={`${box.left}-${box.top}`}
+                type="button"
+                aria-label={t('放大这张图')}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setZoomed(onPage(box, output));
+                }}
+                className="resultsZoomTarget absolute"
+                style={{
+                  left: `${(100 * box.left) / output.width}%`,
+                  top: `${(100 * box.top) / output.height}%`,
+                  width: `${(100 * box.width) / output.width}%`,
+                  height: `${(100 * box.height) / output.height}%`,
+                }}
+              />
+            ))}
         </PdfView>
       </div>
       {zoomed && (
@@ -131,6 +158,7 @@ const BlockView: React.FC<Props> = ({ paperId, block, references = false, quotes
           url={isPrivate ? undefined : publicFilePath(output.pdf)}
           width={output.width}
           height={output.height}
+          region={zoomed === 'page' ? undefined : zoomed}
           onClose={closeZoom}
         />
       )}

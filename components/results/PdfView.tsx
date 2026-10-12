@@ -3,6 +3,7 @@ import type { PDFDocumentLoadingTask, RenderTask } from 'pdfjs-dist';
 import { useT } from '../../lib/phrases/site';
 import { loadPdfjs, openPdf } from './pdfjs';
 import { renderPdfLinks } from './pdfLinks';
+import { PageBox, pictureBoxes } from './pictures';
 import {
   HEADING_DESTINATION,
   citationId,
@@ -37,12 +38,30 @@ interface Props {
   onTextLayer?: (layer: HTMLElement) => void;
   /** The largest scale to draw at; an enlarged figure fills the space it is given. */
   maxScale?: number;
+  /** Draw only this part of the page (an enlarged picture), without its text and links. */
+  region?: PageBox;
+  /** Called with where the page draws pictures (see pictureBoxes) each time it is drawn. */
+  onPictures?: (boxes: PageBox[]) => void;
   /** Drawn over the page in its coordinates, e.g. comment highlights. */
   children?: React.ReactNode;
 }
 
 /** The first page of a PDF, at PDF_SCALE (or `maxScale`) or narrower to fit, with selectable text and links. */
-const PdfView: React.FC<Props> = ({ data, url, width, height, className = '', onError, citationScope, citationTargets = false, onTextLayer, maxScale = PDF_SCALE, children }) => {
+const PdfView: React.FC<Props> = ({
+  data,
+  url,
+  width,
+  height,
+  className = '',
+  onError,
+  citationScope,
+  citationTargets = false,
+  onTextLayer,
+  maxScale = PDF_SCALE,
+  region,
+  onPictures,
+  children,
+}) => {
   const frame = useRef<HTMLDivElement>(null);
   const layers = useRef<HTMLDivElement>(null);
   const [available, setAvailable] = useState<number | null>(null);
@@ -51,6 +70,11 @@ const PdfView: React.FC<Props> = ({ data, url, width, height, className = '', on
   errorRef.current = onError;
   const textLayerRef = useRef(onTextLayer);
   textLayerRef.current = onTextLayer;
+  const picturesRef = useRef(onPictures);
+  picturesRef.current = onPictures;
+  const wantsPictures = onPictures !== undefined;
+  // The part of the page shown, in points: the whole page, or the region.
+  const { left: boxLeft, top: boxTop, width: boxWidth, height: boxHeight } = region ?? { left: 0, top: 0, width, height };
   // The page is drawn again when the language changes, for the labels of its links.
   const t = useT();
 
@@ -64,7 +88,7 @@ const PdfView: React.FC<Props> = ({ data, url, width, height, className = '', on
     return () => observer.disconnect();
   }, []);
 
-  const scale = available ? Math.min(maxScale, available / width) : Math.min(maxScale, PDF_SCALE);
+  const scale = available ? Math.min(maxScale, available / boxWidth) : Math.min(maxScale, PDF_SCALE);
 
   useEffect(() => {
     const target = layers.current;
@@ -87,14 +111,19 @@ const PdfView: React.FC<Props> = ({ data, url, width, height, className = '', on
       const ratio = window.devicePixelRatio || 1;
       const viewport = page.getViewport({ scale });
       const canvas = document.createElement('canvas');
-      canvas.width = Math.floor(viewport.width * ratio);
-      canvas.height = Math.floor(viewport.height * ratio);
-      canvas.style.width = `${viewport.width}px`;
-      canvas.style.height = `${viewport.height}px`;
+      canvas.width = Math.floor(boxWidth * scale * ratio);
+      canvas.height = Math.floor(boxHeight * scale * ratio);
+      canvas.style.width = `${boxWidth * scale}px`;
+      canvas.style.height = `${boxHeight * scale}px`;
       canvas.style.display = 'block';
-      task = page.render({ canvas, viewport: page.getViewport({ scale: scale * ratio }) });
+      const drawn = page.getViewport({ scale: scale * ratio, offsetX: -boxLeft * scale * ratio, offsetY: -boxTop * scale * ratio });
+      task = page.render({ canvas, viewport: drawn });
       await task.promise;
       if (cancelled) return;
+      if (region) {
+        target.replaceChildren(canvas);
+        return;
+      }
       const text = document.createElement('div');
       text.className = 'textLayer';
       text.style.setProperty('--scale-factor', String(scale));
@@ -174,6 +203,11 @@ const PdfView: React.FC<Props> = ({ data, url, width, height, className = '', on
         textLayerRef.current?.(text);
         if (citationTargets && citationScope) finishCitationNavigation(citationScope);
       }
+      if (wantsPictures && !cancelled) {
+        const { fnArray, argsArray } = await page.getOperatorList();
+        const points = page.getViewport({ scale: 1 });
+        if (!cancelled) picturesRef.current?.(pictureBoxes(fnArray, argsArray, pdfjs.OPS, (x, y) => points.convertToViewportPoint(x, y)));
+      }
     })().catch((error: unknown) => {
       if (cancelled || (error instanceof Error && error.name === 'RenderingCancelledException')) return;
       setFailed(true);
@@ -184,11 +218,11 @@ const PdfView: React.FC<Props> = ({ data, url, width, height, className = '', on
       task?.cancel();
       void loading?.destroy();
     };
-  }, [data, url, scale, available, citationScope, citationTargets, t]);
+  }, [data, url, scale, available, citationScope, citationTargets, t, region !== undefined, boxLeft, boxTop, boxWidth, boxHeight, wantsPictures]);
 
   return (
     <div ref={frame} id={citationTargets && citationScope ? referencesId(citationScope) : undefined} className={`w-full ${className}`}>
-      <div className="resultsPdfPage relative mx-auto bg-white" style={{ width: width * scale, height: height * scale }}>
+      <div className="resultsPdfPage relative mx-auto bg-white" style={{ width: boxWidth * scale, height: boxHeight * scale }}>
         <div ref={layers} className="absolute inset-0" />
         {children}
         {failed && (

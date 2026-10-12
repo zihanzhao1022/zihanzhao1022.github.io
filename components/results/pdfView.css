@@ -111,6 +111,18 @@
   cursor: zoom-in;
 }
 
+/* A picture drawn by a text block (a figure environment in its text) opens enlarged as well. */
+.resultsZoomTarget {
+  z-index: 1;
+  cursor: zoom-in;
+  border-radius: 2px;
+}
+
+.resultsZoomTarget:focus-visible {
+  outline: 2px solid rgb(126, 34, 206);
+  outline-offset: 2px;
+}
+
 .resultsFigureZoom {
   cursor: zoom-out;
   animation: resultsFigureZoomIn 120ms ease-out;

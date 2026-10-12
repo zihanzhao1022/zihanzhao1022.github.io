@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { useT } from '../../lib/phrases/site';
 import PdfView from './PdfView';
+import { PageBox } from './pictures';
 
 interface Props {
   /** The figure's PDF, as the page has it: private bytes or the published file's address. */
@@ -11,14 +12,16 @@ interface Props {
   /** Page size in points. */
   width: number;
   height: number;
+  /** Only this part of the page: a picture of a text block. */
+  region?: PageBox;
   onClose: () => void;
 }
 
 /**
- * A figure enlarged over the page, drawn again as large as the window allows (so it stays sharp). A click
- * around it, Esc or the close button puts it back.
+ * A figure, or a picture of a text block, enlarged over the page: drawn again as large as the window allows
+ * (so it stays sharp). A click around it, Esc or the close button puts it back.
  */
-const FigureZoom: React.FC<Props> = ({ data, url, width, height, onClose }) => {
+const FigureZoom: React.FC<Props> = ({ data, url, width, height, region, onClose }) => {
   const t = useT();
   const dialog = useRef<HTMLDivElement>(null);
 
@@ -64,10 +67,10 @@ const FigureZoom: React.FC<Props> = ({ data, url, width, height, onClose }) => {
       {/* As wide as fits in 95% of the window's width and 90% of its height. */}
       <div
         onClick={(event) => event.stopPropagation()}
-        className="cursor-auto bg-white shadow-2xl"
-        style={{ width: `min(95vw, calc(90vh * ${width / height}))` }}
+        className="cursor-auto bg-white p-3 shadow-2xl"
+        style={{ width: `min(95vw, calc(90vh * ${region ? region.width / region.height : width / height}))` }}
       >
-        <PdfView data={data} url={url} width={width} height={height} maxScale={Infinity} />
+        <PdfView data={data} url={url} width={width} height={height} region={region} maxScale={Infinity} />
       </div>
     </div>,
     document.body,

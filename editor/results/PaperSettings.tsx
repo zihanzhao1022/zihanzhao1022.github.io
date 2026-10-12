@@ -22,6 +22,7 @@ import {
 } from './actions';
 import { ResultsSave } from './BlockEditor';
 import CodeEditor from './CodeEditor';
+import { sharedColors, withoutColors } from './colorDefinitions';
 import { BlockCompileResult, compileBlock, describeIssue } from './compile';
 import { describeFailure } from './numbering';
 import { ResultsOp, resultsCommitMessage } from './ops';
@@ -59,6 +60,8 @@ const PaperSettings: React.FC<Props> = ({ paper, readFile, onSave, onClose }) =>
   const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useMessage();
+  /** "Move to the preamble" was used: saving also removes the moved color definitions from the blocks. */
+  const [movedColors, setMovedColors] = useState(false);
   const upload = React.useRef<HTMLInputElement>(null);
   const busy = React.useRef(false);
 
@@ -83,7 +86,14 @@ const PaperSettings: React.FC<Props> = ({ paper, readFile, onSave, onClose }) =>
     return all;
   }, [stored, added, removed]);
   const names = [...new Set([...(paper.files ?? []), ...Object.keys(added)])];
-  const dirty = preamble !== original || Object.keys(added).length > 0 || removed.length > 0;
+  const dirty = preamble !== original || Object.keys(added).length > 0 || removed.length > 0 || movedColors;
+  const colors = useMemo(() => sharedColors(paper.blocks, preamble), [paper.blocks, preamble]);
+  const toAdd = colors.colors.filter((color) => !color.inPreamble);
+
+  const moveColors = () => {
+    if (toAdd.length > 0) setPreamble((current) => `${current.replace(/\s+$/, '')}\n${toAdd.map((color) => color.text).join('\n')}`);
+    setMovedColors(true);
+  };
 
   const close = useCallback(() => {
     if (saving) return;
@@ -148,7 +158,14 @@ const PaperSettings: React.FC<Props> = ({ paper, readFile, onSave, onClose }) =>
       const uploads = await putFiles(paper.id, uploaded);
       const fileHashes = { ...paper.fileHashes, ...uploads.hashes };
       gone.forEach((name) => delete fileHashes[name]);
-      const draft: ResultPaper = { ...paper, preamble, files: kept, fileHashes };
+      // Definitions the preamble now has, written the same way, leave the blocks that repeated them.
+      const leaving = new Set(movedColors ? sharedColors(paper.blocks, preamble).colors.filter((color) => color.inPreamble).map((color) => color.name) : []);
+      const cleaned = paper.blocks.flatMap((block) => {
+        const source = block.source === undefined ? undefined : withoutColors(block.source, leaving);
+        return source === undefined || source === block.source ? [] : [{ ...block, source }];
+      });
+      const blocks = paper.blocks.map((block) => cleaned.find((item) => item.id === block.id) ?? block);
+      const draft: ResultPaper = { ...paper, preamble, files: kept, fileHashes, blocks };
       const rebuilt = await rebuildWith(draft, files);
       const failed = rebuilt.failed;
       if (failed) {
@@ -163,6 +180,7 @@ const PaperSettings: React.FC<Props> = ({ paper, readFile, onSave, onClose }) =>
       // Attachments change one by one, so files added or removed elsewhere meanwhile are kept.
       const ops: ResultsOp[] = [
         { kind: 'patchPaper', id: paper.id, fields: { preamble } },
+        ...cleaned.map((block): ResultsOp => ({ kind: 'putBlock', paperId: paper.id, block })),
         ...uploads.ops,
         ...gone.map((name): ResultsOp => ({ kind: 'removeFile', paperId: paper.id, name })),
       ];
@@ -213,6 +231,18 @@ const PaperSettings: React.FC<Props> = ({ paper, readFile, onSave, onClose }) =>
               {t('还原')}
             </button>
           </div>
+          {colors.colors.length > 0 && (movedColors && toAdd.length === 0 ? (
+            <p className="px-3 py-2 border-b border-amber-100 bg-amber-50 text-xs text-amber-800">
+              {t('已移到导言区：保存时会从 {n} 个块里删掉这些颜色定义，并重新编译所有块。', { n: colors.blocks.length })}
+            </p>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-amber-100 bg-amber-50 text-xs text-amber-800">
+              <span>{t('{n} 个块里重复定义了这些颜色：{names}', { n: colors.blocks.length, names: colors.colors.map((color) => color.name).join(', ') })}</span>
+              <button type="button" onClick={moveColors} className="rounded border border-amber-300 bg-white px-2 py-0.5 font-medium hover:bg-amber-100">
+                {t('移到导言区')}
+              </button>
+            </div>
+          ))}
           <CodeEditor value={preamble} onChange={setPreamble} onRun={() => void runTest()} onSave={() => void save()} className="flex-1" />
         </section>
         <section className="min-h-0 overflow-auto bg-gray-50 p-4 space-y-4">

@@ -306,4 +306,15 @@ export const { t, useT, table } = phrases({
   '（作者-年份，导言区用了 natbib）': { ja: '（著者-年方式、プリアンブルで natbib を使用）', en: ' (author–year; the preamble uses natbib)' },
   '（按引用顺序编号）': { ja: '（引用順に番号付け）', en: ' (numbered in citation order)' },
   '（来自上传的 .bst）': { ja: '（アップロードした .bst）', en: ' (from the uploaded .bst)' },
+
+  // Color definitions repeated in blocks, moved to the preamble
+  '{n} 个块里重复定义了这些颜色：{names}': {
+    ja: '{n} 個のブロックでこれらの色が重複して定義されています：{names}',
+    en: 'These colours are defined again in {n} block(s): {names}',
+  },
+  '移到导言区': { ja: 'プリアンブルに移す', en: 'Move to the preamble' },
+  '已移到导言区：保存时会从 {n} 个块里删掉这些颜色定义，并重新编译所有块。': {
+    ja: 'プリアンブルに移しました。保存すると {n} 個のブロックからこれらの色の定義を削除し、すべてのブロックを再コンパイルします。',
+    en: 'Moved to the preamble: saving removes these colour definitions from {n} block(s) and recompiles every block.',
+  },
 });

@@ -1,6 +1,7 @@
 import { FloatKind, ResultBlock } from '../../types';
 import { stripComments } from '../tex/document';
 import { BLOCK_TEMPLATES } from './actions';
+import { ResultsOp } from './ops';
 import { createTable } from './table/model';
 import { serializeTable } from './table/latex';
 
@@ -45,14 +46,35 @@ export function convertedSource(source: string, to: FloatKind): string {
 }
 
 /**
- * The block turned into the other kind: the version kept from an earlier turn if it has one, else that
- * kind's starting code (convertedSource). The version it replaces is kept in turn, so turning back loses nothing.
+ * The block turned into the other kind: the version kept from an earlier turn, with its PDF, if it has one,
+ * else that kind's starting code (convertedSource). The version it replaces is kept in turn, with its PDF, so
+ * turning back loses nothing and need not compile again.
  */
 export function convertedBlock(block: ResultBlock, to: FloatKind): ResultBlock {
   if (block.kind === to || block.kind === 'text') return block;
+  const { output, alternate, ...rest } = block;
   const source = block.source ?? '';
-  const kept = block.alternate?.kind === to ? block.alternate.source : undefined;
-  return { ...block, kind: to, source: kept ?? convertedSource(source, to), alternate: { kind: block.kind, source } };
+  const kept = alternate?.kind === to ? alternate : undefined;
+  return {
+    ...rest,
+    kind: to,
+    source: kept ? kept.source : convertedSource(source, to),
+    ...(kept?.output ? { output: kept.output } : {}),
+    alternate: { kind: block.kind, source, ...(output ? { output } : {}) },
+  };
+}
+
+/**
+ * The edit that turns a figure or table into its kept version without the editor: its code and, when it was
+ * compiled before, its PDF, so the page can show it at once. The rebuild that follows the edit compiles it
+ * again only if the paper changed since, and renumbers the blocks after it. Null without a kept version.
+ */
+export function switchedOp(paperId: string, block: ResultBlock): ResultsOp | null {
+  if (!block.alternate) return null;
+  const next = convertedBlock(block, block.alternate.kind);
+  const put: ResultsOp = { kind: 'putBlock', paperId, block: next };
+  if (!next.output) return put;
+  return { kind: 'batch', ops: [put, { kind: 'setOutputs', paperId, outputs: { [block.id]: next.output }, sources: { [block.id]: next.source ?? '' } }] };
 }
 
 /**

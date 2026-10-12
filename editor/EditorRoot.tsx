@@ -55,7 +55,7 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
   const queue = useRef<Promise<unknown>>(Promise.resolve());
   const pending = useRef<ContentOp[]>([]);
   const presence = usePresence(session);
-  const { access, privateLoaded, saveResults, saveContentOp, reorderBlocks, reload, isReordering } = useResultsEditor({
+  const { access, privateLoaded, saveResults, saveContentOp, reorderBlocks, switchBlock: switchToKept, reload, isRenumbering } = useResultsEditor({
     session,
     setContent,
     contentRef,
@@ -141,13 +141,28 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
         setToast({ message: () => access.state === 'loading' ? t('论文结果还在加载，请稍后再试') : t('私有仓库不可用，暂时不能编辑论文结果') });
         return;
       }
-      if ((next.kind === 'block' || next.kind === 'paperSettings' || next.kind === 'references') && isReordering(next.paperId)) {
-        setToast({ message: () => t('正在保存新的顺序并更新编号，请几秒后再编辑') });
+      if ((next.kind === 'block' || next.kind === 'paperSettings' || next.kind === 'references') && isRenumbering(next.paperId)) {
+        setToast({ message: () => t('正在更新编号并保存，请几秒后再编辑') });
         return;
       }
       setRequest(next);
     },
-    [session, access.state, isReordering],
+    [session, access.state, isRenumbering],
+  );
+
+  const switchBlock = useCallback(
+    (paperId: string, blockId: string) => {
+      if (isExpiringSoon(session)) {
+        setToast({ message: () => t(EXPIRING), relogin: true });
+        return;
+      }
+      if (isRenumbering(paperId)) {
+        setToast({ message: () => t('正在更新编号并保存，请几秒后再编辑') });
+        return;
+      }
+      switchToKept(paperId, blockId, (convertTo) => open({ kind: 'block', paperId, blockId, convertTo }));
+    },
+    [session, isRenumbering, switchToKept, open],
   );
 
   const save = useCallback(
@@ -249,9 +264,10 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
       login: relogin,
       reorder,
       reorderBlocks,
+      switchBlock,
       prepare,
     }),
-    [enabled, loadState, open, relogin, reorder, reorderBlocks, prepare],
+    [enabled, loadState, open, relogin, reorder, reorderBlocks, switchBlock, prepare],
   );
 
   const paper =

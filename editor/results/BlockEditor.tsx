@@ -291,7 +291,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
         setProblem(() => t('{problem}。先修好再删除。', { problem: describeFailure(draft.blocks, failed, 'delete') }));
         return;
       }
-      const deletes = [...(block.output ? [block.output.pdf] : []), ...rebuilt.deletes];
+      const deletes = [...[block.output, block.alternate?.output].flatMap((output) => (output ? [output.pdf] : [])), ...rebuilt.deletes];
       await onSave(
         withOutputs(paper.id, [{ kind: 'deleteBlock', paperId: paper.id, blockId: block.id }], rebuilt),
         rebuilt.writes,

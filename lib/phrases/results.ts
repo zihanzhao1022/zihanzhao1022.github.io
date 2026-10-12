@@ -122,6 +122,11 @@ export const { t, useT, table } = phrases({
   已取消公开: { ja: '公開をキャンセルしました', en: 'Publishing cancelled' },
   '修改已发布，网站约 1 分钟后更新': { ja: '変更を公開しました。サイトは約 1 分後に更新されます', en: 'Changes published; the site updates in about a minute' },
   '正在更新编号…': { ja: '番号を更新しています…', en: 'Updating numbers…' },
+  '正在换成表格…': { ja: '表に切り替えています…', en: 'Switching to the table…' },
+  '正在换成图…': { ja: '図に切り替えています…', en: 'Switching to the figure…' },
+  已换成表格: { ja: '表に切り替えました', en: 'Switched to the table' },
+  已换成图: { ja: '図に切り替えました', en: 'Switched to the figure' },
+  打开编辑器: { ja: 'エディタを開く', en: 'Open the editor' },
   顺序已保存: { ja: '順序を保存しました', en: 'Order saved' },
 
   // Attachments (editor/results/actions.ts and the editors).

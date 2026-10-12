@@ -208,9 +208,9 @@ export interface ResultBlock extends Hideable {
   source?: string;
   /**
    * A figure's table version, or a table's figure version, kept while the other one shows: turning the block
-   * into that kind brings it back. Private like the source.
+   * into that kind brings it back, with the PDF it was last compiled to when it has one. Private like the source.
    */
-  alternate?: { kind: FloatKind; source: string };
+  alternate?: { kind: FloatKind; source: string; output?: ResultBlockOutput };
   output?: ResultBlockOutput;
 }
 

@@ -166,11 +166,14 @@ export function touchedPapers(op: ResultsOp): string[] {
   }
 }
 
-/** Every private file the papers still refer to: compiled PDFs and attachments. */
+/** Every private file the papers still refer to: compiled PDFs (kept versions' too) and attachments. */
 export function referencedPaths(papers: ResultPaper[]): Set<string> {
   const paths = new Set<string>();
   for (const paper of papers) {
-    for (const block of paper.blocks) if (block.output) paths.add(block.output.pdf);
+    for (const block of paper.blocks) {
+      if (block.output) paths.add(block.output.pdf);
+      if (block.alternate?.output) paths.add(block.alternate.output.pdf);
+    }
     if (paper.references) paths.add(paper.references.pdf);
     for (const name of paper.files ?? []) paths.add(`results/${paper.id}/files/${name}`);
   }

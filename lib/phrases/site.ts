@@ -66,7 +66,7 @@ export const { t, useT, table } = phrases({
     ja: '共有された論文を今は読み込めません。ページを再読み込みしてもう一度お試しください',
     en: 'The shared papers cannot be read right now. Please reload the page and try again',
   },
-  '正在保存新的顺序并更新编号，请几秒后再编辑': { ja: '新しい順序を保存し、番号を更新しています。数秒後にもう一度編集してください', en: 'Saving the new order and updating the numbers. Edit again in a few seconds' },
+  '正在更新编号并保存，请几秒后再编辑': { ja: '番号を更新して保存しています。数秒後にもう一度編集してください', en: 'Updating the numbers and saving. Edit again in a few seconds' },
 
   // The list of results papers
   '读不到私有仓库 zihanzhao1022/homepage-private：请确认仓库存在，并且 GitHub App 已安装到它上面。': {

@@ -52,7 +52,7 @@ export const { t, useT, table } = phrases({
     ja: '非公開リポジトリを利用できないため、今は研究結果を編集できません',
     en: 'The private repository is unavailable, so the results cannot be edited for now',
   },
-  '正在保存新的顺序并更新编号，请几秒后再编辑': { ja: '新しい順序を保存し、番号を更新しています。数秒後にもう一度編集してください', en: 'Saving the new order and updating the numbers. Edit again in a few seconds' },
+  '正在更新编号并保存，请几秒后再编辑': { ja: '番号を更新して保存しています。数秒後にもう一度編集してください', en: 'Updating the numbers and saving. Edit again in a few seconds' },
   '编辑器还在加载，请稍后再试': {
     ja: 'エディターを読み込み中です。しばらくしてからもう一度お試しください',
     en: 'The editor is still loading. Try again in a moment',

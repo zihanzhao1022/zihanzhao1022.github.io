@@ -171,6 +171,14 @@ describe('referencedPaths', () => {
       'results/p1/files/style.sty',
     ]);
   });
+
+  it("keeps the PDF of a block's kept version", () => {
+    const output = { pdf: 'results/p1/b1-aaaa.pdf', width: 1, height: 1 };
+    const alternate = { kind: 'figure' as const, source: 'Figure', output: { pdf: 'results/p1/b1-bbbb.pdf', width: 1, height: 1 } };
+    expect(referencedPaths([paper('p1', { files: [], blocks: [block('b1', { output, alternate })] })])).toEqual(
+      new Set(['results/p1/b1-aaaa.pdf', 'results/p1/b1-bbbb.pdf']),
+    );
+  });
 });
 
 describe('fromContentOp', () => {

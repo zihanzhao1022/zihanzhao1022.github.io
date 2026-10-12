@@ -3,7 +3,7 @@ import { ResultsAccess } from '../../components/results/access';
 import { Message, N_, PhraseError } from '../../lib/i18n';
 import { t } from '../../lib/phrases/results';
 import { Session } from '../../lib/session';
-import { ResultPaper, ResultsSiteAccess, SiteContent } from '../../types';
+import { FloatKind, ResultPaper, ResultsSiteAccess, SiteContent } from '../../types';
 import { describeSaveError } from '../backend';
 import { ContentOp } from '../ops';
 import { attachmentPath, rebuildPaper, withOutputs } from './actions';
@@ -11,6 +11,8 @@ import { GENERIC_PUBLIC_MESSAGE, ResultsBackend, ResultsSaveResult } from './bac
 import type { ResultsSave } from './BlockEditor';
 import { PaperRole, withCollaboratorIds } from './collaborators';
 import { createCollaboratorResults, createResults, createUserLookup } from './connect';
+import { switchedOp } from './convert';
+import { describeFailure } from './numbering';
 import { ResultsOp, applyResultsOp, fromContentOp, resultsCommitMessage } from './ops';
 import { WorkerError } from './workerBackend';
 
@@ -57,8 +59,10 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
   const privateLoaded = useRef(false);
   /** The private list as last loaded or saved; queued work starts from it, never from the page. */
   const latest = useRef<ResultPaper[]>([]);
-  /** Block reorders already shown on the page but not saved yet; re-applied after every save. */
+  /** Block reorders and switches already shown on the page but not saved yet; re-applied after every save. */
   const pending = useRef<ResultsOp[]>([]);
+  /** Papers with a figure or table switching to its kept version (see switchBlock). */
+  const switching = useRef(new Set<string>());
   const callbacks = useRef({ onDeploy, onToast, onSignedOut });
   callbacks.current = { onDeploy, onToast, onSignedOut };
 
@@ -260,7 +264,7 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
       if (op.kind === 'delete') {
         const files = paper
           ? [
-              ...paper.blocks.flatMap((block) => (block.output ? [block.output.pdf] : [])),
+              ...paper.blocks.flatMap((block) => [block.output, block.alternate?.output].flatMap((output) => (output ? [output.pdf] : []))),
               ...(paper.files ?? []).map((name) => attachmentPath(paper.id, name)),
             ]
           : [];
@@ -342,12 +346,75 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
   );
 
   /**
-   * Whether a dragged order of this paper's blocks is still being renumbered and saved. The block and
-   * preamble dialogs rebuild from the page, which has the new order but not yet the new numbers, so they
-   * must not open until then.
+   * Turns a figure or table into its kept version (ResultBlock.alternate) without the editor. When that
+   * version was compiled before, the page shows its PDF at once and renumbering and saving follow in the
+   * queue, like a drag; otherwise it shows once compiled and saved. `fix` opens the editor on that version
+   * when it no longer compiles.
    */
-  const isReordering = useCallback(
-    (paperId: string) => pending.current.some((op) => op.kind === 'reorderBlocks' && op.paperId === paperId),
+  const switchBlock = useCallback(
+    (paperId: string, blockId: string, fix: (to: FloatKind) => void) => {
+      if (!backend || loadState.state !== 'private') return;
+      const block = latest.current.find((paper) => paper.id === paperId)?.blocks.find((item) => item.id === blockId);
+      const op = block && switchedOp(paperId, block);
+      if (!block?.alternate || !op) return;
+      const to = block.alternate.kind;
+      const shownAtOnce = Boolean(block.alternate.output);
+      switching.current.add(paperId);
+      if (shownAtOnce) {
+        pending.current.push(op);
+        setContent((current) => ({ ...current, results: applyResultsOp(current.results, op) }));
+      }
+      callbacks.current.onToast({
+        message: () => (shownAtOnce ? t('正在更新编号…') : to === 'table' ? t('正在换成表格…') : t('正在换成图…')),
+      });
+      const done = () => {
+        switching.current.delete(paperId);
+        pending.current = pending.current.filter((queued) => queued !== op);
+      };
+      enqueue(async () => {
+        const paper = applyResultsOp(latest.current, op).find((item) => item.id === paperId);
+        if (!paper) {
+          done();
+          show(latest.current);
+          return;
+        }
+        const rebuilt = await rebuildPaper(paper, backend.readFile);
+        const failed = rebuilt.failed;
+        if (failed) {
+          done();
+          show(latest.current);
+          callbacks.current.onToast({
+            message: () => describeFailure(paper.blocks, failed, 'change'),
+            action: { label: () => t('打开编辑器'), onClick: () => fix(to) },
+          });
+          return;
+        }
+        const result = await backend.save(
+          withOutputs(paperId, [op], rebuilt),
+          rebuilt.writes,
+          rebuilt.deletes,
+          resultsCommitMessage('convert block in', paper.title),
+          `content: update result "${paper.title}"`,
+        );
+        done();
+        settle(result);
+        if (!result.publicError) callbacks.current.onToast({ message: () => (to === 'table' ? t('已换成表格') : t('已换成图')) });
+      }).catch((error: unknown) => {
+        done();
+        show(latest.current);
+        callbacks.current.onToast({ message: () => describeSaveError(error) });
+      });
+    },
+    [backend, loadState.state, setContent, enqueue, settle, show],
+  );
+
+  /**
+   * Whether this paper's blocks are still being renumbered and saved after a drag or a switch. The block and
+   * preamble dialogs rebuild from the page, which may not have the new blocks or numbers yet, so they must
+   * not open until then.
+   */
+  const isRenumbering = useCallback(
+    (paperId: string) => switching.current.has(paperId) || pending.current.some((op) => op.kind === 'reorderBlocks' && op.paperId === paperId),
     [],
   );
 
@@ -362,5 +429,5 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
     [collaborator, loadState, backend, roles, siteBehind, syncSite, approveEdits, siteAccess, saveSiteViewers],
   );
 
-  return { access, privateLoaded, saveResults, saveContentOp, reorderBlocks, reload, isReordering };
+  return { access, privateLoaded, saveResults, saveContentOp, reorderBlocks, switchBlock, reload, isRenumbering };
 }

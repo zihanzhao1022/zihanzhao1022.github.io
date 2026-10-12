@@ -78,11 +78,11 @@ const CopyButton: React.FC<{ text: () => string; label: string; title: string; p
 };
 
 /**
- * Opens the editor turning a figure into a table, or a table into a figure: the version kept from an earlier
- * turn, or the other kind started over with the caption and label kept. The version shown now is kept.
+ * Turns a figure into a table, or a table into a figure: straight to the version kept from an earlier turn,
+ * or through the editor, starting the other kind with the caption and label kept. The version shown now is kept.
  */
 const ConvertButton: React.FC<{ paperId: string; block: ResultBlock }> = ({ paperId, block }) => {
-  const { open } = useEditMode();
+  const { open, switchBlock } = useEditMode();
   const t = useT();
   if (block.kind !== 'figure' && block.kind !== 'table') return null;
   const to = block.kind === 'figure' ? 'table' : 'figure';
@@ -93,7 +93,7 @@ const ConvertButton: React.FC<{ paperId: string; block: ResultBlock }> = ({ pape
   return (
     <button
       type="button"
-      onClick={() => open({ kind: 'block', paperId, blockId: block.id, convertTo: to })}
+      onClick={() => (kept && switchBlock ? switchBlock(paperId, block.id) : open({ kind: 'block', paperId, blockId: block.id, convertTo: to }))}
       title={title}
       className={TOOL}
     >

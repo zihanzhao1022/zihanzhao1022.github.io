@@ -83,7 +83,7 @@ const CollaboratorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
   }, []);
 
   const presence = usePresence(session);
-  const { access, saveResults, reorderBlocks, isReordering } = useResultsEditor({
+  const { access, saveResults, reorderBlocks, isRenumbering } = useResultsEditor({
     session,
     setContent,
     contentRef,
@@ -111,13 +111,13 @@ const CollaboratorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
         setToast({ message: () => access.state === 'loading' ? t('论文还在加载，请稍后再试') : t('暂时读不到共享的论文，请刷新页面重试') });
         return;
       }
-      if (isReordering(next.paperId)) {
-        setToast({ message: () => t('正在保存新的顺序并更新编号，请几秒后再编辑') });
+      if (isRenumbering(next.paperId)) {
+        setToast({ message: () => t('正在更新编号并保存，请几秒后再编辑') });
         return;
       }
       setRequest(next);
     },
-    [session, access, isReordering, t],
+    [session, access, isRenumbering, t],
   );
 
   // EditModeValue.prepare, called by the pages of papers they may edit: like the owner's editor.

@@ -22,6 +22,8 @@ export interface EditModeValue {
   reorder: (collection: ListCollection, ids: string[]) => void;
   /** Saves a new order for the blocks of a results paper. */
   reorderBlocks: (paperId: string, ids: string[]) => void;
+  /** Turns a figure or table into the version it kept (ResultBlock.alternate) without opening the editor. */
+  switchBlock?: (paperId: string, blockId: string) => void;
   /**
    * Gets the editor ready for a results paper while its page is open: the TeX engine, the paper's attachments
    * and the dialogs' code, so the first compile does not wait for them.

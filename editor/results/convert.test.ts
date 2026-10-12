@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { ResultBlock } from '../../types';
-import { captionAndLabel, convertedBlock, convertedSource, filesKeptVersionsUse } from './convert';
+import { ResultBlock, ResultPaper } from '../../types';
+import { captionAndLabel, convertedBlock, convertedSource, filesKeptVersionsUse, switchedOp } from './convert';
+import { applyResultsOp } from './ops';
 import { parseTable } from './table/latex';
 
 const figure = String.raw`\begin{figure}[t]
@@ -50,25 +51,49 @@ describe('convertedBlock', () => {
   const output = { pdf: 'results/p/f-00000000.pdf', width: 1, height: 1 };
   const block: ResultBlock = { id: 'f', kind: 'figure', source: figure, hidden: true, output };
   const myTable = String.raw`\begin{table}\begin{tabular}{l}made-up\end{tabular}\caption{Mine}\label{tab:mine}\end{table}`;
+  const tableOutput = { pdf: 'results/p/f-11111111.pdf', width: 1, height: 1 };
 
-  it('starts the other kind the first time and keeps the figure', () => {
-    const table = convertedBlock(block, 'table');
-    expect(table).toMatchObject({ id: 'f', kind: 'table', hidden: true, output, alternate: { kind: 'figure', source: figure } });
-    expect(table.source).toBe(convertedSource(figure, 'table'));
+  it('starts the other kind the first time and keeps the figure with its PDF', () => {
+    expect(convertedBlock(block, 'table')).toEqual({
+      id: 'f',
+      kind: 'table',
+      hidden: true,
+      source: convertedSource(figure, 'table'),
+      alternate: { kind: 'figure', source: figure, output },
+    });
   });
 
-  it('goes back and forth between the kept versions without losing either', () => {
-    // The owner wrote their own table in place of the starting one and saved it.
-    const table: ResultBlock = { ...convertedBlock(block, 'table'), source: myTable };
-    const back = convertedBlock(table, 'figure');
-    expect(back).toMatchObject({ kind: 'figure', source: figure, alternate: { kind: 'table', source: myTable } });
-    expect(convertedBlock(back, 'table')).toMatchObject({ kind: 'table', source: myTable, alternate: { kind: 'figure', source: figure } });
+  it('goes back and forth between the kept versions and their PDFs without losing either', () => {
+    // The owner wrote their own table in place of the starting one, and saving compiled it.
+    const saved: ResultBlock = { ...convertedBlock(block, 'table'), source: myTable, output: tableOutput };
+    const back = convertedBlock(saved, 'figure');
+    expect(back).toEqual({ id: 'f', kind: 'figure', hidden: true, source: figure, output, alternate: { kind: 'table', source: myTable, output: tableOutput } });
+    expect(convertedBlock(back, 'table')).toEqual(saved);
   });
 
   it('leaves a block that already is that kind, or a text block, as it is', () => {
     expect(convertedBlock(block, 'figure')).toBe(block);
     const text: ResultBlock = { id: 't', kind: 'text', source: 'Plain.' };
     expect(convertedBlock(text, 'table')).toBe(text);
+  });
+
+  describe('switchedOp', () => {
+    it('shows the kept version with its PDF at once, keeping the one it replaces', () => {
+      const saved: ResultBlock = { ...convertedBlock(block, 'table'), source: myTable, output: tableOutput };
+      const paper: ResultPaper = { id: 'p', slug: 'p', title: 'Made-up', authors: [], blocks: [saved] };
+      const [after] = applyResultsOp([paper], switchedOp('p', saved)!);
+      expect(after.blocks).toEqual([{ id: 'f', kind: 'figure', hidden: true, source: figure, output, alternate: { kind: 'table', source: myTable, output: tableOutput } }]);
+    });
+
+    it('leaves the PDF to the rebuild when the kept version was never compiled, and needs a kept version', () => {
+      const restored: ResultBlock = { id: 'f', kind: 'figure', source: figure, output, alternate: { kind: 'table', source: myTable } };
+      expect(switchedOp('p', restored)).toEqual({
+        kind: 'putBlock',
+        paperId: 'p',
+        block: { id: 'f', kind: 'table', source: myTable, alternate: { kind: 'figure', source: figure, output } },
+      });
+      expect(switchedOp('p', { id: 'g', kind: 'figure', source: figure })).toBeNull();
+    });
   });
 });
 

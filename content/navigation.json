@@ -46,7 +46,6 @@
     "id": "results",
     "type": "builtin",
     "page": "results",
-    "label": "results",
-    "hidden": true
+    "label": "results"
   }
 ]

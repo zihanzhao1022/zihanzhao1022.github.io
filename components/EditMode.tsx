@@ -180,7 +180,8 @@ export const EditModeProvider: React.FC<{ loginCallback: LoginCallback | null; c
   );
 };
 
-const PILL =
+/** The labelled edit buttons' look; other buttons in a row of them use it too. */
+export const PILL =
   'inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-purple-200 bg-white text-xs font-medium normal-case tracking-normal text-purple-700 hover:bg-purple-50 align-middle';
 const ROUND =
   'inline-flex items-center justify-center w-8 h-8 rounded-full border border-gray-300 bg-white text-gray-600 shadow-sm hover:border-purple-300 hover:text-purple-700';

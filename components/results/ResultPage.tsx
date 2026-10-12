@@ -8,7 +8,7 @@ import { useT } from '../../lib/phrases/site';
 import { findPaper, shownBlocks } from '../../lib/results';
 import { ResultBlock, ResultPaper } from '../../types';
 import { useContent } from '../ContentContext';
-import { AddButton, EditButton, EditModeContext, HiddenBadge, useEditMode } from '../EditMode';
+import { AddButton, EditButton, EditModeContext, HiddenBadge, PILL, useEditMode } from '../EditMode';
 import { SortableGroup } from '../SortableGroup';
 import { ResultsAccess, canEditShared, isCollaborator, useResultsAccess } from './access';
 import Authors from './Authors';
@@ -40,8 +40,14 @@ const InsertButtons: React.FC<{ paperId: string; afterBlockId?: string }> = ({ p
   );
 };
 
-/** Copies LaTeX to the clipboard without opening an editor. */
-const CopyButton: React.FC<{ text: () => string; label: string; title: string; className?: string }> = ({ text, label, title, className = '' }) => {
+/** Copies LaTeX to the clipboard without opening an editor; `pill` matches the labelled edit buttons beside it. */
+const CopyButton: React.FC<{ text: () => string; label: string; title: string; pill?: boolean; className?: string }> = ({
+  text,
+  label,
+  title,
+  pill = false,
+  className = '',
+}) => {
   const t = useT();
   const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle');
   useEffect(() => {
@@ -60,7 +66,11 @@ const CopyButton: React.FC<{ text: () => string; label: string; title: string; c
       type="button"
       onClick={copy}
       title={title}
-      className={`inline-flex items-center gap-1 h-8 px-2.5 rounded-full border border-gray-300 bg-white text-xs text-gray-600 shadow-sm hover:border-purple-300 hover:text-purple-700 ${className}`}
+      className={`${
+        pill
+          ? PILL
+          : 'inline-flex items-center gap-1 h-8 px-2.5 rounded-full border border-gray-300 bg-white text-xs text-gray-600 shadow-sm hover:border-purple-300 hover:text-purple-700'
+      } ${className}`}
     >
       {state === 'copied' ? <Check size={14} /> : <Copy size={14} />}
       {{ idle: label, copied: t('已复制'), failed: t('复制失败') }[state]}
@@ -503,10 +513,11 @@ const ResultPage: React.FC = () => {
             <EditButton request={{ kind: 'references', paperId: paper.id }} label={t('参考文献')} text={t('参考文献')} className="mt-3 ml-2" />
             {editing && !collaborator && (
               <CopyButton
+                pill
                 text={() => exportPaperTex(paper.blocks)}
                 label={t('导出全文 LaTeX')}
                 title={t('按顺序复制所有块（包括隐藏的）和小节标题，开头注明需要的宏包，不含 References')}
-                className="mt-3 ml-2 align-top"
+                className="mt-3 ml-2"
               />
             )}
           </div>

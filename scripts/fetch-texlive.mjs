@@ -16,6 +16,7 @@
  * "missing" in manifest.json so the worker never asks for it.
  */
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -132,7 +133,10 @@ writeFileSync(join(OUT, 'LICENSE-SwiftLaTeX.txt'), (await download(LICENSE)).dat
 rmSync(join(OUT, 'files'), { recursive: true, force: true });
 mkdirSync(join(OUT, 'files'), { recursive: true });
 
-const manifest = { preload: {}, files: {}, missing: [] };
+// The version names the bundle's contents, so browsers that keep the files (Cache Storage) fetch them again
+// when they change.
+const manifest = { version: '', preload: {}, files: {}, missing: [] };
+const written = [];
 for (const { key, name } of entries) {
   if (name === '-') {
     await assertMissing(key);
@@ -141,15 +145,30 @@ for (const { key, name } of entries) {
     const { data, fileid } = await download(TEXLIVE + key);
     if (fileid !== name) throw new Error(`${key}: server sent ${fileid}, files.txt says ${name}`);
     if (PRELOAD.has(key)) {
-      writeFileSync(join(OUT, 'files', `${name}.gz`), gzipSync(data, { level: 9 }));
+      const gz = gzipSync(data, { level: 9 });
+      writeFileSync(join(OUT, 'files', `${name}.gz`), gz);
+      written.push({ name: `${name}.gz`, data: gz });
       manifest.preload[key] = name;
     } else {
       writeFileSync(join(OUT, 'files', name), data);
+      written.push({ name, data });
       manifest.files[key] = name;
     }
   }
   process.stdout.write('.');
 }
 if (Object.keys(manifest.preload).length !== PRELOAD.size) throw new Error('A preload file is not listed in files.txt');
+manifest.version = bundleVersion(written);
 writeFileSync(join(OUT, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 console.log(`\n${entries.length - manifest.missing.length} files, ${manifest.missing.length} known-missing keys`);
+
+/** A short hash of the bundle: every file's name and bytes, in name order. */
+function bundleVersion(files) {
+  const hash = createHash('sha256');
+  for (const { name, data } of [...files].sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))) {
+    hash.update(name);
+    hash.update('\0');
+    hash.update(data);
+  }
+  return hash.digest('hex').slice(0, 16);
+}

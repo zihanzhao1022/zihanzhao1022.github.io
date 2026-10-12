@@ -15,6 +15,7 @@ import { ContentOp, applyOp, commitMessage } from './ops';
 import { AdminBar, LoadState } from './components/AdminBar';
 import { ItemModal } from './components/ItemModal';
 import { NavigationModal } from './components/NavigationModal';
+import { loadAttachments } from './results/actions';
 import { EditorToast, useResultsEditor } from './results/useResults';
 import { usePresence } from './presence';
 import { AccessRequest, PresenceContext } from '../components/presence';
@@ -224,6 +225,20 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
     void logout(session).finally(() => logoutRef.current());
   }, [session]);
 
+  // EditModeValue.prepare: the engine starts once; each paper's attachments are fetched once per session.
+  const accessRef = useRef(access);
+  accessRef.current = access;
+  const prepared = useRef(new Set<string>());
+  const prepare = useCallback((paperId: string) => {
+    void import('./tex/engine').then(({ warmTexEngine }) => warmTexEngine());
+    void import('./results/BlockEditor').catch(() => undefined);
+    const current = accessRef.current;
+    const paper = contentRef.current.results.find((item) => item.id === paperId);
+    if (!paper || current.state !== 'private' || prepared.current.has(paperId)) return;
+    prepared.current.add(paperId);
+    loadAttachments(paper, current.readFile).catch(() => prepared.current.delete(paperId));
+  }, []);
+
   const closeDialog = useCallback(() => setRequest(null), []);
 
   const value = useMemo<EditModeValue>(
@@ -236,8 +251,9 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
       login: relogin,
       reorder,
       reorderBlocks,
+      prepare,
     }),
-    [enabled, loadState, open, relogin, reorder, reorderBlocks],
+    [enabled, loadState, open, relogin, reorder, reorderBlocks, prepare],
   );
 
   const paper =

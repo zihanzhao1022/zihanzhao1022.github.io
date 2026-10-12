@@ -2,6 +2,7 @@ import React, { Suspense, createContext, lazy, useCallback, useContext, useEffec
 import { Message, say, useMessage } from '../lib/i18n';
 import { EyeOff, Pencil, Plus, X } from 'lucide-react';
 import { loginConfigured } from '../editor/config';
+import { clearFileCaches } from '../lib/fileCache';
 import { t, useT } from '../lib/phrases/site';
 import { LoginCallback, MOCK_MODE, Session, loadSession } from '../lib/session';
 import { EditRequest, ListCollection } from '../types';
@@ -21,6 +22,11 @@ export interface EditModeValue {
   reorder: (collection: ListCollection, ids: string[]) => void;
   /** Saves a new order for the blocks of a results paper. */
   reorderBlocks: (paperId: string, ids: string[]) => void;
+  /**
+   * Gets the editor ready for a results paper while its page is open: the TeX engine, the paper's attachments
+   * and the dialogs' code, so the first compile does not wait for them.
+   */
+  prepare?: (paperId: string) => void;
 }
 
 const noop = (): void => {};
@@ -131,6 +137,8 @@ export const EditModeProvider: React.FC<{ loginCallback: LoginCallback | null; c
 
   const handleLogout = useCallback((message?: string) => {
     setSession(null);
+    // Private papers' files stay on this device only while someone is signed in.
+    void clearFileCaches();
     if (message) setToast(() => message);
   }, []);
 

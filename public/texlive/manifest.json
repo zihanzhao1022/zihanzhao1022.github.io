@@ -1,4 +1,5 @@
 {
+  "version": "a1371b57207e357d",
   "preload": {
     "10/swiftlatexpdftex.fmt": "swiftlatexpdftex.fmt",
     "11/pdftex.map": "pdftex.map"

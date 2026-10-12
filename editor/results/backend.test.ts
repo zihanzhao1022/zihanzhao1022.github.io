@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ResultPaper } from '../../types';
 import { ConflictError } from '../errors';
 import { GitHubApi, GitHubError, RepoFile, TreeEntry, WorkflowRun } from '../github';
-import { GENERIC_PUBLIC_MESSAGE, RESULTS_PATH, createResultsBackend, toBase64 } from './backend';
+import { GENERIC_PUBLIC_MESSAGE, RESULTS_PATH, ResultsSaveResult, createResultsBackend, toBase64 } from './backend';
 import { snapshotText } from './snapshot';
 
 const output = (pdf: string) => ({ pdf, width: 300, height: 90 });
@@ -128,6 +128,48 @@ describe('saving an unpublished paper', () => {
     expect(privateRepo.headSha).toHaveBeenCalledTimes(2);
   });
 
+  it('reads the head and its tree in one request, and results.json only after the branch moved', async () => {
+    const privateRepo = { ...fakeRepo({ [RESULTS_PATH]: JSON.stringify([draft]) }), branchHead: vi.fn(async () => ({ commit: 'head1', tree: 'tree1' })) };
+    const backend = createResultsBackend(privateRepo, fakeRepo());
+    await backend.load();
+    privateRepo.readBytes.mockClear();
+    await backend.save({ kind: 'setBlockHidden', paperId: 'p1', blockId: 'b1', hidden: true }, [], [], 'm', 'pm');
+    expect(privateRepo.branchHead).toHaveBeenCalledTimes(1);
+    expect(privateRepo.treeSha).not.toHaveBeenCalled();
+    // The branch is where loading left it, so its results.json is the one already read.
+    expect(privateRepo.readBytes).not.toHaveBeenCalled();
+    // The fake branch stays at head1, so someone else must have committed since the save made commit1.
+    await backend.save({ kind: 'setBlockHidden', paperId: 'p1', blockId: 'b1', hidden: false }, [], [], 'm', 'pm');
+    expect(privateRepo.readBytes).toHaveBeenCalledWith(RESULTS_PATH, 'head1');
+  });
+
+  it('asks the branch itself again after a conflict', async () => {
+    const privateRepo = { ...fakeRepo({ [RESULTS_PATH]: '[]' }), branchHead: vi.fn(async () => ({ commit: 'stale', tree: 'stale-tree' })) };
+    privateRepo.updateBranch.mockRejectedValueOnce(new GitHubError('GitHub 返回 422', 422));
+    await createResultsBackend(privateRepo, fakeRepo()).save({ kind: 'putPaper', paper: draft }, [], [], 'm', 'pm');
+    expect(privateRepo.branchHead).toHaveBeenCalledTimes(1);
+    expect(privateRepo.createCommit).toHaveBeenLastCalledWith('m', 'tree2', 'head1');
+  });
+
+  it('keeps the files it reads in the browser, and finds them there next time', async () => {
+    const pdf = new Uint8Array([7]);
+    const kept = new Map<string, Uint8Array>();
+    const cache = {
+      read: vi.fn(async (path: string, version?: string) => kept.get(`${path}#${version ?? ''}`) ?? null),
+      remember: vi.fn((path: string, data: Uint8Array, version?: string) => void kept.set(`${path}#${version ?? ''}`, data)),
+    };
+    const privateRepo = fakeRepo({}, { 'results/p1/b1-1234abcd.pdf': pdf, 'results/p1/files/fig.png': pdf });
+    await createResultsBackend(privateRepo, fakeRepo(), cache).readFile('results/p1/b1-1234abcd.pdf');
+    await createResultsBackend(privateRepo, fakeRepo(), cache).readFile('results/p1/files/fig.png', 'hash1');
+    expect(cache.remember).toHaveBeenCalledWith('results/p1/files/fig.png', pdf, 'hash1');
+    // A new session (backend) of the same browser.
+    privateRepo.readBytes.mockClear();
+    const later = createResultsBackend(privateRepo, fakeRepo(), cache);
+    expect(await later.readFile('results/p1/b1-1234abcd.pdf')).toBe(pdf);
+    expect(await later.readFile('results/p1/files/fig.png', 'hash1')).toBe(pdf);
+    expect(privateRepo.readBytes).not.toHaveBeenCalled();
+  });
+
   it('gives up after three conflicts', async () => {
     const privateRepo = fakeRepo({ [RESULTS_PATH]: '[]' });
     privateRepo.updateBranch.mockRejectedValue(new GitHubError('GitHub 返回 422', 422));
@@ -137,6 +179,17 @@ describe('saving an unpublished paper', () => {
   });
 });
 
+/** A save and the site update that follows it (ResultsSaveResult.publish), as the editor runs them. */
+async function saved(save: Promise<ResultsSaveResult>): Promise<ResultsSaveResult> {
+  const result = await save;
+  if (!result.publish) return result;
+  try {
+    return { ...result, publicCommit: await result.publish() };
+  } catch (publicError) {
+    return { ...result, publicCommit: null, publicError };
+  }
+}
+
 describe('publishing', () => {
   const pdf = new Uint8Array([5, 6]);
   const privateFiles = { 'results/p1/b1-old.pdf': pdf };
@@ -144,12 +197,14 @@ describe('publishing', () => {
   it('copies the published files and snapshot to the site when a paper is unhidden', async () => {
     const privateRepo = fakeRepo({ [RESULTS_PATH]: JSON.stringify([draft]) }, privateFiles);
     const publicRepo = fakeRepo({ 'content/results.json': '[]\n' }, {}, ['public/results/old/stale.pdf']);
-    const result = await createResultsBackend(privateRepo, publicRepo).save(
-      { kind: 'setPaperHidden', id: 'p1', hidden: false },
-      [],
-      [],
-      'results: publish "Draft paper"',
-      'content: publish result "Draft paper"',
+    const result = await saved(
+      createResultsBackend(privateRepo, publicRepo).save(
+        { kind: 'setPaperHidden', id: 'p1', hidden: false },
+        [],
+        [],
+        'results: publish "Draft paper"',
+        'content: publish result "Draft paper"',
+      ),
     );
 
     expect(result.publicCommit).toBe('commit1');
@@ -165,7 +220,7 @@ describe('publishing', () => {
     const published = { ...draft, hidden: undefined };
     const privateRepo = fakeRepo({ [RESULTS_PATH]: JSON.stringify([published]) }, privateFiles);
     const publicRepo = fakeRepo({ 'content/results.json': snapshotText([published]) }, {}, ['public/results/p1/b1-old.pdf']);
-    await createResultsBackend(privateRepo, publicRepo).save({ kind: 'setPaperHidden', id: 'p1', hidden: true }, [], [], 'm', 'pm');
+    await saved(createResultsBackend(privateRepo, publicRepo).save({ kind: 'setPaperHidden', id: 'p1', hidden: true }, [], [], 'm', 'pm'));
     expect(publicRepo.createTree).toHaveBeenCalledWith('tree1', [
       { path: 'content/results.json', mode: '100644', type: 'blob', content: '[]\n' },
       { path: 'public/results/p1/b1-old.pdf', mode: '100644', type: 'blob', sha: null },
@@ -176,12 +231,14 @@ describe('publishing', () => {
     const published = { ...draft, hidden: undefined, blocks: [...draft.blocks, { id: 'b2', kind: 'text' as const, hidden: true }] };
     const privateRepo = fakeRepo({ [RESULTS_PATH]: JSON.stringify([published]) }, privateFiles);
     const publicRepo = fakeRepo({ 'content/results.json': snapshotText([published]) }, {}, ['public/results/p1/b1-old.pdf']);
-    const result = await createResultsBackend(privateRepo, publicRepo).save(
-      { kind: 'putBlock', paperId: 'p1', block: { id: 'b2', kind: 'text', hidden: true, source: 'still hidden' } },
-      [],
-      [],
-      'm',
-      'pm',
+    const result = await saved(
+      createResultsBackend(privateRepo, publicRepo).save(
+        { kind: 'putBlock', paperId: 'p1', block: { id: 'b2', kind: 'text', hidden: true, source: 'still hidden' } },
+        [],
+        [],
+        'm',
+        'pm',
+      ),
     );
     expect(result.publicCommit).toBeNull();
     expect(publicRepo.createCommit).not.toHaveBeenCalled();
@@ -193,12 +250,14 @@ describe('publishing', () => {
     const privateRepo = fakeRepo({ [RESULTS_PATH]: JSON.stringify([published, secret]) }, privateFiles);
     // The site is out of date (an earlier sync failed), so this save of the hidden paper triggers a site commit.
     const publicRepo = fakeRepo({ 'content/results.json': '[]\n' });
-    await createResultsBackend(privateRepo, publicRepo).save(
-      { kind: 'putBlock', paperId: 'p1', block: { id: 'b1', kind: 'table', source: '% new' } },
-      [],
-      [],
-      'results: update block in "Secret submission"',
-      'content: update result "Secret submission"',
+    await saved(
+      createResultsBackend(privateRepo, publicRepo).save(
+        { kind: 'putBlock', paperId: 'p1', block: { id: 'b1', kind: 'table', source: '% new' } },
+        [],
+        [],
+        'results: update block in "Secret submission"',
+        'content: update result "Secret submission"',
+      ),
     );
     expect(publicRepo.createCommit).toHaveBeenCalledWith(GENERIC_PUBLIC_MESSAGE, 'tree2', 'head1');
   });
@@ -210,11 +269,11 @@ describe('publishing', () => {
     publicRepo.updateBranch.mockRejectedValueOnce(new GitHubError('GitHub 返回 500', 500));
     const backend = createResultsBackend(privateRepo, publicRepo);
     // Hiding the only published paper: the sync fails, so the site still shows it.
-    const failed = await backend.save({ kind: 'setPaperHidden', id: 'p1', hidden: true }, [], [], 'm', 'pm');
+    const failed = await saved(backend.save({ kind: 'setPaperHidden', id: 'p1', hidden: true }, [], [], 'm', 'pm'));
     expect(failed.publicError).toBeDefined();
     // Nothing is published any more, yet the next save still brings the site up to date.
     privateRepo.readBytes.mockImplementation(async () => new TextEncoder().encode(JSON.stringify(failed.papers)));
-    const next = await backend.save({ kind: 'reorderPapers', ids: ['p1'] }, [], [], 'm', 'content: reorder results');
+    const next = await saved(backend.save({ kind: 'reorderPapers', ids: ['p1'] }, [], [], 'm', 'content: reorder results'));
     expect(next.publicCommit).toBe('commit1');
     const calls = publicRepo.createTree.mock.calls;
     expect(calls[calls.length - 1][1]).toContainEqual({ path: 'content/results.json', mode: '100644', type: 'blob', content: '[]\n' });
@@ -231,22 +290,26 @@ describe('publishing', () => {
     privateRepo.headSha.mockRejectedValueOnce(new GitHubError('网络连接失败', 0));
     await expect(backend.resync(GENERIC_PUBLIC_MESSAGE)).rejects.toThrow();
     // So a later save of the hidden paper still brings the site up to date.
-    const result = await backend.save({ kind: 'putBlock', paperId: 'p1', block: { id: 'b1', kind: 'table', source: '% new' } }, [], [], 'm', 'pm');
+    const result = await saved(backend.save({ kind: 'putBlock', paperId: 'p1', block: { id: 'b1', kind: 'table', source: '% new' } }, [], [], 'm', 'pm'));
     expect(result.publicCommit).toBe('commit1');
     expect(publicRepo.createCommit).toHaveBeenCalledWith(GENERIC_PUBLIC_MESSAGE, 'tree2', 'head1');
+  });
+
+  it('returns once the private commit is in, leaving the site for later', async () => {
+    const privateRepo = fakeRepo({ [RESULTS_PATH]: JSON.stringify([draft]) }, privateFiles);
+    const publicRepo = fakeRepo({ 'content/results.json': '[]\n' });
+    const result = await createResultsBackend(privateRepo, publicRepo).save({ kind: 'setPaperHidden', id: 'p1', hidden: false }, [], [], 'm', 'pm');
+    expect(privateRepo.updateBranch).toHaveBeenCalledWith('commit1');
+    expect(publicRepo.createCommit).not.toHaveBeenCalled();
+    expect(await result.publish?.()).toBe('commit1');
+    expect(publicRepo.createCommit).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the private save when updating the site fails', async () => {
     const privateRepo = fakeRepo({ [RESULTS_PATH]: JSON.stringify([draft]) }, privateFiles);
     const publicRepo = fakeRepo({ 'content/results.json': '[]\n' });
     publicRepo.updateBranch.mockRejectedValue(new GitHubError('GitHub 返回 500', 500));
-    const result = await createResultsBackend(privateRepo, publicRepo).save(
-      { kind: 'setPaperHidden', id: 'p1', hidden: false },
-      [],
-      [],
-      'm',
-      'pm',
-    );
+    const result = await saved(createResultsBackend(privateRepo, publicRepo).save({ kind: 'setPaperHidden', id: 'p1', hidden: false }, [], [], 'm', 'pm'));
     expect(privateRepo.updateBranch).toHaveBeenCalledWith('commit1');
     expect(result.publicCommit).toBeNull();
     expect(result.publicError).toMatchObject({ status: 500 });

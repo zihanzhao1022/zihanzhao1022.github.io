@@ -1,3 +1,4 @@
+import type { FileCache } from '../../lib/fileCache';
 import { Message, N_, PhraseError } from '../../lib/i18n';
 import { t } from '../../lib/phrases/results';
 import { EDITOR_CONFIG } from '../config';
@@ -31,8 +32,15 @@ const MESSAGES: Record<number, string> = {
 export const tooLarge = (path: string): WorkerError =>
   new WorkerError(() => t('{name} 超过 1 MB，协作者暂时不能上传这么大的文件', { name: path.split('/').pop() ?? path }), 413);
 
-/** A collaborator's results backend: every read and write goes through the worker with their session. */
-export function createWorkerResultsBackend(session: string, fetchImpl: typeof fetch = (input, init) => fetch(input, init)): ResultsBackend {
+/**
+ * A collaborator's results backend: every read and write goes through the worker with their session. `cache`
+ * keeps the files this browser has read (see lib/fileCache).
+ */
+export function createWorkerResultsBackend(
+  session: string,
+  fetchImpl: typeof fetch = (input, init) => fetch(input, init),
+  cache?: FileCache,
+): ResultsBackend {
   const base = EDITOR_CONFIG.workerUrl.replace(/\/+$/, '');
 
   async function call(path: string, body: unknown): Promise<Response> {
@@ -55,10 +63,16 @@ export function createWorkerResultsBackend(session: string, fetchImpl: typeof fe
   }
 
   const files = new Map<string, Promise<Uint8Array>>();
-  const readFile = (path: string): Promise<Uint8Array> => {
+  const readFile = (path: string, version?: string): Promise<Uint8Array> => {
     let bytes = files.get(path);
     if (!bytes) {
-      bytes = call('/results/file', { path }).then(async (res) => new Uint8Array(await res.arrayBuffer()));
+      bytes = (async () => {
+        const kept = await cache?.read(path, version);
+        if (kept) return kept;
+        const data = new Uint8Array(await (await call('/results/file', { path })).arrayBuffer());
+        cache?.remember(path, data, version);
+        return data;
+      })();
       files.set(path, bytes);
       bytes.catch(() => files.delete(path));
     }

@@ -36,6 +36,8 @@ export interface WorkflowRun {
 export interface GitHubApi {
   headSha(): Promise<string>;
   treeSha(commitSha: string): Promise<string>;
+  /** The branch's head commit and its tree, in one request instead of headSha and treeSha. */
+  branchHead?(): Promise<{ commit: string; tree: string }>;
   readText(path: string, ref: string): Promise<string>;
   /** Like readText, but null when the file does not exist. */
   readTextIfExists(path: string, ref: string): Promise<string | null>;
@@ -99,6 +101,10 @@ export function createGitHubApi(
   return {
     headSha: async () => (await request<{ object: { sha: string } }>(`/git/ref/heads/${repo.branch}`)).object.sha,
     treeSha: async (commitSha) => (await request<{ tree: { sha: string } }>(`/git/commits/${commitSha}`)).tree.sha,
+    branchHead: async () => {
+      const branch = await request<{ commit: { sha: string; commit: { tree: { sha: string } } } }>(`/branches/${encodeURIComponent(repo.branch)}`);
+      return { commit: branch.commit.sha, tree: branch.commit.commit.tree.sha };
+    },
     readText,
     readTextIfExists: async (path, ref) => {
       try {

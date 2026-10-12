@@ -52,7 +52,7 @@ const ReferencesEditor: React.FC<Props> = ({ paper, readFile, onSave, onClose })
   useEffect(() => {
     if (!exists) return undefined;
     let cancelled = false;
-    readFile(attachmentPath(paper.id, REFERENCES_FILE))
+    readFile(attachmentPath(paper.id, REFERENCES_FILE), paper.fileHashes?.[REFERENCES_FILE])
       .then((bytes) => {
         if (cancelled) return;
         const loaded = new TextDecoder().decode(bytes);

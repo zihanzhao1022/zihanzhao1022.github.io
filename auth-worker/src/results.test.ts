@@ -109,6 +109,7 @@ function fakeGitHub(user: { login: string; id: number } = ALICE) {
       return file ? new Response(file) : reply({ message: 'Not Found' }, 404);
     }
     if (route === `GET ${REPO}/git/ref/heads/main`) return reply({ object: { sha: head } });
+    if (route === `GET ${REPO}/branches/main`) return reply({ commit: { sha: head, commit: { tree: { sha: `tree-of-${head}` } } } });
     if (method === 'GET' && path.startsWith('/git/commits/')) return reply({ tree: { sha: `tree-of-${path.slice(13)}` } });
     if (method === 'GET' && path.startsWith('/git/trees/')) {
       return reply({ truncated: false, tree: [...files.keys()].map((name) => ({ path: name, type: 'blob', sha: `sha-${name}` })) });

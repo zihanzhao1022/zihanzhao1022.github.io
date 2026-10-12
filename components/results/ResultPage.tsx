@@ -291,6 +291,13 @@ const ResultPage: React.FC = () => {
     setPaper(paperId);
     return () => setPaper(null);
   }, [setPaper, paperId]);
+  // Someone who may edit the paper likely will: get the editor ready once the page itself has had its turn.
+  const prepare = editMode.prepare;
+  useEffect(() => {
+    if (!editing || !prepare || !paperId) return undefined;
+    const timer = setTimeout(() => prepare(paperId), 1000);
+    return () => clearTimeout(timer);
+  }, [editing, prepare, paperId]);
   const [reading, setReading] = useState<string | null>(null);
   const onBlockInView = useCallback(
     (blockId: string | null) => {

@@ -110,11 +110,9 @@ export function createMockResultsBackend(): ResultsBackend {
       console.info(`[mock private commit] ${message}`, { write: writes.map((write) => write.path), delete: deletes });
       const result = structuredClone(data.papers);
       if (!hasPublished(before) && !hasPublished(data.papers)) return { papers: result, publicCommit: null };
-      try {
-        return { papers: result, publicCommit: await syncPublic(data.papers, publicMessage) };
-      } catch (publicError) {
-        return { papers: result, publicCommit: null, publicError };
-      }
+      // Like the real backend, the site's copy is updated after the save returns.
+      const papers = data.papers;
+      return { papers: result, publicCommit: null, publish: () => syncPublic(papers, publicMessage) };
     },
 
     syncPublic,

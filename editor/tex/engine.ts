@@ -1,7 +1,8 @@
 /**
  * pdfTeX (SwiftLaTeX, WebAssembly) in a worker. The site bundles the engine and common TeX Live files
- * under public/texlive/; anything else comes from TeXlyre's TeX Live server and is kept in Cache Storage.
- * Only file names leave the browser, never the document being compiled.
+ * under public/texlive/; anything else comes from TeXlyre's TeX Live server. Both kinds of files are kept in
+ * Cache Storage and handed to the worker when it starts, so compiles rarely wait for a download. Only file
+ * names leave the browser, never the document being compiled.
  */
 import { N_, PhraseError } from '../../lib/i18n';
 import { t } from '../../lib/phrases/results';
@@ -34,9 +35,11 @@ export interface TexEngine {
 }
 
 interface Manifest {
-  /** Handed to the worker up front; stored as files/<name>.gz. */
+  /** Names the bundle's contents (scripts/fetch-texlive.mjs); Cache Storage keeps one version. */
+  version?: string;
+  /** Stored as files/<name>.gz. */
   preload: Record<string, string>;
-  /** Fetched by the worker from files/ when TeX asks: "format/request" → file name. */
+  /** "format/request" → file name below files/; the worker fetches them itself if they were not handed over. */
   files: Record<string, string>;
   /** Requests known to have no file, so the worker never asks the remote server for them. */
   missing?: string[];
@@ -62,6 +65,7 @@ interface PreloadFile {
 }
 
 const REMOTE_CACHE = 'texlive-remote-v1';
+const BUNDLE_CACHE = 'texlive-bundle-';
 /** A compile that runs longer is stuck (e.g. a macro that expands forever); its worker is replaced. */
 const COMPILE_TIMEOUT_MS = 45_000;
 /** Starting takes a few MB of downloads the first time; a start that takes longer has stalled. */
@@ -97,6 +101,42 @@ async function cachedRemoteFiles(): Promise<PreloadFile[]> {
     // Cache Storage can be unavailable (private windows); the files are simply downloaded again.
     return [];
   }
+}
+
+/** Cache Storage for this version of the bundle, after dropping older versions; null without Cache Storage. */
+async function bundleCache(version: string | undefined): Promise<Cache | null> {
+  if (!version) return null;
+  try {
+    const name = BUNDLE_CACHE + version;
+    for (const old of await caches.keys()) if (old.startsWith(BUNDLE_CACHE) && old !== name) void caches.delete(old);
+    return await caches.open(name);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Every file of the site's bundle, fetched side by side (from Cache Storage after the first time) rather than
+ * one at a time while TeX waits. Only the preload files are required: the worker fetches any other file it
+ * did not get here when TeX asks for it.
+ */
+async function bundledFiles(manifest: Manifest): Promise<PreloadFile[]> {
+  const cache = await bundleCache(manifest.version);
+  const load = async (key: string, fileid: string, gzipped: boolean): Promise<PreloadFile> => {
+    const url = assetUrl(`files/${gzipped ? `${fileid}.gz` : fileid}`);
+    let res = await cache?.match(url).catch(() => undefined);
+    if (!res) {
+      res = await fetch(url);
+      if (!res.ok) throw new PhraseError(() => t(LOAD_FAILED));
+      if (cache) void cache.put(url, res.clone()).catch(() => undefined);
+    }
+    return { key, fileid, data: gzipped ? await gunzip(res) : await res.arrayBuffer() };
+  };
+  const [required, optional] = await Promise.all([
+    Promise.all(Object.entries(manifest.preload).map(([key, fileid]) => load(key, fileid, true))),
+    Promise.all(Object.entries(manifest.files).map(([key, fileid]) => load(key, fileid, false).catch(() => null))),
+  ]);
+  return [...required, ...optional.filter((file): file is PreloadFile => file !== null)];
 }
 
 function rememberRemoteFile(key: string, fileid: string, data: ArrayBuffer): void {
@@ -251,19 +291,18 @@ async function setUp(worker: Worker, onCrash: () => void): Promise<TexEngine> {
   if (!res.ok) throw new PhraseError(() => t(LOAD_FAILED));
   const manifest = (await res.json()) as Manifest;
   worker.postMessage({ cmd: 'setbundle', base: assetUrl('files/'), files: manifest.files, missing: manifest.missing ?? [] });
-  const bundled = await Promise.all(
-    Object.entries(manifest.preload).map(async ([key, fileid]) => ({
-      key,
-      fileid,
-      data: await gunzip(await fetch(assetUrl(`files/${fileid}.gz`))),
-    })),
-  );
+  const [bundled, remote] = await Promise.all([bundledFiles(manifest), cachedRemoteFiles()]);
   const engine = new WorkerEngine(worker, onCrash);
-  await engine.preload([...bundled, ...(await cachedRemoteFiles())]);
+  await engine.preload([...bundled, ...remote]);
   return engine;
 }
 
 let started: Promise<TexEngine> | null = null;
+
+/** Starts the shared engine ahead of the first compile, e.g. when an editor opens a paper. */
+export function warmTexEngine(): void {
+  getTexEngine().catch(() => undefined);
+}
 
 /** The shared engine, started on first use (a few MB of downloads the first time). */
 export function getTexEngine(): Promise<TexEngine> {

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { PDFDocumentLoadingTask, RenderTask } from 'pdfjs-dist';
 import { useT } from '../../lib/phrases/site';
-import { loadPdfjs } from './pdfjs';
+import { loadPdfjs, openPdf } from './pdfjs';
 import { renderPdfLinks } from './pdfLinks';
 import {
   citationId,
@@ -73,7 +73,11 @@ const PdfView: React.FC<Props> = ({ data, url, width, height, className = '', on
     (async () => {
       const pdfjs = await loadPdfjs();
       if (cancelled) return;
-      loading = pdfjs.getDocument(data ? { data: data.slice() } : { url });
+      loading = await openPdf(data ? { data: data.slice() } : { url: url as string });
+      if (cancelled) {
+        void loading.destroy();
+        return;
+      }
       const doc = await loading.promise;
       const page = await doc.getPage(1);
       if (cancelled) return;

@@ -8,7 +8,8 @@ import { REFERENCES_FILE, compileBlock, compileReferences, describeIssue } from 
 import { CompileFn, RebuildResult, ReferencesBuilder, rebuild } from './numbering';
 import { ResultsOp } from './ops';
 
-export type ReadFile = (path: string) => Promise<Uint8Array>;
+/** A private file's bytes; `version`, an attachment's content hash, lets the browser keep it (lib/fileCache). */
+export type ReadFile = (path: string, version?: string) => Promise<Uint8Array>;
 
 export const attachmentPath = (paperId: string, name: string): string => `results/${paperId}/files/${name}`;
 
@@ -17,7 +18,7 @@ export const preambleOf = (paper: ResultPaper): string => paper.preamble ?? DEFA
 /** The paper's attachments by file name, as compiles need them next to main.tex. */
 export async function loadAttachments(paper: ResultPaper, readFile: ReadFile): Promise<Record<string, Uint8Array>> {
   const entries = await Promise.all(
-    (paper.files ?? []).map(async (name) => [name, await readFile(attachmentPath(paper.id, name))] as const),
+    (paper.files ?? []).map(async (name) => [name, await readFile(attachmentPath(paper.id, name), paper.fileHashes?.[name])] as const),
   );
   return Object.fromEntries(entries);
 }

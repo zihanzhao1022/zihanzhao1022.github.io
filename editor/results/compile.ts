@@ -2,7 +2,7 @@ import { t } from '../../lib/phrases/results';
 import { BlockKind, buildBlockDocument } from '../tex/document';
 import { TexEngine } from '../tex/engine';
 import { locateLine, parseAuxCitations, parseAuxLabels, parseCounters, parseErrors, parseWarnings } from '../tex/log';
-import { referencedLabels } from './numbering';
+import { citedKeys, referencedLabels } from './numbering';
 
 export interface BlockIssue {
   message: string;
@@ -61,10 +61,55 @@ async function runOnce(engine: TexEngine, input: BlockCompileInput, labels: Reco
 }
 
 /**
- * Compiles one block in its place on the page. A block that refers to its own new labels is compiled a
- * second time with them, so references inside one block resolve like they would in the paper.
+ * What a compile's result depends on, as in inputHash: labels the block refers to and entries it cites, not
+ * the page's others. The attachments are the object the results are kept under (see compileBlock).
  */
-export async function compileBlock(engine: TexEngine, input: BlockCompileInput, measure: Measure): Promise<BlockCompileResult> {
+function compileKey(input: BlockCompileInput): string {
+  return JSON.stringify([
+    input.preamble,
+    input.source,
+    input.kind,
+    input.appendix === true,
+    Object.keys(input.counters)
+      .sort()
+      .map((name) => [name, input.counters[name]]),
+    referencedLabels(input.source).map((name) => [name, input.labels[name] ?? null]),
+    citedKeys(input.source).map((key) => [key, input.citations?.[key] ?? null]),
+  ]);
+}
+
+/** Recent successful compiles by their inputs, for each set of attachments (an editor's files object). */
+const recent = new WeakMap<object, Map<string, Promise<BlockCompileResult>>>();
+const RECENT_LIMIT = 8;
+
+/**
+ * Compiles one block in its place on the page. The same block in the same place gives the same result, so a
+ * recent compile with these inputs is reused: saving a block takes the preview's compile.
+ */
+export function compileBlock(engine: TexEngine, input: BlockCompileInput, measure: Measure): Promise<BlockCompileResult> {
+  let kept = recent.get(input.files);
+  if (!kept) {
+    kept = new Map();
+    recent.set(input.files, kept);
+  }
+  const key = compileKey(input);
+  const known = kept.get(key);
+  if (known) return known;
+  const result = compileAnew(engine, input, measure);
+  kept.set(key, result);
+  if (kept.size > RECENT_LIMIT) kept.delete(kept.keys().next().value as string);
+  const forget = (): void => {
+    if (kept?.get(key) === result) kept.delete(key);
+  };
+  result.then((done) => !done.ok && forget(), forget);
+  return result;
+}
+
+/**
+ * A block that refers to its own new labels is compiled a second time with them, so references inside one
+ * block resolve like they would in the paper.
+ */
+async function compileAnew(engine: TexEngine, input: BlockCompileInput, measure: Measure): Promise<BlockCompileResult> {
   let run = await runOnce(engine, input, input.labels);
   const references = referencedLabels(input.source);
   if (run.issues.length === 0 && references.some((name) => run.labels[name] !== undefined && run.labels[name] !== input.labels[name])) {

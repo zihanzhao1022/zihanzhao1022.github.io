@@ -56,6 +56,28 @@ describe('compileBlock', () => {
     expect(result.ok).toBe(true);
   });
 
+  it('reuses a compile with the same inputs and attachments, as saving does after the preview', async () => {
+    const files = {};
+    const run = { ok: true, status: 0, pdf, log: '', aux: '' };
+    const engine = scriptedEngine({ ...run }, { ...run });
+    const first = await compileBlock(engine, input('see \\ref{fig:a}', { files, labels: { 'fig:a': '{1}{1}', 'tab:b': '{2}{1}' } }), measure);
+    // Only a label the block does not refer to changed: the same result.
+    const again = await compileBlock(engine, input('see \\ref{fig:a}', { files, labels: { 'fig:a': '{1}{1}', 'tab:b': '{3}{1}' } }), measure);
+    expect(again).toBe(first);
+    expect(engine.inputs).toHaveLength(1);
+    // The label it refers to changed.
+    await compileBlock(engine, input('see \\ref{fig:a}', { files, labels: { 'fig:a': '{2}{1}' } }), measure);
+    expect(engine.inputs).toHaveLength(2);
+  });
+
+  it('does not keep a failed compile', async () => {
+    const files = {};
+    const engine = scriptedEngine({ ok: false, status: 1, log: '', aux: '' }, { ok: true, status: 0, pdf, log: '', aux: '' });
+    expect((await compileBlock(engine, input('x', { files }), measure)).ok).toBe(false);
+    expect((await compileBlock(engine, input('x', { files }), measure)).ok).toBe(true);
+    expect(engine.inputs).toHaveLength(2);
+  });
+
   it('does not compile twice when the references were already known', async () => {
     const engine = scriptedEngine({ ok: true, status: 0, pdf, log: '', aux: '\\newlabel{eq:a}{{1}{1}}\n' });
     await compileBlock(engine, input('x\\label{eq:a} \\ref{eq:a}', { labels: { 'eq:a': '{1}{1}' } }), measure);

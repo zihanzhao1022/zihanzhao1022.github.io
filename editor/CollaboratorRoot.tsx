@@ -8,6 +8,7 @@ import { useT } from '../lib/phrases/site';
 import { Session, clearSession, isExpiringSoon } from '../lib/session';
 import { EditRequest } from '../types';
 import { logout, startLogin } from './auth';
+import { loadAttachments } from './results/actions';
 import { EditorToast, useResultsEditor } from './results/useResults';
 import { usePresence } from './presence';
 import { PresenceContext } from '../components/presence';
@@ -119,6 +120,20 @@ const CollaboratorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
     [session, access, isReordering, t],
   );
 
+  // EditModeValue.prepare, called by the pages of papers they may edit: like the owner's editor.
+  const accessRef = useRef(access);
+  accessRef.current = access;
+  const prepared = useRef(new Set<string>());
+  const prepare = useCallback((paperId: string) => {
+    void import('./tex/engine').then(({ warmTexEngine }) => warmTexEngine());
+    void import('./results/BlockEditor').catch(() => undefined);
+    const current = accessRef.current;
+    const paper = contentRef.current.results.find((item) => item.id === paperId);
+    if (!paper || current.state !== 'private' || !canEditShared(current, paperId) || prepared.current.has(paperId)) return;
+    prepared.current.add(paperId);
+    loadAttachments(paper, current.readFile).catch(() => prepared.current.delete(paperId));
+  }, []);
+
   const value = useMemo<EditModeValue>(
     () => ({
       // The site stays read-only; a results page turns editing on for a paper they may edit.
@@ -130,8 +145,9 @@ const CollaboratorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
       login: relogin,
       reorder: noop,
       reorderBlocks,
+      prepare,
     }),
-    [access.state, open, relogin, reorderBlocks],
+    [access.state, open, relogin, reorderBlocks, prepare],
   );
 
   const handleLogout = useCallback(() => {

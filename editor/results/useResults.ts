@@ -161,6 +161,37 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
     );
   }, [backend, enqueue]);
 
+  const publicFailed = useCallback(() => {
+    setSiteBehind(true);
+    callbacks.current.onToast({ message: () => t('已保存，但更新网站上的公开内容失败'), action: { label: () => t('重试'), onClick: syncSite } });
+  }, [syncSite]);
+
+  /**
+   * The site's copy still to update after a save (ResultsSaveResult.publish), queued behind it. A newer one
+   * replaces one that has not started: each brings the site up to date with the latest list.
+   */
+  const waitingPublish = useRef<(() => Promise<string | null>) | null>(null);
+  const publishLater = useCallback(
+    (publish: () => Promise<string | null>) => {
+      const queued = waitingPublish.current !== null;
+      waitingPublish.current = publish;
+      if (queued) return;
+      enqueue(async () => {
+        const run = waitingPublish.current;
+        waitingPublish.current = null;
+        if (!run) return;
+        try {
+          const sha = await run();
+          setSiteBehind(false);
+          if (sha) callbacks.current.onDeploy(sha);
+        } catch {
+          publicFailed();
+        }
+      });
+    },
+    [enqueue, publicFailed],
+  );
+
   /** Takes in a finished save: the new list, the deployment it started, and whether the site kept up. */
   const settle = useCallback(
     (result: ResultsSaveResult) => {
@@ -169,11 +200,10 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
       show(result.papers);
       if (result.publicCommit) callbacks.current.onDeploy(result.publicCommit);
       setSiteBehind(Boolean(result.publicError));
-      if (result.publicError) {
-        callbacks.current.onToast({ message: () => t('已保存，但更新网站上的公开内容失败'), action: { label: () => t('重试'), onClick: syncSite } });
-      }
+      if (result.publicError) publicFailed();
+      if (result.publish) publishLater(result.publish);
     },
-    [show, syncSite],
+    [show, publicFailed, publishLater],
   );
 
   const unavailable = useCallback(

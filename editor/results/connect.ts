@@ -1,3 +1,4 @@
+import { fileCache } from '../../lib/fileCache';
 import { PhraseError } from '../../lib/i18n';
 import { t } from '../../lib/phrases/results';
 import { Session } from '../../lib/session';
@@ -21,6 +22,7 @@ export async function createResults(session: Session): Promise<ResultsBackend> {
   return createResultsBackend(
     createGitHubApi(session.token, { owner, repo: privateRepo, branch }),
     createGitHubApi(session.token, { owner, repo, branch }),
+    fileCache(session.login),
   );
 }
 
@@ -30,7 +32,7 @@ export async function createCollaboratorResults(session: Session): Promise<Resul
     const { createMockCollaboratorBackend } = await import('./mockBackend');
     return createMockCollaboratorBackend(JSON.parse(session.token) as GitHubUser);
   }
-  return createWorkerResultsBackend(session.token);
+  return createWorkerResultsBackend(session.token, undefined, fileCache(session.login));
 }
 
 /** Finds GitHub accounts by user name for the owner's paper form. */

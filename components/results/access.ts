@@ -13,7 +13,7 @@ export interface ResultsAccess {
   state: 'loading' | 'private' | 'unavailable';
   /** Why the private repository is unavailable. */
   reason?: 'missing' | 'empty' | 'error';
-  readFile: (path: string) => Promise<Uint8Array>;
+  readFile: (path: string, version?: string) => Promise<Uint8Array>;
   /** A collaborator's role on each paper shared with them; their other papers are the published ones, from the site. */
   shared?: Record<string, PaperRole>;
   /** The site's copy of the published papers may be out of date because a sync failed. */

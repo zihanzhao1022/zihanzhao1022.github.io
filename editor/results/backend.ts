@@ -1,3 +1,4 @@
+import type { FileCache } from '../../lib/fileCache';
 import { ResultPaper, ResultsSiteAccess } from '../../types';
 import { EDITOR_CONFIG } from '../config';
 import { ConflictError } from '../errors';
@@ -30,14 +31,22 @@ export interface ResultsSaveResult {
   publicCommit: string | null;
   /** Set when the private save worked but updating the site failed; retry with resync. */
   publicError?: unknown;
+  /**
+   * The site's copy still to bring up to date (the owner's saves): the save returns once the private commit
+   * is in, and the caller runs this after it rather than waiting for both repositories.
+   */
+  publish?: () => Promise<string | null>;
   /** A collaborator's roles after the save (see ResultsLoad). */
   roles?: Record<string, PaperRole>;
 }
 
 export interface ResultsBackend {
   load(): Promise<ResultsLoad>;
-  /** A private file's bytes; files written in this session come from memory. */
-  readFile(path: string): Promise<Uint8Array>;
+  /**
+   * A private file's bytes; files written in this session come from memory. `version` (an attachment's content
+   * hash) lets the browser keep the file; PDFs, whose names carry a hash, are kept without one.
+   */
+  readFile(path: string, version?: string): Promise<Uint8Array>;
   /**
    * Applies the edit to the latest private list and commits it with the written and deleted files. When a
    * published paper is involved, the site's copy is brought up to date too (`publicMessage` names that commit).
@@ -82,12 +91,20 @@ export async function readTextFile(api: GitHubApi, path: string, ref: string): P
 
 const isPublishedIn = (papers: ResultPaper[], id: string): boolean => papers.some((paper) => paper.id === id && !paper.hidden);
 
+/** A commit of the private branch with its results.json (null: none), so a save there need not read it again. */
+export interface KnownHead {
+  commit: string;
+  text: string | null;
+}
+
 export interface CommitResult {
   /** The latest list the edit was applied to, and the list after it. */
   before: ResultPaper[];
   papers: ResultPaper[];
   /** False when the edit changed nothing, so nothing was committed. */
   changed: boolean;
+  /** The branch head afterwards: the new commit, or the one read when nothing changed. */
+  head: KnownHead;
 }
 
 /**
@@ -95,20 +112,27 @@ export interface CommitResult {
  * blobs and the deletions, starting over when the branch moved in between. Deletions are limited to files
  * that exist and that no paper refers to any more. The owner's editor and the Worker (for collaborators)
  * both save through this; `check` sees each list read before the edit is applied, and throws to stop.
+ * `blobs` may still be uploading; `known`, when the branch has not moved since, saves reading results.json.
  */
 export async function commitResults(
   api: GitHubApi,
   op: ResultsOp,
-  blobs: TreeEntry[],
+  blobs: TreeEntry[] | Promise<TreeEntry[]>,
   deletes: string[],
   message: string,
   check?: (latest: ResultPaper[]) => void,
+  known?: KnownHead | null,
 ): Promise<CommitResult> {
+  // One request for the head and its tree; a retry asks the branch's ref itself, which is never behind.
+  const readHead = async (first: boolean): Promise<{ commit: string; tree: string }> => {
+    if (first && api.branchHead) return api.branchHead();
+    const commit = await api.headSha();
+    return { commit, tree: await api.treeSha(commit) };
+  };
   for (let attempt = 1; ; attempt += 1) {
-    const head = await api.headSha();
-    const tree = await api.treeSha(head);
+    const [{ commit: head, tree }, uploaded] = await Promise.all([readHead(attempt === 1), blobs]);
     const [text, existing] = await Promise.all([
-      readTextFile(api, RESULTS_PATH, head),
+      known && known.commit === head ? Promise.resolve(known.text) : readTextFile(api, RESULTS_PATH, head),
       deletes.length > 0 ? api.listFiles(tree, FILES_PREFIX) : Promise.resolve([]),
     ]);
     const before = parsePapers(text);
@@ -121,12 +145,12 @@ export async function commitResults(
     const removed = deletes
       .filter((path) => present.has(path) && !used.has(path))
       .map((path): TreeEntry => ({ path, mode: '100644', type: 'blob', sha: null }));
-    if (json === text && blobs.length === 0 && removed.length === 0) return { before, papers, changed: false };
-    const entries: TreeEntry[] = [{ path: RESULTS_PATH, mode: '100644', type: 'blob', content: json }, ...blobs, ...removed];
+    if (json === text && uploaded.length === 0 && removed.length === 0) return { before, papers, changed: false, head: { commit: head, text } };
+    const entries: TreeEntry[] = [{ path: RESULTS_PATH, mode: '100644', type: 'blob', content: json }, ...uploaded, ...removed];
     const commit = await api.createCommit(message, await api.createTree(tree, entries), head);
     try {
       await api.updateBranch(commit);
-      return { before, papers, changed: true };
+      return { before, papers, changed: true, head: { commit, text: json } };
     } catch (error) {
       if (!isConflict(error)) throw error;
       if (attempt >= MAX_ATTEMPTS) throw new ConflictError();
@@ -134,21 +158,30 @@ export async function commitResults(
   }
 }
 
-export function createResultsBackend(privateApi: GitHubApi, publicApi: GitHubApi): ResultsBackend {
+/** The owner's backend; `cache` keeps the files this browser has read (see lib/fileCache). */
+export function createResultsBackend(privateApi: GitHubApi, publicApi: GitHubApi, cache?: FileCache): ResultsBackend {
   const files = new Map<string, Promise<Uint8Array>>();
 
-  const readFile = (path: string): Promise<Uint8Array> => {
+  const readFile = (path: string, version?: string): Promise<Uint8Array> => {
     let bytes = files.get(path);
     if (!bytes) {
-      bytes = privateApi.readBytes(path, EDITOR_CONFIG.branch);
+      bytes = (async () => {
+        const kept = await cache?.read(path, version);
+        if (kept) return kept;
+        const data = await privateApi.readBytes(path, EDITOR_CONFIG.branch);
+        cache?.remember(path, data, version);
+        return data;
+      })();
       files.set(path, bytes);
       bytes.catch(() => files.delete(path));
     }
     return bytes;
   };
 
-  // Set while the site's copy may lag behind the private list (a sync failed or is under way).
+  // Set while the site's copy may lag behind the private list (a sync failed, is under way or is still to run).
   let publicBehind = false;
+  // The private branch as this editor last read or wrote it (see commitResults).
+  let known: KnownHead | null = null;
 
   async function syncPublic(papers: ResultPaper[], message: string): Promise<string | null> {
     publicBehind = true;
@@ -202,13 +235,16 @@ export function createResultsBackend(privateApi: GitHubApi, publicApi: GitHubApi
         if (error instanceof GitHubError && error.status === 409) return { state: 'unavailable', reason: 'empty' };
         throw error;
       }
-      return { state: 'ready', papers: parsePapers(await readTextFile(privateApi, RESULTS_PATH, head)) };
+      const text = await readTextFile(privateApi, RESULTS_PATH, head);
+      known = { commit: head, text };
+      return { state: 'ready', papers: parsePapers(text) };
     },
 
     readFile,
 
     async save(op, writes, deletes, message, publicMessage) {
-      const blobs = await Promise.all(
+      // Uploaded while commitResults reads the branch.
+      const blobs = Promise.all(
         writes.map(async (write): Promise<TreeEntry> => ({
           path: write.path,
           mode: '100644',
@@ -216,17 +252,18 @@ export function createResultsBackend(privateApi: GitHubApi, publicApi: GitHubApi
           sha: await privateApi.createBlob(toBase64(write.data)),
         })),
       );
-      const { before, papers, changed } = await commitResults(privateApi, op, blobs, deletes, message);
-      writes.forEach((write) => files.set(write.path, Promise.resolve(write.data)));
+      const { before, papers, changed, head } = await commitResults(privateApi, op, blobs, deletes, message, undefined, known);
+      known = head;
+      writes.forEach((write) => {
+        files.set(write.path, Promise.resolve(write.data));
+        cache?.remember(write.path, write.data);
+      });
       if (!publicBehind && (!changed || (!hasPublished(before) && !hasPublished(papers)))) return { papers, publicCommit: null };
       // The site's history is public: name a paper only when it is (or just was) published.
       const touched = touchedPapers(op);
       const named = touched.length === 0 || touched.every((id) => isPublishedIn(before, id) || isPublishedIn(papers, id));
-      try {
-        return { papers, publicCommit: await syncPublic(papers, named ? publicMessage : GENERIC_PUBLIC_MESSAGE) };
-      } catch (publicError) {
-        return { papers, publicCommit: null, publicError };
-      }
+      publicBehind = true;
+      return { papers, publicCommit: null, publish: () => syncPublic(papers, named ? publicMessage : GENERIC_PUBLIC_MESSAGE) };
     },
 
     syncPublic,

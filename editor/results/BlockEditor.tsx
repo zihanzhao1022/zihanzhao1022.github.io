@@ -12,12 +12,14 @@ import {
   BLOCK_TEMPLATES,
   IMAGE_TYPES,
   ReadFile,
+  SHARP_WIDTH,
   attachmentName,
   attachmentPath,
   attachmentProblem,
   extensionOf,
   loadAttachments,
   newBlockId,
+  pixelWidth,
   preambleOf,
   putFiles,
   rebuildWith,
@@ -94,6 +96,8 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
   const [problem, setProblem] = useMessage();
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useMessage();
+  /** Images uploaded here that are too small to look sharp, with their widths in pixels. */
+  const [soft, setSoft] = useState<{ name: string; width: number }[]>([]);
   const [tab, setTab] = useState<'code' | 'preview'>('code');
   const [tableMode, setTableMode] = useState<'visual' | 'latex'>(() =>
     block.kind === 'table' && parseTable(original, preambleOf(paper)).ok ? 'visual' : 'latex',
@@ -386,6 +390,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
   const addFiles = async (list: FileList | null) => {
     if (!list) return;
     const next: Record<string, Uint8Array> = {};
+    const small: { name: string; width: number }[] = [];
     for (const file of Array.from(list)) {
       const reason = attachmentProblem(file);
       if (reason) {
@@ -393,9 +398,13 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
         continue;
       }
       const data = new Uint8Array(await file.arrayBuffer());
-      next[await attachmentName(file.name, data)] = data;
+      const name = await attachmentName(file.name, data);
+      next[name] = data;
+      const width = await pixelWidth(name, data);
+      if (width !== null && width < SHARP_WIDTH) small.push({ name, width });
     }
     setAdded((current) => ({ ...current, ...next }));
+    setSoft((current) => [...current.filter((image) => !(image.name in next)), ...small]);
   };
 
   const images = files ? Object.keys(files).filter((name) => IMAGE_TYPES.includes(extensionOf(name))) : [];
@@ -475,7 +484,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
           </button>
         </div>
       </header>
-      {(problem || notice || converting || !paper.hidden) && (
+      {(problem || notice || converting || soft.length > 0 || !paper.hidden) && (
         <div className="px-4 py-2 space-y-1 text-sm border-b border-gray-100">
           {converting && (
             <p className="text-purple-700">
@@ -494,6 +503,11 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
             </p>
           )}
           {notice && <p className="text-emerald-700">{notice}</p>}
+          {soft.map((image) => (
+            <p key={image.name} className="text-amber-700">
+              {t('{name} 只有 {width} 像素宽，在网页上会发糊；有 PDF 版本的话建议换成 PDF。', image)}
+            </p>
+          ))}
           {!paper.hidden && !block.hidden && <p className="text-amber-700">{t('这篇论文已公开，保存后访客就能看到这个块。')}</p>}
         </div>
       )}
@@ -533,7 +547,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
           {block.kind === 'figure' && (
             <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-gray-100 bg-gray-50 text-xs">
               <Paperclip size={14} className="text-gray-400" />
-              {images.length === 0 && <span className="text-gray-500">{t('还没有图片：上传 PDF、PNG 或 JPG（不超过 20 MB）')}</span>}
+              {images.length === 0 && <span className="text-gray-500">{t('还没有图片：建议上传 PDF（矢量图，放大也清楚），PNG、JPG 也可以，不超过 20 MB')}</span>}
               {images.map((name) => (
                 <button
                   key={name}
@@ -548,6 +562,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
               <button
                 type="button"
                 onClick={() => upload.current?.click()}
+                title={t('PDF 是矢量图，网页上最清楚；PNG、JPG 也可以，不超过 20 MB')}
                 className="inline-flex items-center gap-1 px-2 py-1 rounded border border-purple-200 bg-white text-purple-700 hover:bg-purple-50"
               >
                 <Upload size={12} />

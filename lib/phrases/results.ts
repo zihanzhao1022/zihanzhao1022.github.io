@@ -182,9 +182,17 @@ export const { t, useT, table } = phrases({
   重做表格修改: { ja: '表の変更をやり直す', en: 'Redo table change' },
   重做: { ja: 'やり直す', en: 'Redo' },
   自动更新预览: { ja: 'プレビューは自動で更新されます', en: 'Preview updates automatically' },
-  '还没有图片：上传 PDF、PNG 或 JPG（不超过 20 MB）': {
-    ja: 'まだ画像がありません：PDF・PNG・JPG をアップロードしてください（20 MB まで）',
-    en: 'No images yet: upload a PDF, PNG or JPG (up to 20 MB)',
+  '还没有图片：建议上传 PDF（矢量图，放大也清楚），PNG、JPG 也可以，不超过 20 MB': {
+    ja: 'まだ画像がありません：PDF（ベクター画像で、拡大しても鮮明）がおすすめです。PNG・JPG も使えます（20 MB まで）',
+    en: 'No images yet: a PDF is best (vector, sharp even enlarged); PNG and JPG work too, up to 20 MB',
+  },
+  'PDF 是矢量图，网页上最清楚；PNG、JPG 也可以，不超过 20 MB': {
+    ja: 'PDF はベクター画像なので、ウェブ上で最も鮮明です。PNG・JPG も使えます（20 MB まで）',
+    en: 'A PDF is vector, so it is the sharpest on the page; PNG and JPG work too, up to 20 MB',
+  },
+  '{name} 只有 {width} 像素宽，在网页上会发糊；有 PDF 版本的话建议换成 PDF。': {
+    ja: '{name} は幅が {width} ピクセルしかなく、ウェブ上ではぼやけます。PDF 版があれば、そちらに替えることをおすすめします。',
+    en: '{name} is only {width} pixels wide, so it will look blurry on the page; if you have it as a PDF, use that instead.',
   },
   '在光标处插入 \\includegraphics': { ja: 'カーソル位置に \\includegraphics を挿入', en: 'Insert \\includegraphics at the cursor' },
   '插入 {name}': { ja: '{name} を挿入', en: 'Insert {name}' },

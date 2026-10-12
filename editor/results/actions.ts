@@ -150,6 +150,25 @@ export const extensionOf = (name: string): string => {
   return dot === -1 ? '' : name.slice(dot).toLowerCase();
 };
 
+/**
+ * Raster images narrower than this look soft at a figure's full width on high-density screens (about 760 CSS
+ * pixels, twice that in device pixels), let alone enlarged. A PDF figure stays sharp at any size.
+ */
+export const SHARP_WIDTH = 1500;
+
+/** A PNG's or JPG's width in pixels; null for other files or when the browser cannot read it. */
+export async function pixelWidth(name: string, data: Uint8Array): Promise<number | null> {
+  if (!['.png', '.jpg', '.jpeg'].includes(extensionOf(name))) return null;
+  try {
+    const bitmap = await createImageBitmap(new Blob([data.slice()]));
+    const { width } = bitmap;
+    bitmap.close();
+    return width;
+  } catch {
+    return null;
+  }
+}
+
 /** Why an attachment cannot be used, or null when it can. */
 export function attachmentProblem(file: { name: string; size: number }): string | null {
   const extension = extensionOf(file.name);

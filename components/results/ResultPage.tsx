@@ -14,6 +14,8 @@ import { ResultsAccess, canEditShared, isCollaborator, useResultsAccess } from '
 import Authors from './Authors';
 import BlockView, { QuoteMark } from './BlockView';
 import CommentsPanel, { DRAFT, DraftComment } from './comments/CommentsPanel';
+import DropUpload from './DropUpload';
+import { MAX_ENTRIES } from './droppedFiles';
 import { useSelectedQuote } from './comments/textLayer';
 import LoginPrompt from './LoginPrompt';
 import Outline from './Outline';
@@ -291,7 +293,7 @@ const ResultPage: React.FC = () => {
   const { results } = useContent();
   const t = useT();
   const editMode = useEditMode();
-  const { loggedIn, ready, reorderBlocks } = editMode;
+  const { loggedIn, ready, reorderBlocks, uploadFiles } = editMode;
   const access = useResultsAccess();
   const collaborator = isCollaborator(access);
   const paper = findPaper(results, slug);
@@ -590,6 +592,13 @@ const ResultPage: React.FC = () => {
           </aside>
         )}
       </div>
+      {/* The paper's attachments are the owner's: files dropped on the page go there. */}
+      {editing && !collaborator && uploadFiles && (
+        <DropUpload
+          onFiles={(files) => uploadFiles(paper.id, files)}
+          onTooMany={() => window.alert(t('拖进来的文件太多了（超过 {n} 个），请只拖需要的文件或文件夹', { n: MAX_ENTRIES }))}
+        />
+      )}
       {!wide && commentDrawer && presence && (
         <div role="dialog" aria-modal="true" aria-label={t('批注')} className="fixed inset-0 z-[90]">
           <div className="absolute inset-0 bg-black/30" onClick={() => setCommentDrawer(false)} />

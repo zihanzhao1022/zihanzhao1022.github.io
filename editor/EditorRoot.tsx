@@ -16,12 +16,15 @@ import { AdminBar, LoadState } from './components/AdminBar';
 import { ItemModal } from './components/ItemModal';
 import { NavigationModal } from './components/NavigationModal';
 import { loadAttachments } from './results/actions';
+import { UploadPlan, planUpload } from './results/uploads';
+import type { PickedFile } from '../components/results/droppedFiles';
 import { EditorToast, useResultsEditor } from './results/useResults';
 import { usePresence } from './presence';
 import { AccessRequest, PresenceContext } from '../components/presence';
 
 // The LaTeX editors (CodeMirror, the TeX engine) load only when a results dialog opens.
 const BlockEditor = lazy(() => import('./results/BlockEditor'));
+const UploadDialog = lazy(() => import('./results/UploadDialog'));
 const PaperSettings = lazy(() => import('./results/PaperSettings'));
 const ReferencesEditor = lazy(() => import('./results/ReferencesEditor'));
 
@@ -47,6 +50,8 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
   const [request, setRequest] = useState<EditRequest | null>(null);
   const [deploy, setDeploy] = useState<{ sha: string; status: DeployStatus } | null>(null);
   const [toast, setToast] = useState<(EditorToast & { relogin?: boolean }) | null>(null);
+  /** Files dropped on a paper's page, waiting for the owner to confirm the upload. */
+  const [upload, setUpload] = useState<{ paperId: string; plan: UploadPlan } | null>(null);
   const logoutRef = useRef(onLogout);
   logoutRef.current = onLogout;
   const contentRef = useRef(content);
@@ -55,7 +60,7 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
   const queue = useRef<Promise<unknown>>(Promise.resolve());
   const pending = useRef<ContentOp[]>([]);
   const presence = usePresence(session);
-  const { access, privateLoaded, saveResults, saveContentOp, reorderBlocks, switchBlock: switchToKept, reload, isRenumbering } = useResultsEditor({
+  const { access, privateLoaded, saveResults, saveContentOp, reorderBlocks, switchBlock: switchToKept, uploadFiles: uploadToPaper, reload, isRenumbering } = useResultsEditor({
     session,
     setContent,
     contentRef,
@@ -165,6 +170,30 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
     [session, isRenumbering, switchToKept, open],
   );
 
+  const uploadFiles = useCallback(
+    (paperId: string, picked: PickedFile[]) => {
+      if (isExpiringSoon(session)) {
+        setToast({ message: () => t(EXPIRING), relogin: true });
+        return;
+      }
+      if (access.state !== 'private') {
+        setToast({ message: () => access.state === 'loading' ? t('论文结果还在加载，请稍后再试') : t('私有仓库不可用，暂时不能编辑论文结果') });
+        return;
+      }
+      if (isRenumbering(paperId)) {
+        setToast({ message: () => t('正在更新编号并保存，请几秒后再编辑') });
+        return;
+      }
+      const paper = contentRef.current.results.find((item) => item.id === paperId);
+      if (!paper) return;
+      planUpload(picked, paper.files ?? []).then(
+        (plan) => setUpload({ paperId, plan }),
+        (error: unknown) => setToast({ message: () => describeSaveError(error) }),
+      );
+    },
+    [session, access.state, isRenumbering],
+  );
+
   const save = useCallback(
     (op: ContentOp, uploads: ImageUpload[], message: string): Promise<void> => {
       // Papers of the results pages live in the private repository.
@@ -265,9 +294,10 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
       reorder,
       reorderBlocks,
       switchBlock,
+      uploadFiles,
       prepare,
     }),
-    [enabled, loadState, open, relogin, reorder, reorderBlocks, switchBlock, prepare],
+    [enabled, loadState, open, relogin, reorder, reorderBlocks, switchBlock, uploadFiles, prepare],
   );
 
   const paper =
@@ -324,6 +354,19 @@ const EditorRoot: React.FC<Props> = ({ session, onLogout, children }) => {
           {request?.kind === 'references' && paper && (
             <Suspense fallback={null}>
               <ReferencesEditor paper={paper} readFile={access.readFile} onSave={saveResults} onClose={closeDialog} />
+            </Suspense>
+          )}
+          {upload && (
+            <Suspense fallback={null}>
+              <UploadDialog
+                title={content.results.find((item) => item.id === upload.paperId)?.title ?? ''}
+                plan={upload.plan}
+                onConfirm={() => {
+                  uploadToPaper(upload.paperId, upload.plan.files);
+                  setUpload(null);
+                }}
+                onClose={() => setUpload(null)}
+              />
             </Suspense>
           )}
           {toast && (

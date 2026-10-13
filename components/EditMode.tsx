@@ -1,4 +1,5 @@
 import React, { Suspense, createContext, lazy, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import type { PickedFile } from './results/droppedFiles';
 import { Message, say, useMessage } from '../lib/i18n';
 import { EyeOff, Pencil, Plus, X } from 'lucide-react';
 import { loginConfigured } from '../editor/config';
@@ -24,6 +25,8 @@ export interface EditModeValue {
   reorderBlocks: (paperId: string, ids: string[]) => void;
   /** Turns a figure or table into the version it kept (ResultBlock.alternate) without opening the editor. */
   switchBlock?: (paperId: string, blockId: string) => void;
+  /** Uploads files dropped on a paper's page to its attachments, after showing what they will do. */
+  uploadFiles?: (paperId: string, files: PickedFile[]) => void;
   /**
    * Gets the editor ready for a results paper while its page is open: the TeX engine, the paper's attachments
    * and the dialogs' code, so the first compile does not wait for them.

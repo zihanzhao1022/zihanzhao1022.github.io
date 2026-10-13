@@ -17,4 +17,10 @@ describe('attachmentName', () => {
     const other = new TextEncoder().encode('other made-up bytes');
     expect(await attachmentName('实验结果.png', other)).not.toBe(await attachmentName('实验结果.png', data));
   });
+
+  it('keeps the folders a file came in, cleaned the same way', async () => {
+    const hash = (await hashBytes(data)).slice(0, 8);
+    expect(await attachmentName('plot.pdf', data, ['figs', 'v2'])).toBe('figs/v2/plot.pdf');
+    expect(await attachmentName('实验.png', data, ['图片 1', '..'])).toBe(`1/folder/file-${hash}.png`);
+  });
 });

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ClipboardPaste, Copy, Download, Eye, EyeOff, Loader2, Paperclip, Play, Redo2, Trash2, Undo2, Upload, X } from 'lucide-react';
+import { ClipboardPaste, Copy, Download, Eye, EyeOff, FolderTree, Loader2, Play, Redo2, Trash2, Undo2, X } from 'lucide-react';
 import PdfView from '../../components/results/PdfView';
 import { pdfPageSize } from '../../components/results/pdfjs';
 import { N_, useLang, useMessage } from '../../lib/i18n';
@@ -10,13 +10,9 @@ import { BUTTON_PRIMARY, BUTTON_SECONDARY } from '../components/Modal';
 import { getTexEngine } from '../tex/engine';
 import {
   BLOCK_TEMPLATES,
-  IMAGE_TYPES,
   ReadFile,
   SHARP_WIDTH,
-  attachmentName,
   attachmentPath,
-  attachmentProblem,
-  extensionOf,
   loadAttachments,
   newBlockId,
   pixelWidth,
@@ -34,7 +30,11 @@ import { ResultsOp, applyResultsOp, resultsCommitMessage } from './ops';
 import { createBlockPreview } from './preview';
 import { exportTex, preambleNames } from './texNames';
 import TableVisualEditor from './table/TableVisualEditor';
-import { convertedBlock } from './convert';
+import { convertedBlock, filesKeptVersionsUse } from './convert';
+import FileTree from './FileTree';
+import { insertionFor } from './attachmentTree';
+import { planUpload } from './uploads';
+import { MAX_ENTRIES, PickedFile, TooManyFiles, carriesFiles, droppedFiles } from '../../components/results/droppedFiles';
 import { createTable } from './table/model';
 import { parseTable, serializeTable } from './table/latex';
 
@@ -98,6 +98,13 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
   const [notice, setNotice] = useMessage();
   /** Images uploaded here that are too small to look sharp, with their widths in pixels. */
   const [soft, setSoft] = useState<{ name: string; width: number }[]>([]);
+  /** Files the last upload left out; kept apart from the compile's problems, which each compile replaces. */
+  const [leftOut, setLeftOut] = useMessage();
+  /** Attachments marked for deletion in the file tree; deleted when the block is saved. */
+  const [removed, setRemoved] = useState<Set<string>>(() => new Set());
+  const [showFiles, setShowFiles] = useState(() => typeof window === 'undefined' || window.innerWidth >= 1024);
+  /** A drag with files is over the editor. */
+  const [dropping, setDropping] = useState(false);
   const [tab, setTab] = useState<'code' | 'preview'>('code');
   const [tableMode, setTableMode] = useState<'visual' | 'latex'>(() =>
     block.kind === 'table' && parseTable(original, preambleOf(paper)).ok ? 'visual' : 'latex',
@@ -108,14 +115,21 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
   const editor = useRef<CodeEditorHandle>(null);
   const latest = useRef(0);
   const busy = useRef(false);
-  const upload = useRef<HTMLInputElement>(null);
 
   const preamble = preambleOf(paper);
   const lang = useLang();
   // The parse explains in the interface language why a table cannot be edited visually, so it follows the switch.
   const table = useMemo(() => block.kind === 'table' ? parseTable(source, preamble) : null, [block.kind, source, preamble, lang]);
   const names = useMemo(() => preambleNames(preamble), [preamble]);
-  const files = useMemo(() => (stored ? { ...stored, ...added } : null), [stored, added]);
+  const files = useMemo(() => {
+    if (!stored) return null;
+    const all = { ...stored, ...added };
+    removed.forEach((name) => delete all[name]);
+    return all;
+  }, [stored, added, removed]);
+  /** What the file tree lists: the paper's attachments and those uploaded here. */
+  const fileNames = useMemo(() => [...new Set([...(paper.files ?? []), ...Object.keys(added)])], [paper.files, added]);
+  const addedNames = useMemo(() => new Set(Object.keys(added)), [added]);
   const blockOp = useMemo<Extract<ResultsOp, { kind: 'putBlock' }>>(() => {
     const anchor = afterBlockId === undefined ? -1 : paper.blocks.findIndex((item) => item.id === afterBlockId);
     return { kind: 'putBlock', paperId: paper.id, block, ...(isNew && anchor >= 0 ? { at: anchor + 1 } : {}) };
@@ -129,7 +143,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
   );
   const labels = useMemo(() => Object.keys(context.labels).sort(), [context.labels]);
   const preview = useMemo(() => (files ? createBlockPreview(draftPaper, block, files, pdfPageSize) : null), [draftPaper, block, files]);
-  const dirty = source !== original || Object.keys(added).length > 0;
+  const dirty = source !== original || Object.keys(added).length > 0 || removed.size > 0;
 
   const changeSource = (text: string) => {
     if (text === source) return;
@@ -256,21 +270,24 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
         setTab('preview');
         return;
       }
+      // Files marked for deletion that the paper has; the compiles below run without them.
+      const gone = [...removed].filter((name) => (paper.files ?? []).includes(name));
+      const needed = filesKeptVersionsUse(paper.blocks, gone);
+      if (needed.length > 0) {
+        setProblem(() => t('第 {n} 个块存下的另一个版本还要用 {name}，不能移除', needed[0]));
+        return;
+      }
       const nextBlock: ResultBlock = { ...block, source };
       const putBlock: ResultsOp = { ...blockOp, block: nextBlock };
       const uploads = await putFiles(paper.id, added);
-      const draft: ResultPaper = {
-        ...applyResultsOp([paper], putBlock)[0],
-        files: [...new Set([...(paper.files ?? []), ...Object.keys(added)])],
-        fileHashes: { ...paper.fileHashes, ...uploads.hashes },
-      };
+      const ops: ResultsOp[] = [...uploads.ops, ...gone.map((name): ResultsOp => ({ kind: 'removeFile', paperId: paper.id, name })), putBlock];
+      const draft = ops.reduce<ResultPaper[]>((papers, op) => applyResultsOp(papers, op), [paper])[0];
       const rebuilt = await rebuildWith(draft, files);
       const failed = rebuilt.failed;
       if (failed) {
         setProblem(() => describeFailure(draft.blocks, failed));
         return;
       }
-      const ops: ResultsOp[] = [...uploads.ops, putBlock];
       const writes: FileWrite[] = [
         ...Object.entries(added).map(([name, data]) => ({ path: attachmentPath(paper.id, name), data })),
         ...rebuilt.writes,
@@ -278,7 +295,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
       await onSave(
         withOutputs(paper.id, ops, rebuilt),
         writes,
-        rebuilt.deletes,
+        [...gone.map((name) => attachmentPath(paper.id, name)), ...rebuilt.deletes],
         resultsCommitMessage(converting ? 'convert block in' : isNew ? 'add block to' : 'update block in', paper.title),
         publicMessage,
       );
@@ -387,27 +404,78 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
       setNotice(() => t('{parts}。在正文中引用后，预览会自动更新。', { parts: parts.filter(Boolean).join(t('；')) }));
     });
 
-  const addFiles = async (list: FileList | null) => {
-    if (!list) return;
-    const next: Record<string, Uint8Array> = {};
+  /** Adds files picked or dropped in the file tree; they are uploaded with the block. */
+  const addPicked = async (picked: PickedFile[]) => {
+    const plan = await planUpload(picked, fileNames);
+    const names = Object.keys(plan.files);
+    const skipped = [...plan.skipped.type, ...plan.skipped.size, ...plan.skipped.count];
+    if (plan.replaced.length > 0 && !window.confirm(t('会覆盖这些同名文件：{names}。继续吗？', { names: plan.replaced.join(t('、')) }))) return;
+    const listed = `${skipped.slice(0, 5).join(t('、'))}${skipped.length > 5 ? '…' : ''}`;
+    setLeftOut(skipped.length > 0 ? () => t('跳过了 {n} 个编译用不到或超过 20 MB 的文件：{names}', { n: skipped.length, names: listed }) : null);
+    if (names.length === 0) return;
     const small: { name: string; width: number }[] = [];
-    for (const file of Array.from(list)) {
-      const reason = attachmentProblem(file);
-      if (reason) {
-        setProblem(() => t('{name}：{reason}', { name: file.name, reason }));
-        continue;
-      }
-      const data = new Uint8Array(await file.arrayBuffer());
-      const name = await attachmentName(file.name, data);
-      next[name] = data;
-      const width = await pixelWidth(name, data);
+    for (const name of names) {
+      const width = await pixelWidth(name, plan.files[name]);
       if (width !== null && width < SHARP_WIDTH) small.push({ name, width });
     }
-    setAdded((current) => ({ ...current, ...next }));
-    setSoft((current) => [...current.filter((image) => !(image.name in next)), ...small]);
+    setAdded((current) => ({ ...current, ...plan.files }));
+    setRemoved((current) => new Set([...current].filter((name) => !(name in plan.files))));
+    setSoft((current) => [...current.filter((image) => !(image.name in plan.files)), ...small]);
   };
 
-  const images = files ? Object.keys(files).filter((name) => IMAGE_TYPES.includes(extensionOf(name))) : [];
+  const toggleRemove = (name: string) => {
+    if (name in added) {
+      // Uploaded here: it is simply not uploaded.
+      setAdded(({ [name]: _dropped, ...rest }) => rest);
+      setSoft((current) => current.filter((image) => image.name !== name));
+      return;
+    }
+    setRemoved((current) => {
+      const next = new Set(current);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  };
+
+  const insertFile = (name: string) => {
+    const code = insertionFor(name);
+    if (code) editor.current?.insert(code);
+  };
+  // The visual table editor has no cursor to insert at.
+  const canInsert = !(block.kind === 'table' && tableMode === 'visual');
+
+  // Files and folders dropped anywhere on the editor go to the file tree; the page behind must not get them.
+  const dragHandlers = {
+    onDragEnterCapture: (event: React.DragEvent) => {
+      if (!carriesFiles(event)) return;
+      event.preventDefault();
+      setDropping(true);
+      setShowFiles(true);
+    },
+    onDragOverCapture: (event: React.DragEvent) => {
+      if (!carriesFiles(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = saving || !files ? 'none' : 'copy';
+    },
+    onDragLeave: (event: React.DragEvent) => {
+      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropping(false);
+    },
+    onDropCapture: (event: React.DragEvent) => {
+      if (!carriesFiles(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setDropping(false);
+      if (saving || !files) return;
+      droppedFiles(event.dataTransfer).then(
+        (picked) => void addPicked(picked),
+        (error: unknown) => {
+          if (error instanceof TooManyFiles) setProblem(() => t('拖进来的文件太多了（超过 {n} 个），请只拖需要的文件或文件夹', { n: MAX_ENTRIES }));
+        },
+      );
+    },
+  };
   const shown = compiled?.result;
   const sourceProblems = (shown?.issues ?? [])
     .filter((issue) => issue.area === 'source' && issue.line !== undefined)
@@ -426,6 +494,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
 
   return (
     <div role="dialog" aria-modal="true" aria-label={t('{kind}编辑器', { kind: t(KIND[block.kind].label) })} className="fixed inset-0 z-[100] flex flex-col bg-white"
+      {...dragHandlers}
       onKeyDown={(event) => {
         if (block.kind !== 'table' || tableMode !== 'visual' || !(event.metaKey || event.ctrlKey)) return;
         if (event.key.toLowerCase() === 's') { event.preventDefault(); if (files) void save(); }
@@ -434,6 +503,16 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
       }}
     >
       <header className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 border-b border-gray-200">
+        <button
+          type="button"
+          onClick={() => setShowFiles((open) => !open)}
+          aria-pressed={showFiles}
+          aria-label={showFiles ? t('收起文件') : t('显示文件')}
+          title={showFiles ? t('收起文件') : t('显示文件')}
+          className={`-ml-1 rounded p-1 ${showFiles ? 'bg-purple-50 text-purple-700' : 'text-gray-500 hover:text-purple-700'}`}
+        >
+          <FolderTree size={18} />
+        </button>
         <span className="font-semibold text-gray-900">
           {converting ? (block.kind === 'table' ? t('把图转换成表格') : t('把表格转换成图')) : t(isNew ? KIND[block.kind].add : KIND[block.kind].edit)}
         </span>
@@ -484,7 +563,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
           </button>
         </div>
       </header>
-      {(problem || notice || converting || soft.length > 0 || !paper.hidden) && (
+      {(problem || notice || converting || soft.length > 0 || leftOut || !paper.hidden) && (
         <div className="px-4 py-2 space-y-1 text-sm border-b border-gray-100">
           {converting && (
             <p className="text-purple-700">
@@ -494,7 +573,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
                   : t('这是之前存下的图，保存后换成它；现在的表格也会存下，随时可以换回来。取消则保持原样。')
                 : block.kind === 'table'
                   ? t('第一次转为表格：在这里填表格，图题和引用名已保留。保存后原来的图会存下，随时可以换回来；取消则保持原样。')
-                  : t('第一次转为图：上传图片后用"插入"加进代码，图题和引用名已保留。保存后原来的表格会存下，随时可以换回来；取消则保持原样。')}
+                  : t('第一次转为图：在左边的文件里上传图片，点它就能加进代码，图题和引用名已保留。保存后原来的表格会存下，随时可以换回来；取消则保持原样。')}
             </p>
           )}
           {problem && (
@@ -503,6 +582,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
             </p>
           )}
           {notice && <p className="text-emerald-700">{notice}</p>}
+          {leftOut && <p className="text-amber-700">{leftOut}</p>}
           {soft.map((image) => (
             <p key={image.name} className="text-amber-700">
               {t('{name} 只有 {width} 像素宽，在网页上会发糊；有 PDF 版本的话建议换成 PDF。', image)}
@@ -523,7 +603,22 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
           </button>
         ))}
       </div>
-      <div className={`flex-1 min-h-0 grid ${block.kind === 'table' && tableMode === 'visual' ? 'lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]' : 'lg:grid-cols-2'}`}>
+      <div className="relative flex flex-1 min-h-0">
+      {showFiles && (
+        <FileTree
+          names={fileNames}
+          added={addedNames}
+          removed={removed}
+          onInsert={canInsert ? insertFile : undefined}
+          onUpload={(picked) => void addPicked(picked)}
+          onToggleRemove={toggleRemove}
+          dropping={dropping}
+          disabled={saving || !files}
+          onClose={() => setShowFiles(false)}
+          className="absolute inset-y-0 left-0 z-20 shadow-xl lg:static lg:z-auto lg:shadow-none"
+        />
+      )}
+      <div className={`flex-1 min-w-0 min-h-0 grid ${block.kind === 'table' && tableMode === 'visual' ? 'lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]' : 'lg:grid-cols-2'}`}>
         <section className={`min-h-0 min-w-0 flex-col border-r border-gray-200 ${tab === 'code' ? 'flex' : 'hidden lg:flex'}`}>
           {block.kind === 'table' && (
             <div className="flex items-center gap-3 px-3 py-2 border-b border-gray-200 bg-white">
@@ -542,43 +637,6 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
                   className="p-1.5 rounded text-gray-500 hover:bg-purple-50 hover:text-purple-700 disabled:opacity-30"><Redo2 size={16} /></button>
               </div>
               <span className="text-xs text-gray-400 ml-auto hidden sm:inline">{t('自动更新预览')}</span>
-            </div>
-          )}
-          {block.kind === 'figure' && (
-            <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-gray-100 bg-gray-50 text-xs">
-              <Paperclip size={14} className="text-gray-400" />
-              {images.length === 0 && <span className="text-gray-500">{t('还没有图片：建议上传 PDF（矢量图，放大也清楚），PNG、JPG 也可以，不超过 20 MB')}</span>}
-              {images.map((name) => (
-                <button
-                  key={name}
-                  type="button"
-                  onClick={() => editor.current?.insert(`\\includegraphics[width=\\linewidth]{${name}}\n`)}
-                  className="px-2 py-1 rounded border border-gray-300 bg-white hover:border-purple-300 hover:text-purple-700"
-                  title={t('在光标处插入 \\includegraphics')}
-                >
-                  {t('插入 {name}', { name })}
-                </button>
-              ))}
-              <button
-                type="button"
-                onClick={() => upload.current?.click()}
-                title={t('PDF 是矢量图，网页上最清楚；PNG、JPG 也可以，不超过 20 MB')}
-                className="inline-flex items-center gap-1 px-2 py-1 rounded border border-purple-200 bg-white text-purple-700 hover:bg-purple-50"
-              >
-                <Upload size={12} />
-                {t('上传图片')}
-              </button>
-              <input
-                ref={upload}
-                type="file"
-                multiple
-                accept={IMAGE_TYPES.join(',')}
-                className="hidden"
-                onChange={(event) => {
-                  void addFiles(event.target.files);
-                  event.target.value = '';
-                }}
-              />
             </div>
           )}
           {block.kind === 'table' && tableMode === 'visual' ? (
@@ -654,6 +712,7 @@ const BlockEditor: React.FC<Props> = ({ paper, blockId, blockKind = 'text', afte
             </details>
           )}
         </section>
+      </div>
       </div>
     </div>
   );

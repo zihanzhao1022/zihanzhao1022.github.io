@@ -312,6 +312,17 @@ export const { t, useT, table } = phrases({
   '放大的图': { ja: '拡大した図', en: 'Enlarged figure' },
   '放大这张图': { ja: 'この図を拡大', en: 'Enlarge this figure' },
 
+  // Files dropped on a paper's page (DropUpload)
+  '松开即可上传到这篇论文的附件': { ja: 'ドロップすると、この論文の添付ファイルにアップロードします', en: "Drop to upload to this paper's attachments" },
+  '可以是多个文件或文件夹，文件夹会保留原来的结构；上传前会先让你确认': {
+    ja: '複数のファイルやフォルダーも使えます。フォルダーの構成はそのまま保たれます。アップロード前に確認があります',
+    en: 'Several files or folders work too, and folders keep their structure; you confirm before anything uploads',
+  },
+  '拖进来的文件太多了（超过 {n} 个），请只拖需要的文件或文件夹': {
+    ja: 'ドロップしたファイルが多すぎます（{n} 個以上）。必要なファイルやフォルダーだけをドロップしてください',
+    en: 'Too many files were dropped (over {n}); drop only the files or folders you need',
+  },
+
   // Turning a figure into a table, or a table into a figure
   '转为表格': { ja: '表に変換', en: 'Turn into a table' },
   '转为图': { ja: '図に変換', en: 'Turn into a figure' },

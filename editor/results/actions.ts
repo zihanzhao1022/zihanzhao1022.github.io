@@ -85,14 +85,14 @@ export function withOutputs(paperId: string, ops: ResultsOp[], rebuilt: RebuildR
 export const newBlockId = (): string => `blk-${Date.now().toString(36)}`;
 
 /**
- * The code a new block starts with; made when the block is added, so the figure's comment names the insert
- * button as shown. Text starts empty: the editor shows what to write as a hint instead.
+ * The code a new block starts with; made when the block is added. Text starts empty: the editor shows what
+ * to write as a hint instead.
  */
 export const BLOCK_TEMPLATES: Record<PdfBlockKind, () => string> = {
   text: () => '',
   figure: () => String.raw`\begin{figure}[t]
 \centering
-% Upload an image above, then use "${t('插入')}" to add \includegraphics here.
+% Upload an image in the files on the left, then click it to add \includegraphics here.
 \caption{Caption.}
 \label{fig:}
 \end{figure}`,
@@ -123,19 +123,21 @@ export async function hashBytes(data: Uint8Array): Promise<string> {
 }
 
 /**
- * The name an uploaded file is stored under: letters, digits, dot, dash and underscore, which TeX and URLs
- * both handle. A name that has to change (e.g. "实验结果.png") also gets a short hash of the content, so two
- * such files never replace each other, while the same file uploaded again keeps its name.
+ * The name an uploaded file is stored under, after the folders it came in (figs/plot.pdf, as a dropped
+ * folder had it): letters, digits, dot, dash and underscore, which TeX and URLs both handle. A file name that
+ * has to change (e.g. "实验结果.png") also gets a short hash of the content, so two such files never replace
+ * each other, while the same file uploaded again keeps its name.
  */
-export async function attachmentName(name: string, data: Uint8Array): Promise<string> {
+export async function attachmentName(name: string, data: Uint8Array, folders: string[] = []): Promise<string> {
   const base = name.split(/[\\/]/).pop()!.trim();
   const dot = base.lastIndexOf('.');
   const stem = dot > 0 ? base.slice(0, dot) : base;
   const extension = dot > 0 ? base.slice(dot) : '';
   const cleanStem = stem.replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^[-.]+|-+$/g, '');
   const cleanExtension = extension.replace(/[^A-Za-z0-9.]/g, '');
-  if (cleanStem === stem && cleanExtension === extension) return base;
-  return `${cleanStem || 'file'}-${(await hashBytes(data)).slice(0, 8)}${cleanExtension}`;
+  const file = cleanStem === stem && cleanExtension === extension ? base : `${cleanStem || 'file'}-${(await hashBytes(data)).slice(0, 8)}${cleanExtension}`;
+  const path = folders.map((folder) => folder.trim().replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^[-.]+|-+$/g, '') || 'folder');
+  return [...path, file].join('/');
 }
 
 /** putFile operations for newly added attachments, with their content hashes. */

@@ -122,6 +122,12 @@ export const { t, useT, table } = phrases({
   已取消公开: { ja: '公開をキャンセルしました', en: 'Publishing cancelled' },
   '修改已发布，网站约 1 分钟后更新': { ja: '変更を公開しました。サイトは約 1 分後に更新されます', en: 'Changes published; the site updates in about a minute' },
   '正在更新编号…': { ja: '番号を更新しています…', en: 'Updating numbers…' },
+  '正在上传 {n} 个文件…': { ja: '{n} 個のファイルをアップロードしています…', en: 'Uploading {n} files…' },
+  '已上传 {n} 个文件': { ja: '{n} 個のファイルをアップロードしました', en: 'Uploaded {n} files' },
+  '已上传 {n} 个文件，并重新编译了 {m} 个用到它们的块': {
+    ja: '{n} 個のファイルをアップロードし、それらを使う {m} 個のブロックを再コンパイルしました',
+    en: 'Uploaded {n} files and recompiled the {m} blocks that use them',
+  },
   '正在换成表格…': { ja: '表に切り替えています…', en: 'Switching to the table…' },
   '正在换成图…': { ja: '図に切り替えています…', en: 'Switching to the figure…' },
   已换成表格: { ja: '表に切り替えました', en: 'Switched to the table' },
@@ -182,23 +188,10 @@ export const { t, useT, table } = phrases({
   重做表格修改: { ja: '表の変更をやり直す', en: 'Redo table change' },
   重做: { ja: 'やり直す', en: 'Redo' },
   自动更新预览: { ja: 'プレビューは自動で更新されます', en: 'Preview updates automatically' },
-  '还没有图片：建议上传 PDF（矢量图，放大也清楚），PNG、JPG 也可以，不超过 20 MB': {
-    ja: 'まだ画像がありません：PDF（ベクター画像で、拡大しても鮮明）がおすすめです。PNG・JPG も使えます（20 MB まで）',
-    en: 'No images yet: a PDF is best (vector, sharp even enlarged); PNG and JPG work too, up to 20 MB',
-  },
-  'PDF 是矢量图，网页上最清楚；PNG、JPG 也可以，不超过 20 MB': {
-    ja: 'PDF はベクター画像なので、ウェブ上で最も鮮明です。PNG・JPG も使えます（20 MB まで）',
-    en: 'A PDF is vector, so it is the sharpest on the page; PNG and JPG work too, up to 20 MB',
-  },
   '{name} 只有 {width} 像素宽，在网页上会发糊；有 PDF 版本的话建议换成 PDF。': {
     ja: '{name} は幅が {width} ピクセルしかなく、ウェブ上ではぼやけます。PDF 版があれば、そちらに替えることをおすすめします。',
     en: '{name} is only {width} pixels wide, so it will look blurry on the page; if you have it as a PDF, use that instead.',
   },
-  '在光标处插入 \\includegraphics': { ja: 'カーソル位置に \\includegraphics を挿入', en: 'Insert \\includegraphics at the cursor' },
-  '插入 {name}': { ja: '{name} を挿入', en: 'Insert {name}' },
-  // The new figure's starting code names the button above.
-  插入: { ja: '挿入', en: 'Insert' },
-  上传图片: { ja: '画像をアップロード', en: 'Upload image' },
   '这张表格需要使用 LaTeX 编辑': { ja: 'この表は LaTeX モードで編集する必要があります', en: 'This table needs to be edited in LaTeX mode' },
   '暂时无法读取表格结构。': { ja: '今のところ表の構造を読み取れません。', en: "The table's structure can't be read for now." },
   '原代码已保留，不会自动替换或丢失内容。': {
@@ -308,9 +301,9 @@ export const { t, useT, table } = phrases({
     ja: '初めて表に変換します。ここで表を作ってください（キャプションとラベルは引き継ぎます）。保存しても元の図は残り、いつでも戻せます。キャンセルすると元のままです。',
     en: 'Turning this figure into a table for the first time: fill in the table here; the caption and label are kept. Saving keeps the figure too, so you can switch back at any time; cancel to leave it as it is.',
   },
-  '第一次转为图：上传图片后用"插入"加进代码，图题和引用名已保留。保存后原来的表格会存下，随时可以换回来；取消则保持原样。': {
-    ja: '初めて図に変換します。画像をアップロードし、「挿入」でコードに加えてください（キャプションとラベルは引き継ぎます）。保存しても元の表は残り、いつでも戻せます。キャンセルすると元のままです。',
-    en: 'Turning this table into a figure for the first time: upload an image and add it to the code with "Insert"; the caption and label are kept. Saving keeps the table too, so you can switch back at any time; cancel to leave it as it is.',
+  '第一次转为图：在左边的文件里上传图片，点它就能加进代码，图题和引用名已保留。保存后原来的表格会存下，随时可以换回来；取消则保持原样。': {
+    ja: '初めて図に変換します。左のファイル一覧で画像をアップロードし、クリックするとコードに入ります（キャプションとラベルは引き継ぎます）。保存しても元の表は残り、いつでも戻せます。キャンセルすると元のままです。',
+    en: 'Turning this table into a figure for the first time: upload an image in the files on the left and click it to add it to the code; the caption and label are kept. Saving keeps the table too, so you can switch back at any time; cancel to leave it as it is.',
   },
   '这是之前存下的表格，保存后换成它；现在的图也会存下，随时可以换回来。取消则保持原样。': {
     ja: '以前の表です。保存するとこの表に切り替わり、今の図も残るので、いつでも戻せます。キャンセルすると元のままです。',
@@ -323,5 +316,63 @@ export const { t, useT, table } = phrases({
   '第 {n} 个块存下的另一个版本还要用 {name}，不能移除': {
     ja: '{n} 番目のブロックに残してあるもう一方の版が {name} を使っているため、削除できません',
     en: "The other version kept with block {n} still uses {name}, so it can't be removed",
+  },
+
+  // The file tree beside a block's code, and uploads (FileTree, BlockEditor, UploadDialog)
+  文件: { ja: 'ファイル', en: 'Files' },
+  显示文件: { ja: 'ファイルを表示', en: 'Show files' },
+  收起文件: { ja: 'ファイルを隠す', en: 'Hide files' },
+  上传文件: { ja: 'ファイルをアップロード', en: 'Upload files' },
+  上传文件夹: { ja: 'フォルダーをアップロード', en: 'Upload a folder' },
+  '在光标处插入 {code}': { ja: 'カーソル位置に {code} を挿入', en: 'Insert {code} at the cursor' },
+  '切换到 LaTeX 编辑后才能插入': { ja: 'LaTeX 編集に切り替えると挿入できます', en: 'Switch to LaTeX editing to insert it' },
+  '{name}：.sty、.cls、.bib 等不用插入，导言区和参考文献会用到它们': {
+    ja: '{name}：.sty・.cls・.bib などは挿入しません。プリアンブルや参考文献で使われます',
+    en: '{name}: .sty, .cls, .bib and the like are not inserted; the preamble and the references use them',
+  },
+  '{name} 会在保存时删除': { ja: '{name} は保存時に削除されます', en: '{name} will be deleted when you save' },
+  保存时删除这个文件: { ja: '保存時にこのファイルを削除', en: 'Delete this file when saving' },
+  '删除 {name}': { ja: '{name} を削除', en: 'Delete {name}' },
+  '恢复 {name}': { ja: '{name} を元に戻す', en: 'Keep {name}' },
+  '松开即可上传到附件，保存时一起提交': { ja: 'ドロップすると添付ファイルに追加し、保存時に一緒に提出します', en: 'Drop to add to the attachments; they are saved with the block' },
+  '还没有附件：把文件或文件夹拖到这里，或用上面的按钮上传': {
+    ja: '添付ファイルはまだありません。ここにファイルやフォルダーをドロップするか、上のボタンでアップロードしてください',
+    en: 'No attachments yet: drop files or folders here, or upload them with the buttons above',
+  },
+  '点图片插入 \\includegraphics，点 .tex 插入 \\input；把文件或文件夹拖进来就能上传，PDF 图最清楚': {
+    ja: '画像をクリックすると \\includegraphics、.tex をクリックすると \\input を挿入します。ファイルやフォルダーはドロップでアップロードでき、図は PDF が最も鮮明です',
+    en: 'Click an image to insert \\includegraphics, a .tex file to insert \\input; drop files or folders to upload them. PDF figures are the sharpest',
+  },
+  '会覆盖这些同名文件：{names}。继续吗？': {
+    ja: '同じ名前の次のファイルを上書きします：{names}。続けますか？',
+    en: 'This replaces the files with the same names: {names}. Continue?',
+  },
+  '跳过了 {n} 个编译用不到或超过 20 MB 的文件：{names}': {
+    ja: 'コンパイルに使えないか 20 MB を超える {n} 個のファイルを除きました：{names}',
+    en: 'Left out {n} files that compiles cannot use or that are over 20 MB: {names}',
+  },
+  '拖进来的文件太多了（超过 {n} 个），请只拖需要的文件或文件夹': {
+    ja: 'ドロップしたファイルが多すぎます（{n} 個以上）。必要なファイルやフォルダーだけをドロップしてください',
+    en: 'Too many files were dropped (over {n}); drop only the files or folders you need',
+  },
+  '上传到「{title}」': { ja: '「{title}」にアップロード', en: 'Upload to "{title}"' },
+  上传并覆盖: { ja: 'アップロードして上書き', en: 'Upload and replace' },
+  '{n} 个文件会上传到这篇论文的附件，文件夹保留原样：': {
+    ja: '{n} 個のファイルをこの論文の添付ファイルにアップロードします（フォルダー構成はそのまま）：',
+    en: "{n} files will be uploaded to this paper's attachments, folders as they are:",
+  },
+  '没有可以上传的文件。': { ja: 'アップロードできるファイルはありません。', en: 'There are no files that can be uploaded.' },
+  '其中 {n} 个会覆盖同名的附件，用到它们的块会重新编译：': {
+    ja: 'そのうち {n} 個は同じ名前の添付ファイルを上書きし、それを使うブロックは再コンパイルされます：',
+    en: '{n} of them replace attachments with the same names, and the blocks that use them are recompiled:',
+  },
+  '跳过 {n} 个编译用不到的文件（只收 PDF、PNG、JPG、.tex、.bib、.sty、.cls 等）：': {
+    ja: 'コンパイルに使えない {n} 個のファイルを除きます（PDF・PNG・JPG・.tex・.bib・.sty・.cls などのみ）：',
+    en: 'Leaving out {n} files that compiles cannot use (only PDF, PNG, JPG, .tex, .bib, .sty, .cls and the like):',
+  },
+  '跳过 {n} 个超过 20 MB 的文件：': { ja: '20 MB を超える {n} 個のファイルを除きます：', en: 'Leaving out {n} files over 20 MB:' },
+  '一次最多上传 {max} 个文件，跳过了其余 {n} 个：': {
+    ja: '一度にアップロードできるのは {max} 個までなので、残りの {n} 個を除きます：',
+    en: 'At most {max} files upload at once, so the other {n} are left out:',
   },
 });

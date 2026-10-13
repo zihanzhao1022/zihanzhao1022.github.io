@@ -6,7 +6,7 @@ import { Session } from '../../lib/session';
 import { FloatKind, ResultPaper, ResultsSiteAccess, SiteContent } from '../../types';
 import { describeSaveError } from '../backend';
 import { ContentOp } from '../ops';
-import { attachmentPath, rebuildPaper, withOutputs } from './actions';
+import { attachmentPath, loadAttachments, putFiles, rebuildPaper, rebuildWith, withOutputs } from './actions';
 import { GENERIC_PUBLIC_MESSAGE, ResultsBackend, ResultsSaveResult } from './backend';
 import type { ResultsSave } from './BlockEditor';
 import { PaperRole, withCollaboratorIds } from './collaborators';
@@ -61,8 +61,8 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
   const latest = useRef<ResultPaper[]>([]);
   /** Block reorders and switches already shown on the page but not saved yet; re-applied after every save. */
   const pending = useRef<ResultsOp[]>([]);
-  /** Papers with a figure or table switching to its kept version (see switchBlock). */
-  const switching = useRef(new Set<string>());
+  /** Papers with a figure or table switching to its kept version, or files uploading (switchBlock, uploadFiles). */
+  const busy = useRef(new Set<string>());
   const callbacks = useRef({ onDeploy, onToast, onSignedOut });
   callbacks.current = { onDeploy, onToast, onSignedOut };
 
@@ -359,7 +359,7 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
       if (!block?.alternate || !op) return;
       const to = block.alternate.kind;
       const shownAtOnce = Boolean(block.alternate.output);
-      switching.current.add(paperId);
+      busy.current.add(paperId);
       if (shownAtOnce) {
         pending.current.push(op);
         setContent((current) => ({ ...current, results: applyResultsOp(current.results, op) }));
@@ -368,7 +368,7 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
         message: () => (shownAtOnce ? t('正在更新编号…') : to === 'table' ? t('正在换成表格…') : t('正在换成图…')),
       });
       const done = () => {
-        switching.current.delete(paperId);
+        busy.current.delete(paperId);
         pending.current = pending.current.filter((queued) => queued !== op);
       };
       enqueue(async () => {
@@ -409,12 +409,54 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
   );
 
   /**
-   * Whether this paper's blocks are still being renumbered and saved after a drag or a switch. The block and
-   * preamble dialogs rebuild from the page, which may not have the new blocks or numbers yet, so they must
-   * not open until then.
+   * Uploads files dropped on a paper's page to its attachments (replacing those with the same names) in one
+   * commit, with the blocks that use replaced files compiled again.
+   */
+  const uploadFiles = useCallback(
+    (paperId: string, added: Record<string, Uint8Array>) => {
+      if (!backend || loadState.state !== 'private') return;
+      const count = Object.keys(added).length;
+      if (count === 0) return;
+      busy.current.add(paperId);
+      callbacks.current.onToast({ message: () => t('正在上传 {n} 个文件…', { n: count }) });
+      enqueue(async () => {
+        const paper = latest.current.find((item) => item.id === paperId);
+        if (!paper) return;
+        const uploads = await putFiles(paperId, added);
+        const draft = applyResultsOp([paper], { kind: 'batch', ops: uploads.ops })[0];
+        const rebuilt = await rebuildWith(draft, { ...(await loadAttachments(paper, backend.readFile)), ...added });
+        const failed = rebuilt.failed;
+        if (failed) {
+          callbacks.current.onToast({ message: () => describeFailure(draft.blocks, failed, 'change') });
+          return;
+        }
+        const result = await backend.save(
+          withOutputs(paperId, uploads.ops, rebuilt),
+          [...Object.entries(added).map(([name, data]) => ({ path: attachmentPath(paperId, name), data })), ...rebuilt.writes],
+          rebuilt.deletes,
+          resultsCommitMessage('add files to', paper.title),
+          `content: update result "${paper.title}"`,
+        );
+        settle(result);
+        if (result.publicError) return;
+        const compiled = Object.keys(rebuilt.outputs).length;
+        callbacks.current.onToast({
+          message: () => (compiled > 0 ? t('已上传 {n} 个文件，并重新编译了 {m} 个用到它们的块', { n: count, m: compiled }) : t('已上传 {n} 个文件', { n: count })),
+        });
+      })
+        .catch((error: unknown) => callbacks.current.onToast({ message: () => describeSaveError(error) }))
+        .finally(() => busy.current.delete(paperId));
+    },
+    [backend, loadState.state, enqueue, settle],
+  );
+
+  /**
+   * Whether this paper's blocks are still being renumbered and saved after a drag, a switch or an upload. The
+   * block and preamble dialogs rebuild from the page, which may not have the new blocks, numbers or files
+   * yet, so they must not open until then.
    */
   const isRenumbering = useCallback(
-    (paperId: string) => switching.current.has(paperId) || pending.current.some((op) => op.kind === 'reorderBlocks' && op.paperId === paperId),
+    (paperId: string) => busy.current.has(paperId) || pending.current.some((op) => op.kind === 'reorderBlocks' && op.paperId === paperId),
     [],
   );
 
@@ -429,5 +471,5 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
     [collaborator, loadState, backend, roles, siteBehind, syncSite, approveEdits, siteAccess, saveSiteViewers],
   );
 
-  return { access, privateLoaded, saveResults, saveContentOp, reorderBlocks, switchBlock, reload, isRenumbering };
+  return { access, privateLoaded, saveResults, saveContentOp, reorderBlocks, switchBlock, uploadFiles, reload, isRenumbering };
 }

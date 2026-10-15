@@ -1,5 +1,5 @@
-import React, { Suspense, lazy, useCallback, useMemo, useRef, useState } from 'react';
-import { Eye, Pencil, Presentation as PresentIcon, Share2 } from 'lucide-react';
+import React, { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Eye, FileCode2, LayoutList, Pencil, Presentation as PresentIcon, Share2 } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { ContentContext } from '../components/ContentContext';
 import { EditModeContext, EditModeValue } from '../components/EditMode';
@@ -25,6 +25,7 @@ const BlockEditor = lazy(() => import('../editor/results/BlockEditor'));
 const PaperSettings = lazy(() => import('../editor/results/PaperSettings'));
 const ReferencesEditor = lazy(() => import('../editor/results/ReferencesEditor'));
 const UploadDialog = lazy(() => import('../editor/results/UploadDialog'));
+const WritingMode = lazy(() => import('./writing/WritingMode'));
 
 const noop = () => {};
 
@@ -52,6 +53,12 @@ const Workspace: React.FC<{ list: PaperList; owner: boolean; paperId?: string }>
   const [presenting, setPresenting] = useState(false);
   const [sharingOpen, setSharingOpen] = useState(false);
   const [saving, setSaving] = useState(0);
+  // The page's blocks, or the whole paper as one LaTeX document with its PDF; the writing view stays mounted
+  // once opened, so switching back and forth keeps unsaved work.
+  const [mode, setMode] = useState<'blocks' | 'write'>('blocks');
+  const [wrote, setWrote] = useState(false);
+  const bar = useRef<HTMLDivElement>(null);
+  const [top, setTop] = useState(0);
   const contentRef = useRef(content);
   contentRef.current = content;
   const { setToast } = account;
@@ -148,6 +155,24 @@ const Workspace: React.FC<{ list: PaperList; owner: boolean; paperId?: string }>
     [owner, editing, access.state, open, reorderBlocks, switchBlock, uploadFiles, prepare],
   );
 
+  // The writing view fills the window under the paper's bar; the page itself stops scrolling meanwhile.
+  useLayoutEffect(() => {
+    if (mode !== 'write') return undefined;
+    window.scrollTo(0, 0);
+    const measure = () => setTop(Math.round(bar.current?.getBoundingClientRect().bottom ?? 0));
+    measure();
+    window.addEventListener('resize', measure);
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('resize', measure);
+      document.body.style.overflow = overflow;
+    };
+  }, [mode]);
+  useEffect(() => {
+    if (mode === 'write') setWrote(true);
+  }, [mode]);
+
   const closeDialog = useCallback(() => setRequest(null), []);
   const target: ResultPaper | undefined =
     request && request.kind !== 'edit' && 'paperId' in request ? content.results.find((item) => item.id === request.paperId) : undefined;
@@ -171,12 +196,35 @@ const Workspace: React.FC<{ list: PaperList; owner: boolean; paperId?: string }>
         <ResultsAccessContext.Provider value={access}>
           <PresenceContext.Provider value={presence}>
             {/* The paper's own bar: what one does with the whole paper. */}
-            <div className="sticky top-14 z-30 -mx-4 mb-6 flex flex-wrap items-center gap-1 border-b border-gray-200 bg-white/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 md:-mx-12 md:px-12">
+            <div ref={bar} className="sticky top-12 z-30 -mx-4 mb-6 flex flex-wrap items-center gap-1 border-b border-gray-200 bg-white/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6 md:-mx-12 md:px-12">
+              {owner && (
+                <div role="group" aria-label={t('显示方式')} className="mr-3 flex rounded-lg bg-black/[0.05] p-0.5 text-[13px]">
+                  {(
+                    [
+                      ['blocks', <LayoutList key="icon" size={14} />, t('分块')],
+                      ['write', <FileCode2 key="icon" size={14} />, t('写作')],
+                    ] as const
+                  ).map(([value, icon, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={mode === value}
+                      onClick={() => setMode(value)}
+                      className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1 transition-[background-color,box-shadow,color] duration-150 ${
+                        mode === value ? 'bg-white text-gray-900 shadow-[0_1px_2px_rgba(0,0,0,0.12)]' : 'text-gray-500 hover:text-gray-800'
+                      }`}
+                    >
+                      {icon}
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
               <span className="mr-auto flex min-w-0 items-center gap-4 text-sm text-gray-500">
                 {owner ? <Reach paper={paper} /> : <span className="truncate">{t('{name} 共享给你', { name: account.ownerOf(paper.id)?.name ?? '' })}</span>}
                 {saving > 0 && <span className="text-gray-400">{t('保存中…')}</span>}
               </span>
-              {owner && (
+              {owner && mode === 'blocks' && (
                 <button type="button" onClick={() => setEditing((on) => !on)} aria-pressed={!editing} className={TOOL}>
                   {editing ? <Eye size={16} /> : <Pencil size={16} />}
                   {editing ? t('看读者视角') : t('回到编辑')}
@@ -195,6 +243,11 @@ const Workspace: React.FC<{ list: PaperList; owner: boolean; paperId?: string }>
               {!owner && !canEdit && <span className="text-sm text-gray-400">{t('只读')}</span>}
             </div>
             <ResultPage inApp backTo="/" backLabel={t('我的论文')} />
+            {owner && wrote && (
+              <Suspense fallback={null}>
+                <WritingMode paper={paper} readFile={access.readFile} onSave={counted} top={top} visible={mode === 'write'} />
+              </Suspense>
+            )}
             {request?.kind === 'block' && target && (
               <Suspense fallback={null}>
                 <BlockEditor

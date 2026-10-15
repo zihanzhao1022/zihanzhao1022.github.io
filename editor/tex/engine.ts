@@ -14,6 +14,8 @@ export interface CompileInput {
   files?: Record<string, string | Uint8Array>;
   /** Run BibTeX after the first pass and compile again, for a document with \bibliography. */
   bibtex?: boolean;
+  /** Text files the run writes that the caller wants back (e.g. main.bbl), besides main.aux. */
+  read?: string[];
 }
 
 export interface CompileOutput {
@@ -28,6 +30,8 @@ export interface CompileOutput {
   reason?: string;
   /** With `bibtex`: BibTeX's log (the .blg is not needed; its messages are in the log). */
   bibtexLog?: string;
+  /** The files asked for in `read` that the run wrote. */
+  written?: Record<string, string>;
 }
 
 export interface TexEngine {
@@ -217,7 +221,7 @@ class WorkerEngine implements TexEngine {
     return run;
   }
 
-  private async run({ main, files = {}, bibtex = false }: CompileInput): Promise<CompileOutput> {
+  private async run({ main, files = {}, bibtex = false, read = [] }: CompileInput): Promise<CompileOutput> {
     // Start from an empty working directory so nothing leaks from the previous block.
     this.post({ cmd: 'flushcache' });
     const dirs = new Set<string>();
@@ -251,6 +255,11 @@ class WorkerEngine implements TexEngine {
     }
     const pdf = reply.result === 'ok' && reply.pdf ? new Uint8Array(reply.pdf) : undefined;
     const aux = await this.request({ cmd: 'readfile', url: 'main.aux' }, 'readfile');
+    const written: Record<string, string> = {};
+    for (const name of read) {
+      const file = await this.request({ cmd: 'readfile', url: name }, 'readfile');
+      if (file.result === 'ok' && typeof file.data === 'string') written[name] = file.data;
+    }
     return {
       ok: reply.status === 0 && pdf !== undefined,
       status: reply.status ?? -1,
@@ -258,6 +267,7 @@ class WorkerEngine implements TexEngine {
       pdf,
       aux: aux.result === 'ok' && typeof aux.data === 'string' ? aux.data : undefined,
       ...(bibtexLog === undefined ? {} : { bibtexLog }),
+      ...(read.length > 0 ? { written } : {}),
     };
   }
 }

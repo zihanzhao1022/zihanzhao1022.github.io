@@ -1,9 +1,9 @@
 import { phrases } from '../i18n';
 
-/** Japanese and English for Galley, the results pages as an app of their own (app/, a prototype). */
+/** Japanese and English for the results pages as an app of their own (app/, a prototype); `{name}` is its name (app/brand). */
 export const { t, useT, table } = phrases({
   // The prototype itself
-  'Galley 原型只能在本地用 npm run dev:mock 打开。': { ja: 'Galley のプロトタイプはローカルで npm run dev:mock から開いてください。', en: 'The Galley prototype only opens locally, with npm run dev:mock.' },
+  '{name} 原型只能在本地用 npm run dev:mock 打开。': { ja: '{name} のプロトタイプはローカルで npm run dev:mock から開いてください。', en: 'The {name} prototype only opens locally, with npm run dev:mock.' },
   '这是原型：账号是虚构的，数据只存在这个浏览器里。': { ja: 'プロトタイプです：アカウントは架空で、データはこのブラウザにだけ保存されます。', en: 'This is a prototype: the accounts are made up and the data stays in this browser.' },
   '用 GitHub 登录（原型）': { ja: 'GitHub でログイン（プロトタイプ）', en: 'Sign in with GitHub (prototype)' },
   '原型不连真的 GitHub，选一个虚构的账号登录：': { ja: 'プロトタイプは本物の GitHub につながりません。架空のアカウントを選んでください：', en: 'The prototype does not reach the real GitHub; sign in as one of these made-up accounts:' },
@@ -21,8 +21,8 @@ export const { t, useT, table } = phrases({
   回到首页: { ja: 'ホームに戻る', en: 'Back to home' },
 
   // The landing page
-  '写论文用 Overleaf，': { ja: '論文を書くのは Overleaf、', en: 'Write the paper in Overleaf.' },
-  '给人看结果用 Galley。': { ja: '結果を見せるのは Galley。', en: 'Show the results in Galley.' },
+  '管理实验结果，撰写论文，': { ja: '結果を管理し、論文を書く。', en: 'Manage results, write papers,' },
+  '一处完成，随时展示。': { ja: 'ひとつの場所で、すぐ発表。', en: 'all in one place, ready to present.' },
   '把 LaTeX 写的文字、图和表格编译成清楚的网页，按章节排好。': {
     ja: 'LaTeX で書いた文章・図・表を見やすいウェブページにコンパイルし、章ごとに並べます。',
     en: 'Compile the text, figures and tables you write in LaTeX into clear web pages, ordered by section.',
@@ -55,9 +55,9 @@ export const { t, useT, table } = phrases({
     en: 'Group papers in folders, mark their progress with colored tags, and archive the ones you have submitted to keep the list tidy.',
   },
   '数据留在你自己的仓库里。': { ja: 'データは、あなた自身のリポジトリに。', en: 'Your data stays in your own repository.' },
-  '登录后选一个 GitHub 私有仓库，Galley 只读写这一个。': {
-    ja: 'ログインしたら GitHub のプライベートリポジトリを 1 つ選びます。Galley が読み書きするのはそこだけです。',
-    en: 'After signing in, choose a private GitHub repository. Galley reads and writes only that one.',
+  '登录后选一个 GitHub 私有仓库，{name} 只读写这一个。': {
+    ja: 'ログインしたら GitHub のプライベートリポジトリを 1 つ選びます。{name} が読み書きするのはそこだけです。',
+    en: 'After signing in, choose a private GitHub repository. {name} reads and writes only that one.',
   },
   文件夹和标签: { ja: 'フォルダとタグ', en: 'Folders and tags' },
   私有: { ja: '非公開', en: 'Private' },
@@ -66,8 +66,8 @@ export const { t, useT, table } = phrases({
   在浏览器里编译: { ja: 'ブラウザでコンパイル', en: 'Compiled in your browser' },
   'LaTeX 在你的浏览器里编译，不需要编译服务器。': { ja: 'LaTeX はあなたのブラウザでコンパイルされ、コンパイル用のサーバーは使いません。', en: 'LaTeX compiles in your browser; no compile server is needed.' },
   开源: { ja: 'オープンソース', en: 'Open source' },
-  'Galley 以 AGPL-3.0 开源，可以自己部署。': { ja: 'Galley は AGPL-3.0 のオープンソースで、自分でホストすることもできます。', en: 'Galley is open source under the AGPL-3.0, so you can host it yourself.' },
-  '把下一张图放进 Galley。': { ja: '次の図は、Galley に。', en: 'Put your next figure in Galley.' },
+  '{name} 以 AGPL-3.0 开源，可以自己部署。': { ja: '{name} は AGPL-3.0 のオープンソースで、自分でホストすることもできます。', en: '{name} is open source under the AGPL-3.0, so you can host it yourself.' },
+  '把下一张图放进 {name}。': { ja: '次の図は、{name} に。', en: 'Put your next figure in {name}.' },
   '用 GitHub 登录': { ja: 'GitHub でログイン', en: 'Sign in with GitHub' },
   目录: { ja: '目次', en: 'Contents' },
   '图 2': { ja: '図 2', en: 'Figure 2' },
@@ -77,17 +77,17 @@ export const { t, useT, table } = phrases({
 
   // Connecting a repository
   选一个仓库存放你的论文结果: { ja: '論文の結果を保存するリポジトリを選ぶ', en: 'Choose a repository for your results' },
-  'Galley 把论文结果存在你选的 GitHub 私有仓库里：一个 results.json 和编译好的 PDF。它只能读写这一个仓库，你的其他仓库它看不到。': {
-    ja: 'Galley は論文の結果を、あなたが選んだ GitHub のプライベートリポジトリに保存します（results.json とコンパイル済みの PDF）。読み書きできるのはそのリポジトリだけで、ほかのリポジトリは見えません。',
-    en: 'Galley keeps your results in the private GitHub repository you choose: a results.json and the compiled PDFs. It can read and write only that repository and cannot see your others.',
+  '{name} 把论文结果存在你选的 GitHub 私有仓库里：一个 results.json 和编译好的 PDF。它只能读写这一个仓库，你的其他仓库它看不到。': {
+    ja: '{name} は論文の結果を、あなたが選んだ GitHub のプライベートリポジトリに保存します（results.json とコンパイル済みの PDF）。読み書きできるのはそのリポジトリだけで、ほかのリポジトリは見えません。',
+    en: '{name} keeps your results in the private GitHub repository you choose: a results.json and the compiled PDFs. It can read and write only that repository and cannot see your others.',
   },
   仓库: { ja: 'リポジトリ', en: 'Repository' },
   '新建一个空仓库，推荐': { ja: '新しい空のリポジトリ（おすすめ）', en: 'A new, empty repository (recommended)' },
   已有的私有仓库: { ja: '既存のプライベートリポジトリ', en: 'An existing private repository' },
   连接这个仓库: { ja: 'このリポジトリを接続', en: 'Connect this repository' },
-  '正式版会跳到 GitHub，让你确认把 Galley 装到这个仓库上；原型里点一下就算连接好了。': {
-    ja: '正式版では GitHub に移動し、このリポジトリに Galley をインストールしてよいか確認します。プロトタイプではクリックするだけで接続されます。',
-    en: 'The real service takes you to GitHub to confirm installing Galley on this repository; in the prototype one click connects it.',
+  '正式版会跳到 GitHub，让你确认把 {name} 装到这个仓库上；原型里点一下就算连接好了。': {
+    ja: '正式版では GitHub に移動し、このリポジトリに {name} をインストールしてよいか確認します。プロトタイプではクリックするだけで接続されます。',
+    en: 'The real service takes you to GitHub to confirm installing {name} on this repository; in the prototype one click connects it.',
   },
 
   // My papers
@@ -208,9 +208,9 @@ export const { t, useT, table } = phrases({
   权限: { ja: '権限', en: 'Access' },
   '{login} 的权限': { ja: '{login} の権限', en: "{login}'s access" },
   '不再和 {login} 共享': { ja: '{login} との共有をやめる', en: 'Stop sharing with {login}' },
-  '对方用 GitHub 登录 Galley 后，会在“共享给我的”里看到这篇论文。原型里可以试 alice 和 bob。': {
-    ja: '相手が GitHub で Galley にログインすると、「共有されたもの」にこの論文が表示されます。プロトタイプでは alice と bob で試せます。',
-    en: 'Once they sign in to Galley with GitHub, they find this paper under "Shared with me". In the prototype, try alice and bob.',
+  '对方用 GitHub 登录 {name} 后，会在“共享给我的”里看到这篇论文。原型里可以试 alice 和 bob。': {
+    ja: '相手が GitHub で {name} にログインすると、「共有されたもの」にこの論文が表示されます。プロトタイプでは alice と bob で試せます。',
+    en: 'Once they sign in to {name} with GitHub, they find this paper under "Shared with me". In the prototype, try alice and bob.',
   },
   这是你自己的论文: { ja: 'これはあなた自身の論文です', en: 'This is your own paper' },
   作者: { ja: '著者', en: 'Author' },

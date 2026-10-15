@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Lock } from 'lucide-react';
 import { useT } from '../lib/phrases/app';
+import { NAME } from './brand';
 import { Account } from './accounts';
 
 /**
@@ -19,7 +20,7 @@ const Setup: React.FC<{ account: Account; onConnect: (repo: string) => void }> =
     <div className="mx-auto max-w-xl py-14">
       <h1 className="font-serif-display text-3xl text-gray-900">{t('选一个仓库存放你的论文结果')}</h1>
       <p className="mt-4 leading-relaxed text-gray-600">
-        {t('Galley 把论文结果存在你选的 GitHub 私有仓库里：一个 results.json 和编译好的 PDF。它只能读写这一个仓库，你的其他仓库它看不到。')}
+        {t('{name} 把论文结果存在你选的 GitHub 私有仓库里：一个 results.json 和编译好的 PDF。它只能读写这一个仓库，你的其他仓库它看不到。', { name: NAME })}
       </p>
       <fieldset className="mt-8 space-y-2">
         <legend className="sr-only">{t('仓库')}</legend>
@@ -38,7 +39,7 @@ const Setup: React.FC<{ account: Account; onConnect: (repo: string) => void }> =
       <button type="button" onClick={() => onConnect(chosen)} className="mt-8 rounded-md bg-violet-700 px-5 py-2.5 text-sm font-medium text-white hover:bg-violet-800">
         {t('连接这个仓库')}
       </button>
-      <p className="mt-4 text-sm text-gray-500">{t('正式版会跳到 GitHub，让你确认把 Galley 装到这个仓库上；原型里点一下就算连接好了。')}</p>
+      <p className="mt-4 text-sm text-gray-500">{t('正式版会跳到 GitHub，让你确认把 {name} 装到这个仓库上；原型里点一下就算连接好了。', { name: NAME })}</p>
     </div>
   );
 };

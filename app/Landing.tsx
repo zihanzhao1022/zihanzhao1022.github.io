@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ChevronDown, Code2, FileText, Folder, FolderOpen, Inbox, Lock, Scale } from 'lucide-react';
 import { useLang } from '../lib/i18n';
 import { useT } from '../lib/phrases/app';
+import { NAME, Tombstone } from './brand';
 import { ACCOUNTS, Account } from './accounts';
 import Avatar from './Avatar';
 import { TAG_LOOK } from './look';
@@ -456,7 +457,7 @@ const Landing: React.FC<{ onSignIn: () => void }> = ({ onSignIn }) => {
   const facts = [
     { icon: Lock, title: t('私有仓库'), body: t('论文只存在你选的仓库里，随时可以带走。') },
     { icon: Code2, title: t('在浏览器里编译'), body: t('LaTeX 在你的浏览器里编译，不需要编译服务器。') },
-    { icon: Scale, title: t('开源'), body: t('Galley 以 AGPL-3.0 开源，可以自己部署。') },
+    { icon: Scale, title: t('开源'), body: t('{name} 以 AGPL-3.0 开源，可以自己部署。', { name: NAME }) },
   ];
   return (
     <div className="overflow-x-clip">
@@ -465,10 +466,12 @@ const Landing: React.FC<{ onSignIn: () => void }> = ({ onSignIn }) => {
         <div className="mx-auto flex min-h-[calc(100svh-5.25rem)] max-w-[1120px] flex-col items-center px-4 pb-16 pt-[clamp(3rem,9vh,6.5rem)] text-center sm:px-6">
           <h1 className="galley-display text-[clamp(2rem,1rem+4.6vw,4.75rem)] text-[#1d1d1f]">
             <span className="g-in g-rise block" style={at(0)}>
-              {t('写论文用 Overleaf，')}
+              {t('管理实验结果，撰写论文，')}
             </span>
+            {/* Ends like a proof in a LaTeX paper. */}
             <span className="g-in g-rise block" style={at(90)}>
-              {t('给人看结果用 Galley。')}
+              {t('一处完成，随时展示。')}
+              <Tombstone />
             </span>
           </h1>
           {/* One sentence a line where there is room. */}
@@ -561,7 +564,7 @@ const Landing: React.FC<{ onSignIn: () => void }> = ({ onSignIn }) => {
 
       <section className="bg-[#f5f5f7] py-24 sm:py-32">
         <div className="mx-auto max-w-[1040px] px-4 sm:px-6">
-          <Heading title={t('数据留在你自己的仓库里。')} body={t('登录后选一个 GitHub 私有仓库，Galley 只读写这一个。')} />
+          <Heading title={t('数据留在你自己的仓库里。')} body={t('登录后选一个 GitHub 私有仓库，{name} 只读写这一个。', { name: NAME })} />
           <div className="mt-14 grid items-start gap-10 md:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
             <Repository />
             <ul className="space-y-8">
@@ -582,7 +585,7 @@ const Landing: React.FC<{ onSignIn: () => void }> = ({ onSignIn }) => {
       </section>
 
       <section className="px-4 py-28 text-center sm:py-40">
-        <h2 className="galley-display text-[clamp(2.25rem,1.2rem+3.6vw,4.25rem)] text-[#1d1d1f]">{t('把下一张图放进 Galley。')}</h2>
+        <h2 className="galley-display text-[clamp(2.25rem,1.2rem+3.6vw,4.25rem)] text-[#1d1d1f]">{t('把下一张图放进 {name}。', { name: NAME })}</h2>
         <div className="mt-10">
           <SignIn onClick={onSignIn} />
         </div>

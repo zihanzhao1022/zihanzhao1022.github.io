@@ -7,6 +7,7 @@ import { ResultsSave } from '../editor/results/BlockEditor';
 import { resultsCommitMessage } from '../editor/results/ops';
 import { useMessage } from '../lib/i18n';
 import { useT } from '../lib/phrases/app';
+import { NAME } from './brand';
 import { ResultPaper } from '../types';
 import { Account, accountOf } from './accounts';
 import Avatar from './Avatar';
@@ -131,7 +132,7 @@ const ShareDialog: React.FC<Props> = ({ paper, owner, saveContentOp, saveResults
               {t('添加')}
             </button>
           </form>
-          <p className="text-xs text-gray-500">{t('对方用 GitHub 登录 Galley 后，会在“共享给我的”里看到这篇论文。原型里可以试 alice 和 bob。')}</p>
+          <p className="text-xs text-gray-500">{t('对方用 GitHub 登录 {name} 后，会在“共享给我的”里看到这篇论文。原型里可以试 alice 和 bob。', { name: NAME })}</p>
           <ul className="divide-y divide-gray-100 rounded-md border border-gray-200">
             <li className="flex items-center gap-3 px-3 py-2">
               <Avatar account={owner} />

@@ -6,15 +6,7 @@ import { BUTTON_SECONDARY, Modal } from '../editor/components/Modal';
 import { useT } from '../lib/phrases/app';
 import { ACCOUNTS, Account, connectedRepo } from './accounts';
 import Avatar from './Avatar';
-
-/** A galley proof: a sheet with a correction mark in its margin. */
-export const Mark: React.FC<{ size?: number }> = ({ size = 22 }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
-    <rect x="4" y="2.5" width="13" height="19" rx="1.5" fill="white" stroke="#18181b" strokeWidth="1.5" />
-    <path d="M7.5 7.5h6M7.5 10.5h6M7.5 13.5h4" stroke="#a1a1aa" strokeWidth="1.3" strokeLinecap="round" />
-    <path d="M19.5 9.5c1.8 0 1.8 3 0 3" fill="none" stroke="#6d28d9" strokeWidth="1.6" strokeLinecap="round" />
-  </svg>
-);
+import { NAME, Wordmark } from './brand';
 
 /** Choosing one of the prototype's made-up accounts, in place of GitHub's sign-in. */
 export const SignInDialog: React.FC<{ current: Account | null; onChoose: (account: Account) => void; onClose: () => void }> = ({ current, onChoose, onClose }) => {
@@ -150,9 +142,8 @@ const AppShell: React.FC<Props> = ({ account, onSignIn, onSignOut, children }) =
         }`}
       >
         <div className={`mx-auto flex h-12 items-center gap-6 px-4 sm:px-6 ${paper ? 'max-w-[92rem]' : bleed ? 'max-w-[1120px]' : 'max-w-6xl'}`}>
-          <Link to="/" className="flex items-center gap-2">
-            <Mark />
-            <span className="font-serif-display text-xl font-semibold tracking-tight">Galley</span>
+          <Link to="/" aria-label={NAME}>
+            <Wordmark />
           </Link>
           {account && (
             <Link to="/" className={`text-sm ${pathname === '/' ? 'text-gray-900' : 'text-gray-500 hover:text-gray-900'}`}>

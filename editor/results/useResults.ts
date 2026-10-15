@@ -37,6 +37,8 @@ interface Options {
   onToast: (toast: EditorToast | null) => void;
   /** Signs out a collaborator the worker no longer lets in (session expired, or nothing shared any more). */
   onSignedOut?: (message: string) => void;
+  /** Where the papers come from instead of the site's repositories or the worker (the Galley prototype's accounts). */
+  connect?: () => Promise<ResultsBackend>;
 }
 
 type LoadState = Pick<ResultsAccess, 'state' | 'reason'>;
@@ -45,7 +47,7 @@ type LoadState = Pick<ResultsAccess, 'state' | 'reason'>;
  * The editing side of the results pages: the private list, its saves and publishing for the owner; the
  * shared papers, through the worker, for a collaborator.
  */
-export function useResultsEditor({ session, setContent, contentRef, queue, onDeploy, onToast, onSignedOut }: Options) {
+export function useResultsEditor({ session, setContent, contentRef, queue, onDeploy, onToast, onSignedOut, connect }: Options) {
   const collaborator = session.role === 'collaborator';
   const [backend, setBackend] = useState<ResultsBackend | null>(null);
   const [loadState, setLoadState] = useState<LoadState>({ state: 'loading' });
@@ -65,6 +67,8 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
   const busy = useRef(new Set<string>());
   const callbacks = useRef({ onDeploy, onToast, onSignedOut });
   callbacks.current = { onDeploy, onToast, onSignedOut };
+  const connectRef = useRef(connect);
+  connectRef.current = connect;
 
   const show = useCallback(
     (papers: ResultPaper[]) =>
@@ -83,7 +87,8 @@ export function useResultsEditor({ session, setContent, contentRef, queue, onDep
 
   useEffect(() => {
     let cancelled = false;
-    (collaborator ? createCollaboratorResults(session) : createResults(session))
+    const connecting = connectRef.current?.() ?? (collaborator ? createCollaboratorResults(session) : createResults(session));
+    connecting
       .then(async (created) => {
         const loaded = await created.load();
         if (cancelled) return;

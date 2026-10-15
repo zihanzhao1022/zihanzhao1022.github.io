@@ -1,28 +1,10 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Archive, ChevronDown, ChevronRight, FileText, Folder, FolderPlus, Inbox, MoreHorizontal, Plus, Users } from 'lucide-react';
 import { useT } from '../lib/phrases/app';
 import { TAG_LOOK } from './look';
 import Menu, { MenuItem, MenuLabel } from './Menu';
-import {
-  Folder as FolderType,
-  Organizer,
-  TAG_COLORS,
-  TagColor,
-  View,
-  addFolder,
-  addTag,
-  changeTag,
-  folderAndInside,
-  moveFolder,
-  moveTo,
-  removeFolder,
-  removeTag,
-  renameFolder,
-} from './organizer';
-
-/** What dragging a paper row or a folder carries. */
-export const PAPERS_TYPE = 'application/x-galley-papers';
-const FOLDER_TYPE = 'application/x-galley-folder';
+import { FOLDER_TYPE, accepts, dragged, dropping } from './dragging';
+import { Folder as FolderType, Organizer, TAG_COLORS, TagColor, View, addFolder, addTag, changeTag, folderAndInside, removeFolder, removeTag, renameFolder } from './organizer';
 
 interface Props {
   organizer: Organizer;
@@ -63,28 +45,42 @@ const Row: React.FC<{
   </div>
 );
 
-/** A name typed in place: Enter keeps it, Esc or leaving the field drops it. */
-const NameField: React.FC<{ initial?: string; placeholder: string; depth?: number; onDone: (name: string | null) => void }> = ({ initial = '', placeholder, depth = 0, onDone }) => {
+/** A name typed in place: Enter or leaving the field keeps it, Esc drops it. It answers once. */
+export const NameInput: React.FC<{ initial?: string; placeholder: string; onDone: (name: string | null) => void; className?: string }> = ({
+  initial = '',
+  placeholder,
+  onDone,
+  className = '',
+}) => {
   const [name, setName] = useState(initial);
-  const done = (keep: boolean) => onDone(keep && name.trim() ? name.trim() : null);
+  const answered = useRef(false);
+  const done = (keep: boolean) => {
+    if (answered.current) return;
+    answered.current = true;
+    onDone(keep && name.trim() ? name.trim() : null);
+  };
   return (
-    <div className="py-0.5 pr-1" style={{ paddingLeft: `${0.5 + depth * 0.9}rem` }}>
-      <input
-        autoFocus
-        value={name}
-        placeholder={placeholder}
-        aria-label={placeholder}
-        onChange={(event) => setName(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') done(true);
-          if (event.key === 'Escape') done(false);
-        }}
-        onBlur={() => done(true)}
-        className="w-full rounded-md border border-violet-300 bg-white px-2 py-1 text-[13px] outline-none ring-2 ring-violet-100"
-      />
-    </div>
+    <input
+      autoFocus
+      value={name}
+      placeholder={placeholder}
+      aria-label={placeholder}
+      onChange={(event) => setName(event.target.value)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') done(true);
+        if (event.key === 'Escape') done(false);
+      }}
+      onBlur={() => done(true)}
+      className={`rounded-md border border-violet-300 bg-white px-2 py-1 text-[13px] outline-none ring-2 ring-violet-100 ${className}`}
+    />
   );
 };
+
+const NameField: React.FC<{ initial?: string; placeholder: string; depth?: number; onDone: (name: string | null) => void }> = ({ depth = 0, ...field }) => (
+  <div className="py-0.5 pr-1" style={{ paddingLeft: `${0.5 + depth * 0.9}rem` }}>
+    <NameInput {...field} className="w-full" />
+  </div>
+);
 
 type Editing = { kind: 'new-folder'; parent: string | null } | { kind: 'rename-folder'; id: string } | { kind: 'new-tag' } | { kind: 'rename-tag'; id: string } | null;
 
@@ -95,12 +91,10 @@ const Sidebar: React.FC<Props> = ({ organizer, organize, view, onView, counts, o
   const [closed, setClosed] = useState<Set<string>>(new Set());
   const [over, setOver] = useState<string | null>(null);
 
-  // Papers or a folder dropped on a folder (or on "all papers", which takes papers out of every folder).
+  // Papers or a folder dropped on a folder, or on "all papers", which takes them out of every folder.
   const dropOn = (target: string | null): React.HTMLAttributes<HTMLDivElement> => ({
     onDragOver: (event) => {
-      const papers = event.dataTransfer.types.includes(PAPERS_TYPE);
-      const folder = target !== null && event.dataTransfer.types.includes(FOLDER_TYPE);
-      if (!papers && !folder) return;
+      if (!accepts(organizer, event.dataTransfer.types, target)) return;
       event.preventDefault();
       event.dataTransfer.dropEffect = 'move';
       setOver(target ?? 'root');
@@ -111,15 +105,10 @@ const Sidebar: React.FC<Props> = ({ organizer, organize, view, onView, counts, o
     },
     onDrop: (event) => {
       setOver(null);
-      const papers = event.dataTransfer.getData(PAPERS_TYPE);
-      const folder = event.dataTransfer.getData(FOLDER_TYPE);
-      if (papers) {
-        event.preventDefault();
-        organize((current) => moveTo(current, JSON.parse(papers) as string[], target));
-      } else if (folder && folder !== target) {
-        event.preventDefault();
-        organize((current) => moveFolder(current, folder, target));
-      }
+      const change = dropping(event.dataTransfer, target);
+      if (!change) return;
+      event.preventDefault();
+      organize(change);
     },
   });
 
@@ -144,7 +133,17 @@ const Sidebar: React.FC<Props> = ({ organizer, organize, view, onView, counts, o
               }}
             />
           ) : (
-            <div draggable onDragStart={(event) => event.dataTransfer.setData(FOLDER_TYPE, folder.id)}>
+            <div
+              draggable
+              onDragStart={(event) => {
+                dragged.folder = folder.id;
+                event.dataTransfer.setData(FOLDER_TYPE, folder.id);
+                event.dataTransfer.effectAllowed = 'move';
+              }}
+              onDragEnd={() => {
+                dragged.folder = null;
+              }}
+            >
               <Row
                 active={active}
                 dropping={over === folder.id}

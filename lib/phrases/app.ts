@@ -141,10 +141,11 @@ export const { t, useT, table } = phrases({
   取消归档: { ja: 'アーカイブから戻す', en: 'Unarchive' },
   归档: { ja: 'アーカイブ', en: 'Archive' },
   取消选择: { ja: '選択を解除', en: 'Clear selection' },
-  '勾选几篇可以一起打标签、移动或归档；也可以把论文直接拖到左边的文件夹上。': {
-    ja: '複数選ぶと、まとめてタグ付け・移動・アーカイブできます。論文を左のフォルダへ直接ドラッグすることもできます。',
-    en: 'Check a few papers to tag, move or archive them together, or drag papers straight onto a folder on the left.',
+  '勾选几篇可以一起打标签、移动或归档；把论文拖到文件夹上就能放进去。': {
+    ja: '複数選ぶと、まとめてタグ付け・移動・アーカイブできます。論文をフォルダへドラッグすると中に入ります。',
+    en: 'Check a few papers to tag, move or archive them together; drag a paper onto a folder to put it there.',
   },
+  打开文件夹: { ja: 'フォルダを開く', en: 'Open folder' },
   全选: { ja: 'すべて選択', en: 'Select all' },
   拥有者: { ja: '所有者', en: 'Owner' },
   最近修改: { ja: '最終更新', en: 'Last modified' },

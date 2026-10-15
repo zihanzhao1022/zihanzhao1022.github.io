@@ -15,6 +15,7 @@ import {
   setTag,
   tidy,
   touch,
+  tree,
 } from './organizer';
 
 const papers = [
@@ -74,6 +75,41 @@ describe('inView', () => {
     expect(inView(organizer, papers, { kind: 'shared' }).map((paper) => paper.title)).toEqual(['Made-up shared paper']);
     expect(inView(organizer, papers, { kind: 'archived' }).map((paper) => paper.title)).toEqual(['Made-up survey']);
     expect(inView(organizer, papers, { kind: 'all' }, 'made-up conf').map((paper) => paper.title)).toEqual(['Made-up adapters']);
+  });
+});
+
+describe('tree', () => {
+  const order = { by: 'title' as const, up: true };
+  const titles = (lines: ReturnType<typeof tree>) =>
+    lines.map((line) => `${'  '.repeat(line.depth)}${line.kind === 'folder' ? `[${line.folder.name} ${line.count}]` : (line.paper as { title: string }).title}`);
+
+  it('lists the folders of each level first, then its papers, with counts over everything inside', () => {
+    const { organizer } = sample();
+    const lines = tree(organizer, papers, { base: null, closed: new Set(), empty: true, order });
+    expect(titles(lines)).toEqual(['[ACL 2027 2]', '  [Figures 1]', '    Made-up survey', '  Made-up adapters', 'Made-up shared paper']);
+    expect(lines[2].path).toEqual([lines[0].kind === 'folder' ? lines[0].folder.id : '', lines[1].kind === 'folder' ? lines[1].folder.id : '']);
+  });
+
+  it('hides what closed folders hold, starts inside a folder, and can leave out empty folders', () => {
+    const { organizer, acl, sub } = sample();
+    expect(titles(tree(organizer, papers, { base: null, closed: new Set([acl]), empty: true, order }))).toEqual(['[ACL 2027 2]', 'Made-up shared paper']);
+    expect(titles(tree(organizer, papers, { base: acl, closed: new Set(), empty: true, order }))).toEqual(['[Figures 1]', '  Made-up survey', 'Made-up adapters']);
+    const shared = papers.filter((paper) => !paper.mine);
+    expect(titles(tree(organizer, shared, { base: null, closed: new Set(), empty: false, order }))).toEqual(['Made-up shared paper']);
+    const lines = tree(organizer, shared, { base: null, closed: new Set(), empty: true, order });
+    expect(lines.map((line) => line.kind === 'folder' && line.folder.id === acl && line.inner)).toContain(true);
+    expect(lines.find((line) => line.kind === 'folder' && line.folder.id === sub)).toMatchObject({ count: 0, inner: false });
+  });
+
+  it('orders folders by the latest change inside when the list goes by last change', () => {
+    let { organizer } = sample();
+    organizer = addFolder(organizer, 'Zeta', null, 9).organizer;
+    const zeta = organizer.folders.find((folder) => folder.name === 'Zeta')!.id;
+    organizer = moveTo(organizer, [papers[2].key], zeta);
+    const dated = papers.map((paper, index) => ({ ...paper, touched: [10, 20, 30][index] }));
+    const lines = tree(organizer, dated, { base: null, closed: new Set(), empty: true, order: { by: 'touched', up: false } });
+    expect(lines.filter((line) => line.depth === 0).map((line) => (line.kind === 'folder' ? line.folder.name : ''))).toEqual(['Zeta', 'ACL 2027']);
+    expect(lines[0]).toMatchObject({ kind: 'folder', latest: 30 });
   });
 });
 

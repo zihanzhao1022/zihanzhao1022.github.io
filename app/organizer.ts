@@ -168,6 +168,106 @@ export function inView<T extends Listed>(organizer: Organizer, papers: T[], view
   });
 }
 
+/** How the list is ordered: by title (folders by name) or by the last change (folders by the latest inside). */
+export interface Order {
+  by: 'title' | 'touched';
+  up: boolean;
+}
+
+const byName = (a: string, b: string): number => a.localeCompare(b, undefined, { numeric: true });
+
+/** Papers in the list's order; papers never changed come last when the newest are first. */
+export const paperOrder =
+  (order: Order) =>
+  <T extends Listed & { touched?: number }>(a: T, b: T): number => {
+    const direction = order.up ? 1 : -1;
+    return (order.by === 'title' ? direction * byName(a.title, b.title) : direction * ((a.touched ?? 0) - (b.touched ?? 0))) || byName(a.title, b.title);
+  };
+
+/** A line of the list shown as a tree: a folder, or a paper, at the depth of the folder it is in. */
+export type Line<T> =
+  | {
+      kind: 'folder';
+      folder: Folder;
+      depth: number;
+      /** The folders it is in, from the outermost one shown. */
+      path: string[];
+      /** Papers inside it at any depth, and the latest change to any of them. */
+      count: number;
+      latest?: number;
+      open: boolean;
+      /** Whether opening it shows anything. */
+      inner: boolean;
+    }
+  | { kind: 'paper'; paper: T; depth: number; path: string[] };
+
+export interface TreeOptions {
+  /** The folder whose contents are listed; null for the top. */
+  base: string | null;
+  /** Folders whose contents are hidden. */
+  closed: ReadonlySet<string>;
+  /** Whether folders without any of the papers are listed (when showing everything, or a folder). */
+  empty: boolean;
+  order: Order;
+}
+
+/**
+ * The papers in the account's folders, as the lines of a tree: at each level its folders first, then its papers,
+ * both in the list's order. The papers are already chosen for the view (archived ones left out).
+ */
+export function tree<T extends Listed & { touched?: number }>(organizer: Organizer, papers: T[], options: TreeOptions): Line<T>[] {
+  const known = new Set(organizer.folders.map((folder) => folder.id));
+  const papersIn = new Map<string | null, T[]>();
+  for (const paper of papers) {
+    const folder = organizer.papers[paper.key]?.folder;
+    const at = folder && known.has(folder) ? folder : null;
+    papersIn.set(at, [...(papersIn.get(at) ?? []), paper]);
+  }
+  const foldersIn = new Map<string | null, Folder[]>();
+  for (const folder of organizer.folders) foldersIn.set(folder.parent, [...(foldersIn.get(folder.parent) ?? []), folder]);
+
+  const totals = new Map<string, { count: number; latest?: number }>();
+  const total = (id: string): { count: number; latest?: number } => {
+    const known = totals.get(id);
+    if (known) return known;
+    // Counted as empty while counting, so stored data with a loop cannot recurse forever.
+    totals.set(id, { count: 0 });
+    let count = 0;
+    let latest: number | undefined;
+    const add = (n: number, time?: number) => {
+      count += n;
+      if (time !== undefined && (latest === undefined || time > latest)) latest = time;
+    };
+    for (const paper of papersIn.get(id) ?? []) add(1, paper.touched);
+    for (const folder of foldersIn.get(id) ?? []) {
+      const inner = total(folder.id);
+      add(inner.count, inner.latest);
+    }
+    totals.set(id, { count, latest });
+    return { count, latest };
+  };
+
+  const direction = options.order.up ? 1 : -1;
+  const folderOrder = (a: Folder, b: Folder): number =>
+    (options.order.by === 'title' ? direction * byName(a.name, b.name) : direction * ((total(a.id).latest ?? 0) - (total(b.id).latest ?? 0))) || byName(a.name, b.name);
+  const shown = (folder: Folder): boolean => options.empty || total(folder.id).count > 0;
+
+  const lines: Line<T>[] = [];
+  const visit = (parent: string | null, depth: number, path: string[]) => {
+    for (const folder of [...(foldersIn.get(parent) ?? [])].filter(shown).sort(folderOrder)) {
+      if (path.includes(folder.id)) continue;
+      const { count, latest } = total(folder.id);
+      const open = !options.closed.has(folder.id);
+      const inner = (foldersIn.get(folder.id) ?? []).some(shown) || (papersIn.get(folder.id) ?? []).length > 0;
+      lines.push({ kind: 'folder', folder, depth, path, count, latest, open, inner });
+      if (open) visit(folder.id, depth + 1, [...path, folder.id]);
+    }
+    for (const paper of [...(papersIn.get(parent) ?? [])].sort(paperOrder(options.order))) lines.push({ kind: 'paper', paper, depth, path });
+  };
+  visit(options.base, 0, options.base ? [options.base] : []);
+  return lines;
+}
+
 /** Removes folders and tags that no longer exist from papers' placements (after edits elsewhere). */
 export function tidy(organizer: Organizer): Organizer {
   const folders = new Set(organizer.folders.map((folder) => folder.id));

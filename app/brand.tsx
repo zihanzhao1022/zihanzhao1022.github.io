@@ -6,24 +6,31 @@ import React from 'react';
  */
 export const NAME = 'Lemma';
 
-/** A page of text ending in the tombstone (∎) LaTeX sets at the end of a proof. */
+const SERIF = "'Source Serif 4', 'Source Serif Pro', Georgia, serif";
+
+/** The app's mark: an L with a small E raised into its corner, the way the LaTeX logo tucks its A in after the L. */
 export const Mark: React.FC<{ size?: number }> = ({ size = 22 }) => (
-  <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
-    <rect x="4.5" y="2.5" width="15" height="19" rx="2" fill="white" stroke="#18181b" strokeWidth="1.5" />
-    <path d="M8 7.5h8M8 11h8M8 14.5h3.5" stroke="#a1a1aa" strokeWidth="1.4" strokeLinecap="round" />
-    <rect x="13.2" y="12.9" width="3.2" height="3.2" rx="0.3" fill="#6d28d9" />
+  <svg viewBox="0 0 64 64" width={size} height={size} aria-hidden="true">
+    <rect x="1" y="1" width="62" height="62" rx="15" fill="white" stroke="#e4e4e7" strokeWidth="2" />
+    <text x="14" y="46" fontFamily={SERIF} fontWeight="700" fontSize="36" fill="#1d1d1f">
+      L
+    </text>
+    <text x="29" y="35" fontFamily={SERIF} fontWeight="700" fontSize="24" fill="#6d28d9">
+      E
+    </text>
   </svg>
 );
 
-/** The name set like a theorem's head in a LaTeX paper: bold upright serif. */
+/** The name set like the TeX and LaTeX logos, its letters stepping off the baseline (see .lemma-wordmark). */
 export const Wordmark: React.FC<{ className?: string }> = ({ className = '' }) => (
   <span className={`flex items-center gap-2 ${className}`}>
     <Mark />
-    <span className="font-serif-display text-xl font-bold tracking-tight">{NAME}</span>
+    <span className="lemma-wordmark text-xl" aria-hidden="true">
+      <span>L</span>
+      <span className="up e">E</span>
+      <span className="rise">M</span>
+      <span className="down">M</span>
+      <span className="up a">A</span>
+    </span>
   </span>
-);
-
-/** The QED tombstone that ends a headline, about as tall as a lowercase letter and on the baseline, as LaTeX sets it. */
-export const Tombstone: React.FC = () => (
-  <span aria-hidden="true" className="ml-[0.12em] inline-block h-[0.4em] w-[0.4em] rounded-[0.03em] bg-violet-700 align-baseline" />
 );

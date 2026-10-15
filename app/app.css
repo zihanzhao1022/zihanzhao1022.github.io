@@ -194,3 +194,61 @@ body {
     transform: none;
   }
 }
+
+/* The writing view marks the line a click in the PDF led to, and the place in the PDF a line leads to. */
+@keyframes writing-flash {
+  from {
+    background-color: rgba(167, 139, 250, 0.35);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+.writing-flash {
+  animation: writing-fade 1.6s ease-out forwards;
+}
+@keyframes writing-fade {
+  70% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* The wordmark, set like the TeX and LaTeX logos but looser: a small raised E tucked after the L (in the mark's
+   violet), the first M lifted a little, the second dropped below the line, a small A raised higher still. */
+.lemma-wordmark {
+  font-family: 'Source Serif 4', 'Source Serif Pro', Georgia, serif;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+.lemma-wordmark > span {
+  display: inline-block;
+}
+.lemma-wordmark .up {
+  font-size: 0.72em;
+  transform: translateY(-0.28em);
+}
+.lemma-wordmark .e {
+  margin-left: -0.27em;
+  margin-right: -0.04em;
+  color: #6d28d9;
+}
+.lemma-wordmark .rise {
+  margin-left: -0.02em;
+  margin-right: -0.06em;
+  transform: translateY(-0.12em);
+}
+.lemma-wordmark .down {
+  margin-left: -0.06em;
+  margin-right: -0.12em;
+  transform: translateY(0.2em);
+}
+.lemma-wordmark .a {
+  transform: translateY(-0.3em);
+}
+.on-dark .lemma-wordmark .e {
+  color: #a78bfa;
+}

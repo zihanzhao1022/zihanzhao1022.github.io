@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ChevronDown, Code2, FileText, Folder, FolderOpen, Inbox, Lock, Scale } from 'lucide-react';
 import { useLang } from '../lib/i18n';
 import { useT } from '../lib/phrases/app';
-import { NAME, Tombstone } from './brand';
+import { NAME } from './brand';
 import { ACCOUNTS, Account } from './accounts';
 import Avatar from './Avatar';
 import { TAG_LOOK } from './look';
@@ -148,6 +148,19 @@ const Sheet: React.FC = () => {
     </div>
   );
 };
+
+/** \begin{lemma} or \end{lemma}, in the editor's colors: the page reads as one lemma environment. */
+const LatexTag: React.FC<{ command: 'begin' | 'end' }> = ({ command }) => (
+  <p
+    className={`inline-flex items-center rounded-lg bg-[#f5f5f7] px-3 py-1.5 font-mono text-[15px] text-[#6e6e73] ${command === 'begin' ? 'g-in g-rise' : ''}`}
+    style={command === 'begin' ? at(0) : undefined}
+  >
+    <span className="text-violet-700">{`\\${command}`}</span>
+    <span>{'{'}</span>
+    <span className="text-[#1d1d1f]">lemma</span>
+    <span>{'}'}</span>
+  </p>
+);
 
 /** A section's headline and what it says, set large. */
 const Heading: React.FC<{ title: string; body: string; dark?: boolean; center?: boolean }> = ({ title, body, dark = false, center = true }) => (
@@ -463,33 +476,35 @@ const Landing: React.FC<{ onSignIn: () => void }> = ({ onSignIn }) => {
     <div className="overflow-x-clip">
       {/* The first screen: the promise, the way in, and a results page putting itself together. */}
       <section data-shown="" className="relative">
-        <div className="mx-auto flex min-h-[calc(100svh-5.25rem)] max-w-[1120px] flex-col items-center px-4 pb-16 pt-[clamp(3rem,9vh,6.5rem)] text-center sm:px-6">
-          <h1 className="galley-display text-[clamp(2rem,1rem+4.6vw,4.75rem)] text-[#1d1d1f]">
-            <span className="g-in g-rise block" style={at(0)}>
-              {t('管理实验结果，撰写论文，')}
-            </span>
-            {/* Ends like a proof in a LaTeX paper. */}
-            <span className="g-in g-rise block" style={at(90)}>
-              {t('一处完成，随时展示。')}
-              <Tombstone />
-            </span>
-          </h1>
-          {/* One sentence a line where there is room. */}
-          <p className="g-in g-rise galley-prose mt-6 max-w-[44rem] text-[clamp(1.0625rem,0.95rem+0.5vw,1.3125rem)] leading-relaxed text-[#6e6e73]" style={at(180)}>
-            <span className="sm:block">{t('把 LaTeX 写的文字、图和表格编译成清楚的网页，按章节排好。')}</span>
-            {lang === 'en' ? ' ' : ''}
-            <span className="sm:block">{t('合作者在页边批注，组会时直接演示。')}</span>
-          </p>
-          <div className="g-in g-rise mt-9 flex flex-wrap items-center justify-center gap-x-7 gap-y-3" style={at(260)}>
-            <SignIn onClick={onSignIn} />
-            <button
-              type="button"
-              onClick={() => document.getElementById('galley-compile')?.scrollIntoView({ behavior: calm() ? 'auto' : 'smooth' })}
-              className="inline-flex items-center gap-1 text-[15px] text-violet-700 hover:underline"
-            >
-              {t('了解更多')}
-              <ChevronDown size={16} />
-            </button>
+        <div className="mx-auto flex min-h-[calc(100svh-5.25rem)] max-w-[1120px] flex-col items-center px-4 pb-16 pt-[clamp(3rem,9vh,6.5rem)] sm:px-6">
+          {/* The page opens a lemma environment, closed by \end{lemma} at the bottom. */}
+          <div className="w-full max-w-[60rem]">
+            <LatexTag command="begin" />
+            <h1 className="galley-display mt-5 text-[clamp(2rem,1rem+4.6vw,4.75rem)] text-[#1d1d1f]">
+              <span className="g-in g-rise block" style={at(60)}>
+                {t('管理实验结果，撰写论文，')}
+              </span>
+              <span className="g-in g-rise block" style={at(150)}>
+                {t('一处完成，随时展示。')}
+              </span>
+            </h1>
+            {/* One sentence a line where there is room. */}
+            <p className="g-in g-rise galley-prose mt-6 text-[clamp(1rem,0.9rem+0.35vw,1.125rem)] leading-relaxed text-[#6e6e73]" style={at(240)}>
+              <span className="sm:block">{t('把 LaTeX 写的文字、图和表格编译成清楚的网页，按章节排好。')}</span>
+              {lang === 'en' ? ' ' : ''}
+              <span className="sm:block">{t('合作者在页边批注，组会时直接演示。')}</span>
+            </p>
+            <div className="g-in g-rise mt-8 flex flex-wrap items-center gap-x-7 gap-y-3" style={at(320)}>
+              <SignIn onClick={onSignIn} />
+              <button
+                type="button"
+                onClick={() => document.getElementById('galley-compile')?.scrollIntoView({ behavior: calm() ? 'auto' : 'smooth' })}
+                className="inline-flex items-center gap-1 text-[15px] text-violet-700 hover:underline"
+              >
+                {t('了解更多')}
+                <ChevronDown size={16} />
+              </button>
+            </div>
           </div>
           <div className="g-tilt mt-10 w-full max-w-[60rem] sm:mt-12" aria-hidden="true">
             <Sheet />
@@ -588,6 +603,9 @@ const Landing: React.FC<{ onSignIn: () => void }> = ({ onSignIn }) => {
         <h2 className="galley-display text-[clamp(2.25rem,1.2rem+3.6vw,4.25rem)] text-[#1d1d1f]">{t('把下一张图放进 {name}。', { name: NAME })}</h2>
         <div className="mt-10">
           <SignIn onClick={onSignIn} />
+        </div>
+        <div className="mt-16">
+          <LatexTag command="end" />
         </div>
       </section>
     </div>

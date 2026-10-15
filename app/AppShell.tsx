@@ -142,7 +142,7 @@ const AppShell: React.FC<Props> = ({ account, onSignIn, onSignOut, children }) =
         }`}
       >
         <div className={`mx-auto flex h-12 items-center gap-6 px-4 sm:px-6 ${paper ? 'max-w-[92rem]' : bleed ? 'max-w-[1120px]' : 'max-w-6xl'}`}>
-          <Link to="/" aria-label={NAME}>
+          <Link to="/" aria-label={NAME} className={dark ? 'on-dark' : ''}>
             <Wordmark />
           </Link>
           {account && (

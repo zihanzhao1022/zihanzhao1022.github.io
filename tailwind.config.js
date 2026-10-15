@@ -2,7 +2,7 @@
 export default {
   content: [
     './index.html',
-    './app.html',
+    './lemma.html',
     './app/**/*.{ts,tsx}',
     './App.tsx',
     './index.tsx',

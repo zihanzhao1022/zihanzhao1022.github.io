@@ -3,7 +3,7 @@ import { phrases } from '../i18n';
 /** Japanese and English for the results pages as an app of their own (app/, a prototype); `{name}` is its name (app/brand). */
 export const { t, useT, table } = phrases({
   // The prototype itself
-  '{name} 原型只能在本地用 npm run dev:mock 打开。': { ja: '{name} のプロトタイプはローカルで npm run dev:mock から開いてください。', en: 'The {name} prototype only opens locally, with npm run dev:mock.' },
+  '{name} 原型要从 lemma.html 打开。': { ja: '{name} のプロトタイプは lemma.html から開いてください。', en: 'Open the {name} prototype from lemma.html.' },
   '这是原型：账号是虚构的，数据只存在这个浏览器里。': { ja: 'プロトタイプです：アカウントは架空で、データはこのブラウザにだけ保存されます。', en: 'This is a prototype: the accounts are made up and the data stays in this browser.' },
   '用 GitHub 登录（原型）': { ja: 'GitHub でログイン（プロトタイプ）', en: 'Sign in with GitHub (prototype)' },
   '原型不连真的 GitHub，选一个虚构的账号登录：': { ja: 'プロトタイプは本物の GitHub につながりません。架空のアカウントを選んでください：', en: 'The prototype does not reach the real GitHub; sign in as one of these made-up accounts:' },

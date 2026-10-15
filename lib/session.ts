@@ -29,8 +29,14 @@ const SESSION_KEY = 'homepage-editor-session';
 const PENDING_KEY = 'homepage-editor-login';
 const EXPIRY_WARNING_MS = 15 * 60 * 1000;
 
-/** True only under `npm run dev:mock`; production builds compile this to false. */
-export const MOCK_MODE = import.meta.env.DEV && import.meta.env.VITE_EDITOR_MOCK === 'true';
+/**
+ * The Lemma prototype's page (lemma.html) says so before any script runs: it signs in made-up accounts and keeps
+ * everything in the browser, also where it is deployed. The site's own pages never set it.
+ */
+const PROTOTYPE = typeof window !== 'undefined' && (window as { __LEMMA_PROTOTYPE__?: unknown }).__LEMMA_PROTOTYPE__ === true;
+
+/** True under `npm run dev:mock` and on the prototype's page; the site's production pages never mock anything. */
+export const MOCK_MODE = (import.meta.env.DEV && import.meta.env.VITE_EDITOR_MOCK === 'true') || PROTOTYPE;
 
 // Browser storage can be missing or throw (private mode, blocked site data).
 const localStore = (): StorageLike | null => {

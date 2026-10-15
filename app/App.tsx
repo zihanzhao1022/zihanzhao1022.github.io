@@ -80,7 +80,7 @@ const App: React.FC = () => {
   const t = useT();
   const [account, setAccount] = useState<Account | null>(signedIn);
   if (!MOCK_MODE) {
-    return <p className="p-10 text-center text-gray-600">{t('{name} 原型只能在本地用 npm run dev:mock 打开。', { name: NAME })}</p>;
+    return <p className="p-10 text-center text-gray-600">{t('{name} 原型要从 lemma.html 打开。', { name: NAME })}</p>;
   }
   return (
     <HashRouter>

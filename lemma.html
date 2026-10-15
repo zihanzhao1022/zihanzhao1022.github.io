@@ -10,6 +10,10 @@
   </head>
   <body class="bg-white text-gray-900 antialiased">
     <div id="root"></div>
+    <!-- Read by lib/session.ts before the app starts: made-up accounts, data kept in this browser. -->
+    <script>
+      window.__LEMMA_PROTOTYPE__ = true;
+    </script>
     <script type="module" src="/app/main.tsx"></script>
   </body>
 </html>

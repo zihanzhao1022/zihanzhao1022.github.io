@@ -1,0 +1,325 @@
+[
+ {
+  "id": "res-exadapters",
+  "slug": "made-up-adapters",
+  "title": "Made-up study: adapters under distribution shift",
+  "authors": [
+   "**Zihan Zhao**",
+   "Alice Chen"
+  ],
+  "venue": "Made-up Conf 2027",
+  "year": 2027,
+  "hidden": true,
+  "preamble": "\\documentclass{article}\n\\usepackage{times}\n\\usepackage[T1]{fontenc}\n\\usepackage{amsmath,amssymb}\n\\usepackage{graphicx}\n\\usepackage[table]{xcolor}\n\\usepackage{booktabs,multirow,makecell,array,tabularx,hhline}",
+  "files": [
+   "figs/accuracy.pdf"
+  ],
+  "blocks": [
+   {
+    "id": "blk-exa1",
+    "kind": "text",
+    "source": "\\section{Results}\nThe made-up adapters keep the in-domain accuracy of full fine-tuning while recovering most of it under shift (Figure~\\ref{fig:acc}). Table~\\ref{tab:main} lists the made-up numbers for every setting.",
+    "output": {
+     "pdf": "results/res-exadapters/blk-exa1-08dc6cdd.pdf",
+     "width": 551.93,
+     "height": 50.248,
+     "inputHash": "08dc6cddcb75a3",
+     "counters": {
+      "page": 1,
+      "equation": 0,
+      "enumi": 0,
+      "enumii": 0,
+      "enumiii": 0,
+      "enumiv": 0,
+      "footnote": 0,
+      "mpfootnote": 0,
+      "part": 0,
+      "section": 1,
+      "subsection": 0,
+      "subsubsection": 0,
+      "paragraph": 0,
+      "subparagraph": 0,
+      "figure": 0,
+      "table": 0,
+      "parentequation": 0,
+      "nlinenum": 0,
+      "Item": 0,
+      "Hfootnote": 0,
+      "bookmark@seq@number": 0,
+      "section@level": 1
+     },
+     "labels": {}
+    }
+   },
+   {
+    "id": "blk-exa2",
+    "kind": "figure",
+    "source": "\\begin{figure}[t]\n\\centering\n\\includegraphics[width=\\linewidth]{figs/accuracy.pdf}\n\\caption{Accuracy of the made-up methods in domain and under three shifts.}\n\\label{fig:acc}\n\\end{figure}",
+    "output": {
+     "pdf": "results/res-exadapters/blk-exa2-11a42936.pdf",
+     "width": 347.696,
+     "height": 167.7,
+     "inputHash": "11a42936787be7",
+     "counters": {
+      "page": 1,
+      "equation": 0,
+      "enumi": 0,
+      "enumii": 0,
+      "enumiii": 0,
+      "enumiv": 0,
+      "footnote": 0,
+      "mpfootnote": 0,
+      "part": 0,
+      "section": 1,
+      "subsection": 0,
+      "subsubsection": 0,
+      "paragraph": 0,
+      "subparagraph": 0,
+      "figure": 1,
+      "table": 0,
+      "parentequation": 0,
+      "nlinenum": 0,
+      "Item": 0,
+      "Hfootnote": 0,
+      "bookmark@seq@number": 0,
+      "section@level": 1
+     },
+     "labels": {
+      "fig:acc": "{1}{1}{Accuracy of the made-up methods in domain and under three shifts}{figure.1}{}"
+     }
+    }
+   },
+   {
+    "id": "blk-exa3",
+    "kind": "table",
+    "source": "\\begin{table}[t]\n\\centering\n\\begin{tabular}{lcccc}\n\\toprule\nMethod & In-domain & Shift A & Shift B & Shift C \\\\\n\\midrule\nFull fine-tuning & \\textbf{91.2} & 63.5 & 58.1 & 55.0 \\\\\nMade-up adapters & 90.4 & \\textbf{74.8} & \\textbf{71.3} & \\textbf{69.9} \\\\\n\\bottomrule\n\\end{tabular}\n\\caption{Made-up accuracy (\\%) in domain and under three shifts.}\n\\label{tab:main}\n\\end{table}",
+    "output": {
+     "pdf": "results/res-exadapters/blk-exa3-0357d939.pdf",
+     "width": 347.696,
+     "height": 71.228,
+     "inputHash": "0357d939c0b8b3",
+     "counters": {
+      "page": 1,
+      "equation": 0,
+      "enumi": 0,
+      "enumii": 0,
+      "enumiii": 0,
+      "enumiv": 0,
+      "footnote": 0,
+      "mpfootnote": 0,
+      "part": 0,
+      "section": 1,
+      "subsection": 0,
+      "subsubsection": 0,
+      "paragraph": 0,
+      "subparagraph": 0,
+      "figure": 1,
+      "table": 1,
+      "parentequation": 0,
+      "nlinenum": 0,
+      "Item": 0,
+      "Hfootnote": 0,
+      "bookmark@seq@number": 0,
+      "section@level": 1
+     },
+     "labels": {
+      "tab:main": "{1}{1}{Made-up accuracy (\\%) in domain and under three shifts}{table.1}{}"
+     }
+    }
+   },
+   {
+    "id": "blk-exa4",
+    "kind": "text",
+    "source": "\\subsection{Ablations}\nRemoving the made-up gate lowers the shifted accuracy by 6.2 points on average, while the in-domain accuracy stays within 0.3 points. Freezing the embeddings as well changes neither.",
+    "output": {
+     "pdf": "results/res-exadapters/blk-exa4-14fa459a.pdf",
+     "width": 551.93,
+     "height": 45.014,
+     "inputHash": "14fa459a630ed7",
+     "counters": {
+      "page": 1,
+      "equation": 0,
+      "enumi": 0,
+      "enumii": 0,
+      "enumiii": 0,
+      "enumiv": 0,
+      "footnote": 0,
+      "mpfootnote": 0,
+      "part": 0,
+      "section": 1,
+      "subsection": 1,
+      "subsubsection": 0,
+      "paragraph": 0,
+      "subparagraph": 0,
+      "figure": 1,
+      "table": 1,
+      "parentequation": 0,
+      "nlinenum": 0,
+      "Item": 0,
+      "Hfootnote": 0,
+      "bookmark@seq@number": 0,
+      "section@level": 2
+     },
+     "labels": {}
+    }
+   }
+  ],
+  "fileHashes": {
+   "figs/accuracy.pdf": "414584426e07bf38"
+  }
+ },
+ {
+  "id": "res-exsurvey",
+  "slug": "made-up-survey",
+  "title": "Made-up survey of evaluation protocols",
+  "authors": [
+   "**Zihan Zhao**"
+  ],
+  "venue": "Made-up Journal",
+  "year": 2026,
+  "hidden": false,
+  "preamble": "\\documentclass{article}\n\\usepackage{times}\n\\usepackage[T1]{fontenc}\n\\usepackage{amsmath,amssymb}\n\\usepackage{graphicx}\n\\usepackage[table]{xcolor}\n\\usepackage{booktabs,multirow,makecell,array,tabularx,hhline}",
+  "files": [],
+  "blocks": [
+   {
+    "id": "blk-exs1",
+    "kind": "text",
+    "source": "\\section{Protocols}\nWe group the made-up protocols by what they hold out: the task, the domain, or the time of collection. Table~\\ref{tab:protocols} compares them.",
+    "output": {
+     "pdf": "results/res-exsurvey/blk-exs1-15aaacc5.pdf",
+     "width": 551.93,
+     "height": 38.293,
+     "inputHash": "15aaacc502a85e",
+     "counters": {
+      "page": 1,
+      "equation": 0,
+      "enumi": 0,
+      "enumii": 0,
+      "enumiii": 0,
+      "enumiv": 0,
+      "footnote": 0,
+      "mpfootnote": 0,
+      "part": 0,
+      "section": 1,
+      "subsection": 0,
+      "subsubsection": 0,
+      "paragraph": 0,
+      "subparagraph": 0,
+      "figure": 0,
+      "table": 0,
+      "parentequation": 0,
+      "nlinenum": 0,
+      "Item": 0,
+      "Hfootnote": 0,
+      "bookmark@seq@number": 0,
+      "section@level": 1
+     },
+     "labels": {}
+    }
+   },
+   {
+    "id": "blk-exs2",
+    "kind": "table",
+    "source": "\\begin{table}[t]\n\\centering\n\\begin{tabular}{lccc}\n\\toprule\nProtocol & Held out & Papers & Leakage check \\\\\n\\midrule\nMade-up split A & task & 14 & yes \\\\\nMade-up split B & domain & 9 & no \\\\\nMade-up split C & time & 5 & yes \\\\\n\\bottomrule\n\\end{tabular}\n\\caption{Made-up evaluation protocols.}\n\\label{tab:protocols}\n\\end{table}",
+    "output": {
+     "pdf": "results/res-exsurvey/blk-exs2-0edb97c0.pdf",
+     "width": 347.696,
+     "height": 83.183,
+     "inputHash": "0edb97c0a36252",
+     "counters": {
+      "page": 1,
+      "equation": 0,
+      "enumi": 0,
+      "enumii": 0,
+      "enumiii": 0,
+      "enumiv": 0,
+      "footnote": 0,
+      "mpfootnote": 0,
+      "part": 0,
+      "section": 1,
+      "subsection": 0,
+      "subsubsection": 0,
+      "paragraph": 0,
+      "subparagraph": 0,
+      "figure": 0,
+      "table": 1,
+      "parentequation": 0,
+      "nlinenum": 0,
+      "Item": 0,
+      "Hfootnote": 0,
+      "bookmark@seq@number": 0,
+      "section@level": 1
+     },
+     "labels": {
+      "tab:protocols": "{1}{1}{Made-up evaluation protocols}{table.1}{}"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "id": "res-exnotes",
+  "slug": "made-up-rebuttal-notes",
+  "title": "Made-up rebuttal notes",
+  "authors": [
+   "**Zihan Zhao**"
+  ],
+  "venue": "Made-up Conf 2027",
+  "year": 2027,
+  "hidden": true,
+  "preamble": "\\documentclass{article}\n\\usepackage{times}\n\\usepackage[T1]{fontenc}\n\\usepackage{amsmath,amssymb}\n\\usepackage{graphicx}\n\\usepackage[table]{xcolor}\n\\usepackage{booktabs,multirow,makecell,array,tabularx,hhline}",
+  "files": [],
+  "blocks": [
+   {
+    "id": "blk-exn1",
+    "kind": "text",
+    "source": "\\section*{Reviewer 2}\nThe made-up reviewer asks whether the gains hold for a smaller model. They do: the made-up adapters gain 9.8 points under Shift A on the small model as well.",
+    "output": {
+     "pdf": "results/res-exnotes/blk-exn1-16afd850.pdf",
+     "width": 551.93,
+     "height": 48.191,
+     "inputHash": "16afd8503e5276",
+     "counters": {
+      "page": 1,
+      "equation": 0,
+      "enumi": 0,
+      "enumii": 0,
+      "enumiii": 0,
+      "enumiv": 0,
+      "footnote": 0,
+      "mpfootnote": 0,
+      "part": 0,
+      "section": 0,
+      "subsection": 0,
+      "subsubsection": 0,
+      "paragraph": 0,
+      "subparagraph": 0,
+      "figure": 0,
+      "table": 0,
+      "parentequation": 0,
+      "nlinenum": 0,
+      "Item": 0,
+      "Hfootnote": 0,
+      "bookmark@seq@number": 0,
+      "section@level": 0
+     },
+     "labels": {}
+    }
+   }
+  ]
+ },
+ {
+  "id": "res-experster",
+  "slug": "made-up-poster",
+  "title": "Made-up workshop poster",
+  "authors": [
+   "**Zihan Zhao**"
+  ],
+  "venue": "Made-up Workshop",
+  "year": 2026,
+  "hidden": true,
+  "preamble": "\\documentclass{article}\n\\usepackage{times}\n\\usepackage[T1]{fontenc}\n\\usepackage{amsmath,amssymb}\n\\usepackage{graphicx}\n\\usepackage[table]{xcolor}\n\\usepackage{booktabs,multirow,makecell,array,tabularx,hhline}",
+  "files": [],
+  "blocks": []
+ }
+]

@@ -103,17 +103,53 @@ interface Props {
   children: React.ReactNode;
 }
 
+/**
+ * What is under the bar: whether the page has scrolled at all (its hairline only shows once something is under it),
+ * and whether a dark section ([data-under="dark"]) is passing beneath it, so it turns dark too.
+ */
+function useUnderBar(bar: React.RefObject<HTMLElement>, page: string): { scrolled: boolean; dark: boolean } {
+  const [under, setUnder] = useState({ scrolled: false, dark: false });
+  useEffect(() => {
+    const check = () => {
+      const height = bar.current?.getBoundingClientRect().bottom ?? 0;
+      const dark = Array.from(document.querySelectorAll('[data-under="dark"]')).some((section) => {
+        const { top, bottom } = section.getBoundingClientRect();
+        return top < height && bottom > height / 2;
+      });
+      const scrolled = window.scrollY > 0;
+      setUnder((current) => (current.scrolled === scrolled && current.dark === dark ? current : { scrolled, dark }));
+    };
+    check();
+    window.addEventListener('scroll', check, { passive: true });
+    window.addEventListener('resize', check);
+    return () => {
+      window.removeEventListener('scroll', check);
+      window.removeEventListener('resize', check);
+    };
+  }, [bar, page]);
+  return under;
+}
+
 /** The bar over every page of the app, and the room the pages get under it. */
 const AppShell: React.FC<Props> = ({ account, onSignIn, onSignOut, children }) => {
   const t = useT();
   const { pathname } = useLocation();
+  const bar = useRef<HTMLElement>(null);
+  const { scrolled, dark } = useUnderBar(bar, pathname);
   // A paper's page holds its outline and comments beside the text.
   const paper = pathname.startsWith('/p/');
+  // The landing page runs its sections edge to edge.
+  const bleed = !account && pathname === '/';
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      <p className="bg-amber-50 px-4 py-1.5 text-center text-xs text-amber-900">{t('这是原型：账号是虚构的，数据只存在这个浏览器里。')}</p>
-      <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur">
-        <div className={`mx-auto flex h-14 items-center gap-6 px-4 sm:px-6 ${paper ? 'max-w-[92rem]' : 'max-w-6xl'}`}>
+      <p className="bg-[#f5f5f7] px-4 py-2 text-center text-xs text-[#6e6e73]">{t('这是原型：账号是虚构的，数据只存在这个浏览器里。')}</p>
+      <header
+        ref={bar}
+        className={`sticky top-0 z-40 border-b backdrop-blur-xl backdrop-saturate-[1.8] transition-[background-color,border-color,color] duration-300 ${
+          dark ? 'border-white/10 bg-[#161617]/80 text-white' : `bg-white/75 ${scrolled ? 'border-black/[0.08]' : 'border-transparent'}`
+        }`}
+      >
+        <div className={`mx-auto flex h-12 items-center gap-6 px-4 sm:px-6 ${paper ? 'max-w-[92rem]' : bleed ? 'max-w-[1120px]' : 'max-w-6xl'}`}>
           <Link to="/" className="flex items-center gap-2">
             <Mark />
             <span className="font-serif-display text-xl font-semibold tracking-tight">Galley</span>
@@ -124,11 +160,11 @@ const AppShell: React.FC<Props> = ({ account, onSignIn, onSignOut, children }) =
             </Link>
           )}
           <div className="ml-auto flex items-center gap-4">
-            <LangSwitch />
+            <LangSwitch dark={dark} />
             {account ? (
               <AccountMenu account={account} onSwitch={onSignIn} onSignOut={onSignOut} />
             ) : (
-              <button type="button" onClick={onSignIn} className="text-sm font-medium text-gray-700 hover:text-gray-900">
+              <button type="button" onClick={onSignIn} className={`text-sm font-medium ${dark ? 'text-white/85 hover:text-white' : 'text-gray-700 hover:text-gray-900'}`}>
                 {t('登录')}
               </button>
             )}
@@ -136,7 +172,7 @@ const AppShell: React.FC<Props> = ({ account, onSignIn, onSignOut, children }) =
         </div>
       </header>
       {/* A paper's blocks keep their drag handles and readers' pictures just outside them, as on the site. */}
-      <main className={`mx-auto px-4 sm:px-6 ${paper ? 'max-w-[92rem] md:px-12' : 'max-w-6xl'}`}>{children}</main>
+      <main className={bleed ? '' : `mx-auto px-4 sm:px-6 ${paper ? 'max-w-[92rem] md:px-12' : 'max-w-6xl'}`}>{children}</main>
     </div>
   );
 };

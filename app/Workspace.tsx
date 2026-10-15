@@ -56,13 +56,19 @@ const Workspace: React.FC<{ list: PaperList; owner: boolean; paperId?: string }>
   contentRef.current = content;
   const { setToast } = account;
 
-  // How many saves are on their way, for the toolbar.
+  // How many saves are on their way, for the toolbar; each one that lands counts as a change to the paper.
+  const { touchPaper } = account;
+  const author = paper ? (owner ? account.account.login : account.ownerOf(paper.id)?.login) : undefined;
   const counted = useCallback<typeof saveResults>(
     (...args) => {
       setSaving((n) => n + 1);
-      return saveResults(...args).finally(() => setSaving((n) => n - 1));
+      return saveResults(...args)
+        .then(() => {
+          if (paper && author) touchPaper(author, paper.id);
+        })
+        .finally(() => setSaving((n) => n - 1));
     },
-    [saveResults],
+    [saveResults, paper, author, touchPaper],
   );
 
   const busy = useCallback(

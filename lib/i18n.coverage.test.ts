@@ -5,7 +5,6 @@ import type { Phrases } from './i18n';
 const SOURCES = import.meta.glob<string>(
   [
     '/App.tsx',
-    '/app/**/*.{ts,tsx}',
     '/components/**/*.{ts,tsx}',
     '/editor/**/*.{ts,tsx}',
     '/views/**/*.{ts,tsx}',

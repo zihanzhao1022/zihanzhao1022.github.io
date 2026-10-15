@@ -27,10 +27,6 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     outDir: 'dist',
-    // The site, and the Lemma prototype beside it (lemma.html, made-up accounts in the browser).
-    rollupOptions: {
-      input: { main: 'index.html', lemma: 'lemma.html' },
-    },
   },
   test: {
     setupFiles: ['./lib/i18n.testSetup.ts'],

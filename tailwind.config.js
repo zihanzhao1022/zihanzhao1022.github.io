@@ -2,8 +2,6 @@
 export default {
   content: [
     './index.html',
-    './lemma.html',
-    './app/**/*.{ts,tsx}',
     './App.tsx',
     './index.tsx',
     './components/**/*.{ts,tsx}',

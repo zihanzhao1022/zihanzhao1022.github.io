@@ -287,19 +287,8 @@ function useWide(): boolean {
   return wide;
 }
 
-interface ResultPageProps {
-  /** Where "back" goes: the site's list of papers, or the Galley prototype's (app/). */
-  backTo?: string;
-  backLabel?: string;
-  /**
-   * The Galley prototype says who can see the paper in its own bar, and publishes through sharing: the site's
-   * notice about publishing to the website and the hidden mark on the title do not apply there.
-   */
-  inApp?: boolean;
-}
-
 /** One paper's results: its blocks of text, figures and tables, each compiled to a PDF. */
-const ResultPage: React.FC<ResultPageProps> = ({ backTo = '/results', backLabel, inApp = false }) => {
+const ResultPage: React.FC = () => {
   const { slug } = useParams();
   const { results } = useContent();
   const t = useT();
@@ -372,9 +361,9 @@ const ResultPage: React.FC<ResultPageProps> = ({ backTo = '/results', backLabel,
     if (!ready || access?.state === 'loading') return null;
     // Someone signed out may have been sent a link to a paper shared with them.
     if (!loggedIn) return <LoginPrompt />;
-    return <Navigate to={backTo} replace />;
+    return <Navigate to="/results" replace />;
   }
-  if (paper.hidden && !loggedIn) return <Navigate to={backTo} replace />;
+  if (paper.hidden && !loggedIn) return <Navigate to="/results" replace />;
 
   const blocks = shownBlocks(paper.blocks, editing);
   const items = outlineItems(paper.blocks, (block) => editing || !block.hidden, paper.references !== undefined, paper.preamble);
@@ -493,8 +482,8 @@ const ResultPage: React.FC<ResultPageProps> = ({ backTo = '/results', backLabel,
         <div ref={setContentColumn} className="min-w-0">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <Link to={backTo} className="text-sm text-gray-500 hover:text-purple-600">
-                ← {backLabel ?? t('论文结果')}
+              <Link to="/results" className="text-sm text-gray-500 hover:text-purple-600">
+                ← {t('论文结果')}
               </Link>
               {items.length > 0 && (
                 <button
@@ -532,7 +521,7 @@ const ResultPage: React.FC<ResultPageProps> = ({ backTo = '/results', backLabel,
                   className="ml-3 align-middle"
                 />
               )}
-              {paper.hidden && !inApp && <HiddenBadge />}
+              {paper.hidden && <HiddenBadge />}
             </h1>
             {paper.authors.length > 0 && (
               <div className="text-gray-700 text-sm mb-1 font-light">
@@ -561,7 +550,7 @@ const ResultPage: React.FC<ResultPageProps> = ({ backTo = '/results', backLabel,
             )}
           </div>
           <ResultsUnavailable />
-          {!inApp && <Notices paper={paper} access={access} editing={editing} />}
+          <Notices paper={paper} access={access} editing={editing} />
           <div ref={readingArea}>
             <SortableGroup
               collection="results"

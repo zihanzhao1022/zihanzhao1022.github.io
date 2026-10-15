@@ -22,7 +22,7 @@ export const { t, useT, table } = phrases({
 
   // The landing page
   '管理实验结果，撰写论文，': { ja: '結果を管理し、論文を書く。', en: 'Manage results, write papers,' },
-  '一处完成，随时展示。': { ja: 'ひとつの場所で、すぐ発表。', en: 'all in one place, ready to present.' },
+  '一处完成，随时展示。': { ja: 'ひとつの場所で、すぐ発表。', en: 'all in one place. Ready to present?' },
   '把 LaTeX 写的文字、图和表格编译成清楚的网页，按章节排好。': {
     ja: 'LaTeX で書いた文章・図・表を見やすいウェブページにコンパイルし、章ごとに並べます。',
     en: 'Compile the text, figures and tables you write in LaTeX into clear web pages, ordered by section.',

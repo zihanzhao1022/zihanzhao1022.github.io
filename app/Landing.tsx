@@ -476,7 +476,7 @@ const Landing: React.FC<{ onSignIn: () => void }> = ({ onSignIn }) => {
     <div className="overflow-x-clip">
       {/* The first screen: the promise, the way in, and a results page putting itself together. */}
       <section data-shown="" className="relative">
-        <div className="mx-auto flex min-h-[calc(100svh-5.25rem)] max-w-[1120px] flex-col items-center px-4 pb-16 pt-[clamp(3rem,9vh,6.5rem)] sm:px-6">
+        <div className="mx-auto flex min-h-[calc(100svh-5.25rem)] max-w-[1120px] flex-col items-center px-4 pb-16 pt-[clamp(1.5rem,4vh,3rem)] sm:px-6">
           {/* The page opens a lemma environment, closed by \end{lemma} at the bottom. */}
           <div className="w-full max-w-[60rem]">
             <LatexTag command="begin" />
@@ -484,9 +484,14 @@ const Landing: React.FC<{ onSignIn: () => void }> = ({ onSignIn }) => {
               <span className="g-in g-rise block" style={at(60)}>
                 {t('管理实验结果，撰写论文，')}
               </span>
-              <span className="g-in g-rise block" style={at(150)}>
-                {t('一处完成，随时展示。')}
-              </span>
+              {/* Each sentence on a line of its own (English has two here). */}
+              {t('一处完成，随时展示。')
+                .split(/(?<=[.?!])\s+/)
+                .map((sentence, index) => (
+                  <span key={index} className="g-in g-rise block" style={at(150 + index * 90)}>
+                    {sentence}
+                  </span>
+                ))}
             </h1>
             {/* One sentence a line where there is room. */}
             <p className="g-in g-rise galley-prose mt-6 text-[clamp(1rem,0.9rem+0.35vw,1.125rem)] leading-relaxed text-[#6e6e73]" style={at(240)}>

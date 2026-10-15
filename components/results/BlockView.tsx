@@ -7,7 +7,7 @@ import { findQuote } from './comments/commentText';
 import { Box, layerText, quoteBoxes } from './comments/textLayer';
 import FigureZoom from './FigureZoom';
 import PdfView from './PdfView';
-import { PageBox, onPage } from './pictures';
+import { MIN_PICTURE, PageBox, onPage } from './pictures';
 
 /** A comment on text of this block, to highlight. */
 export interface QuoteMark {
@@ -132,24 +132,28 @@ const BlockView: React.FC<Props> = ({ paperId, block, references = false, quotes
             )),
           )}
           {ready &&
-            pictures.map((box) => (
-              <button
-                key={`${box.left}-${box.top}`}
-                type="button"
-                aria-label={t('放大这张图')}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setZoomed(onPage(box, output));
-                }}
-                className="resultsZoomTarget absolute"
-                style={{
-                  left: `${(100 * box.left) / output.width}%`,
-                  top: `${(100 * box.top) / output.height}%`,
-                  width: `${(100 * box.width) / output.width}%`,
-                  height: `${(100 * box.height) / output.height}%`,
-                }}
-              />
-            ))}
+            pictures
+              // A picture set past the page's edge stops there, like the page itself.
+              .map((box) => onPage(box, output))
+              .filter((box) => box.width >= MIN_PICTURE && box.height >= MIN_PICTURE)
+              .map((box) => (
+                <button
+                  key={`${box.left}-${box.top}`}
+                  type="button"
+                  aria-label={t('放大这张图')}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setZoomed(box);
+                  }}
+                  className="resultsZoomTarget absolute"
+                  style={{
+                    left: `${(100 * box.left) / output.width}%`,
+                    top: `${(100 * box.top) / output.height}%`,
+                    width: `${(100 * box.width) / output.width}%`,
+                    height: `${(100 * box.height) / output.height}%`,
+                  }}
+                />
+              ))}
         </PdfView>
       </div>
       {zoomed && (

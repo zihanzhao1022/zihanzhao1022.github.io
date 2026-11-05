@@ -21,7 +21,8 @@
     "id": "projects",
     "type": "builtin",
     "page": "projects",
-    "label": "projects"
+    "label": "projects",
+    "hidden": true
   },
   {
     "id": "talks",

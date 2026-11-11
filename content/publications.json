@@ -1,5 +1,24 @@
 [
   {
+    "id": "p-mwc3wti5",
+    "type": "journal",
+    "rank": "Q1",
+    "year": 2026,
+    "authors": [
+      "Franck Junior Aboya Messou",
+      "Jinhua Chen",
+      "Alaa Zain",
+      "Weiyu Wang",
+      "**Zihan Zhao**",
+      "Qiaozhi Hua",
+      "Amr Tolba",
+      "Keping Yu"
+    ],
+    "title": "Learnable Delay-Stability Coupling for Energy-Information Co-Optimization in Smart Grids",
+    "venue": "Applied Energy",
+    "impactFactor": "12.2"
+  },
+  {
     "id": "p4",
     "title": "UnifiedLLM: Parameter-Efficient Fine-Tuning of Large Language Models for Time Series Forecasting: A Systematic Study of LoRA Configurations and Strategies",
     "authors": [

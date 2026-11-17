@@ -281,6 +281,7 @@ export const { t, useT, table } = phrases({
   '科研与开发项目。': { ja: '研究・開発プロジェクト。', en: 'research and development projects.' },
   '暂无项目。': { ja: 'プロジェクトはありません。', en: 'No projects found.' },
   '受邀报告': { ja: '招待講演', en: 'invited talks' },
+  '学术报告': { ja: '講演', en: 'given talks' },
   '主办：{host}': { ja: '主催：{host}', en: 'Host: {host}' },
   '合作：{collaborators}': { ja: '共同：{collaborators}', en: 'With: {collaborators}' },
   // Awards

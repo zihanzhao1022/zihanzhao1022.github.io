@@ -15,7 +15,7 @@ const Talks: React.FC = () => {
     <div className="animate-fade-in pb-20">
       <div className="mb-10">
         <h1 className="text-3xl font-light text-gray-900 mb-2">
-          {t('受邀报告')}
+          {t('学术报告')}
           <AddButton request={{ kind: 'add', collection: 'talks' }} text={t('添加报告')} className="ml-3" />
         </h1>
       </div>

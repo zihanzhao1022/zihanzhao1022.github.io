@@ -165,7 +165,7 @@ const CV: React.FC = () => {
 
         {/* Invited Talks */}
         <section className="mb-8">
-           <h2 className="text-lg font-bold text-gray-900 uppercase border-b border-gray-200 mb-4 pb-1">{t('受邀报告')}</h2>
+           <h2 className="text-lg font-bold text-gray-900 uppercase border-b border-gray-200 mb-4 pb-1">{t('学术报告')}</h2>
            <ul className="space-y-3 text-sm text-gray-800">
              {talks.map((talk) => (
                <li key={talk.id} className="grid grid-cols-[1fr_auto] gap-4">

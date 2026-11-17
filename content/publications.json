@@ -16,7 +16,10 @@
     ],
     "title": "Learnable Delay-Stability Coupling for Energy-Information Co-Optimization in Smart Grids",
     "venue": "Applied Energy",
-    "impactFactor": "12.2"
+    "impactFactor": "12.2",
+    "links": {
+      "doi": "10.1016/j.apenergy.2026.129248"
+    }
   },
   {
     "id": "p4",
